@@ -367,7 +367,7 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
     </div>
 
     <!-- Summary -->
-    <div class="summary-grid" id="summary-section" style="display:none;grid-template-columns:repeat(6,1fr)">
+    <div class="summary-grid" id="summary-section" style="display:none;grid-template-columns:repeat(7,minmax(120px,1fr))">
       <div class="sum-card c-total" onclick="filterByCard('all')">
         <div class="s-label">Orderan Baru</div>
         <div class="s-value" id="s-total">—</div>
@@ -388,9 +388,13 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
         <div class="s-label">Kirim ↗</div>
         <div class="s-value" id="s-kirim" style="color:var(--success)">—</div>
       </div>
-      <div class="sum-card" onclick="filterByCard('holdcancel')" style="cursor:pointer;border:1px solid var(--border)">
-        <div class="s-label">Hold / Cancel ↗</div>
-        <div class="s-value" id="s-holdcancel" style="color:var(--warn)">—</div>
+      <div class="sum-card" onclick="filterByCard('hold')" style="cursor:pointer;border:1px solid var(--border)">
+        <div class="s-label">Hold ↗</div>
+        <div class="s-value" id="s-hold" style="color:var(--warn)">—</div>
+      </div>
+      <div class="sum-card" onclick="filterByCard('cancel')" style="cursor:pointer;border:1px solid var(--border)">
+        <div class="s-label">Cancel ↗</div>
+        <div class="s-value" id="s-cancel" style="color:var(--danger)">—</div>
       </div>
     </div>
 
@@ -1005,8 +1009,9 @@ async function doValidasiHarian() {
     document.getElementById('s-dupteam').textContent    = dupTeamCount.toLocaleString();
     document.getElementById('s-dup').textContent        = dupCount.toLocaleString();
     document.getElementById('s-rts').textContent        = rtsCount.toLocaleString();
-    document.getElementById('s-kirim').textContent      = '—';
-    document.getElementById('s-holdcancel').textContent = '—';
+    document.getElementById('s-kirim').textContent  = '—';
+    document.getElementById('s-hold').textContent   = '—';
+    document.getElementById('s-cancel').textContent = '—';
     // Live update kirim/hold/cancel via updateAccSummary()
     document.getElementById('summary-section').style.display = 'grid';
     document.getElementById('result-section').style.display  = 'block';
@@ -1261,12 +1266,15 @@ function initGreeting(email) {
 }
 
 function updateAccSummary() {
-  const kirim      = validatedData.filter(r=>(r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase()==='KIRIM').length;
-  const holdcancel = validatedData.filter(r=>['HOLD','CANCEL'].includes((r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase())).length;
+  const kirim  = validatedData.filter(r=>(r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase()==='KIRIM').length;
+  const hold   = validatedData.filter(r=>(r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase()==='HOLD').length;
+  const cancel = validatedData.filter(r=>(r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase()==='CANCEL').length;
   const elK = document.getElementById('s-kirim');
-  const elH = document.getElementById('s-holdcancel');
+  const elH = document.getElementById('s-hold');
+  const elC = document.getElementById('s-cancel');
   if (elK) elK.textContent = kirim.toLocaleString();
-  if (elH) elH.textContent = holdcancel.toLocaleString();
+  if (elH) elH.textContent = hold.toLocaleString();
+  if (elC) elC.textContent = cancel.toLocaleString();
 }
 
 function filterByCard(val) {
