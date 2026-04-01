@@ -836,10 +836,17 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   const user = await requireAuth();
   if (!user) return;
   document.getElementById('user-email').textContent = user.email;
-  document.getElementById('user-role').textContent  = user.user_metadata?.role || 'member';
+  const userRole = user.user_metadata?.role || 'validator';
+  document.getElementById('user-role').textContent = userRole;
   // Set avatar initials
   const av = document.getElementById('user-avatar');
   if (av) av.textContent = user.email.charAt(0).toUpperCase();
+  // Hide Data Master menu for non-admin
+  if (userRole !== 'admin') {
+    const navMaster = document.getElementById('nav-master');
+    if (navMaster) navMaster.style.display = 'none';
+  }
+  window._userRole = userRole;
   // Topbar date
   const dateEl = document.getElementById('topbar-date');
   if (dateEl) dateEl.textContent = new Date().toLocaleDateString('id-ID', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
@@ -936,6 +943,11 @@ function updateStep1() {
 
 // TABS
 function switchPage(name) {
+  // Block non-admin from Data Master
+  if (name === 'master' && window._userRole !== 'admin') {
+    showToast('Akses ditolak — hanya admin yang bisa akses Data Master.', 'error');
+    return;
+  }
   ['harian','master','statistik','cekHP','cekKodepos','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
