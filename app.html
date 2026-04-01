@@ -459,7 +459,7 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
                 <th data-label="Keluhan">Keluhan</th><th data-label="Real Ongkir">Real Ongkir</th>
                 <th data-label="Cek Ongkir">Cek Ongkir</th>
                 <th data-col="returadsy" data-label="Retur ADSY" onclick="sortBy('returadsy')" style="color:#9333ea;cursor:pointer">Retur ADSY ↕</th>
-                <th data-label="Wil. Rawan">Wil. Rawan</th>
+                <th data-col="wilayah" data-label="Wil. Rawan" onclick="sortBy('wilayah')" style="cursor:pointer">Wil. Rawan ↕</th>
                 <th data-col="grade" data-label="Grade" onclick="sortBy('grade')">Grade</th>
                 <th data-col="ekspedisi" data-label="Ekspedisi" onclick="sortBy('ekspedisi')">Ekspedisi</th>
                 <th data-label="SS Chat">SS Chat</th>
@@ -991,12 +991,16 @@ async function doValidasiHarian() {
       const kp = String(row._raw['Kode Pos']||row._raw['Kode pos']||row._raw['kode pos']||row._raw['KODE POS']||row._raw['kodepos']||row.kodepos||'').trim().replace(/\.0$/, '');
       const kpStat = kodeposStats[kp];
       let wilayahRawan = '';
-      if (kpStat && kpStat.total >= 3 && kpStat.retur > 0) {
+      let _kpExists = kp ? !!kpStat : null;
+      let _kpLowSample = kpStat && kpStat.total < 5;
+      if (kpStat && kpStat.total >= 5) {
         const pct = kpStat.pct || Math.round((kpStat.retur / kpStat.total) * 100);
         wilayahRawan = pct + '% (' + kpStat.retur + '/' + kpStat.total + ')';
+      } else if (!kpStat && kp) {
+        _kpExists = false;
       }
 
-      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status, _wilayahRawan:wilayahRawan };
+      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status, _wilayahRawan:wilayahRawan, _kpExists, _kpLowSample };
     });
 
     filteredData = [...validatedData];
@@ -1570,6 +1574,7 @@ function sortBy(col) {
     else if (col==='pembayaran'){ va=a._raw['Pembayaran']||''; vb=b._raw['Pembayaran']||''; }
     else if (col==='returadsy'){ va=(a._rtsInfo||a._isRetur)?'1':'0'; vb=(b._rtsInfo||b._isRetur)?'1':'0'; }
     else if (col==='grade')    { va=a._raw['GradeRekomendasi']||a._raw['Grade']||''; vb=b._raw['GradeRekomendasi']||b._raw['Grade']||''; }
+    else if (col==='wilayah')  { va=parseFloat(a._wilayahRawan)||0; vb=parseFloat(b._wilayahRawan)||0; }
     else if (col==='tanggal')  { va=a._raw['Tanggal']||''; vb=b._raw['Tanggal']||''; }
     return va < vb ? -sortDir : va > vb ? sortDir : 0;
   });
@@ -1647,7 +1652,15 @@ function renderTable() {
       ${td(row._raw['Real Ongkir']||row._raw['real ongkir'])}
       ${td(row._raw['Pengecekkan Ongkir']||row._raw['cek ongkir'])}
       <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
-      <td title="${row._wilayahRawan||''}" style="font-family:monospace;font-size:11px;${row._wilayahRawan && parseInt(row._wilayahRawan)>=30 ? 'color:#dc2626;font-weight:600' : row._wilayahRawan && parseInt(row._wilayahRawan)>=15 ? 'color:#d97706;font-weight:600' : row._wilayahRawan ? 'color:#16a34a' : ''}">${row._wilayahRawan||row._raw['Wilayah Rawan']||row._raw['wilayah rawan']||''}</td>
+      <td title="${row._wilayahRawan||''}" style="font-family:monospace;font-size:11px;${
+  row._wilayahRawan && parseInt(row._wilayahRawan)>=30 ? 'color:#dc2626;font-weight:600' :
+  row._wilayahRawan && parseInt(row._wilayahRawan)>=15 ? 'color:#d97706;font-weight:600' :
+  row._wilayahRawan ? 'color:#16a34a' : 'color:var(--muted)'
+}">${
+  row._wilayahRawan ? row._wilayahRawan :
+  row._kpExists === false ? '<span style="font-size:10px">kode pos tidak ada</span>' :
+  row._kpLowSample ? '<span style="font-size:10px">data kurang</span>' : '—'
+}</td>
       ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
       ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'')}
       ${td(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat'])}
