@@ -811,10 +811,13 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
     document.getElementById('btn-save-rts').disabled = false;
   });
 
-  setupDropzone('dz-ekspedisi', 'file-ekspedisi', 'ekspedisi', (data) => {
-    masterEkspedisiParsed = data;
-    document.getElementById('btn-save-ekspedisi').disabled = false;
-  });
+  // Ekspedisi dropzone — use raw array parsing for multi-level headers
+  const dzEkspedisi = document.getElementById('dz-ekspedisi');
+  const fileEkspedisi = document.getElementById('file-ekspedisi');
+  dzEkspedisi.addEventListener('dragover', e => { e.preventDefault(); dzEkspedisi.classList.add('drag-over'); });
+  dzEkspedisi.addEventListener('dragleave', () => dzEkspedisi.classList.remove('drag-over'));
+  dzEkspedisi.addEventListener('drop', e => { e.preventDefault(); dzEkspedisi.classList.remove('drag-over'); if(e.dataTransfer.files[0]) parseEkspedisiFile(e.dataTransfer.files[0]); });
+  fileEkspedisi.addEventListener('change', () => { if(fileEkspedisi.files[0]) parseEkspedisiFile(fileEkspedisi.files[0]); });
 
   await loadMasterCounts();
   await loadEkspedisiCount();
@@ -1857,6 +1860,74 @@ function applyGradeToTable() {
 let masterEkspedisiParsed = [];
 let ekspedisiCache = {}; // kodepos -> rekomendasi string
 
+function parseEkspedisiFile(file) {
+  const statusEl = document.getElementById('status-ekspedisi');
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      // Read as array of arrays to handle merged headers
+      const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+      
+      // Parse multi-level header structure
+      // Row 0: [KODE POS, KECAMATAN, JNE, , JNT, , SICEPAT, , NINJA, , IDX, , SAP, , LION, , ANTERAJA, ]
+      // Row 1: [, , DELIVERED, RTS, DELIVERED, RTS, ...]
+      // Row 2+: data
+      
+      const headerRow0 = raw[0] || [];
+      const headerRow1 = raw[1] || [];
+      
+      // Build column map: col index -> {ekspedisi, type}
+      const colMap = {};
+      let currentEks = '';
+      headerRow0.forEach((val, i) => {
+        if (val && String(val).trim()) currentEks = String(val).trim().toUpperCase();
+        const type = String(headerRow1[i]||'').trim().toUpperCase();
+        if (currentEks && (type === 'DELIVERED' || type === 'RTS')) {
+          colMap[i] = { eks: currentEks, type: type.toLowerCase() };
+        }
+      });
+      
+      // Find kodepos and kecamatan columns
+      const kpCol  = headerRow0.findIndex(v => String(v||'').toLowerCase().replace(/\s/g,'').includes('kodepos') || String(v||'').toLowerCase().includes('kode pos'));
+      const kcCol  = headerRow0.findIndex(v => String(v||'').toLowerCase().includes('kecamatan'));
+      
+      console.log('kpCol:', kpCol, 'kcCol:', kcCol, 'colMap:', colMap);
+      
+      // Build result rows from data rows (skip first 2 header rows)
+      const result = {};
+      raw.slice(2).forEach(row => {
+        const kp = String(row[kpCol]||'').trim().replace(/\.0$/,'');
+        const kc = String(row[kcCol]||'').trim();
+        if (!kp) return;
+        const key = kp + '|' + kc;
+        if (!result[key]) result[key] = { kodepos:kp, kecamatan:kc, jne_del:0, jne_rts:0, jnt_del:0, jnt_rts:0, ninja_del:0, ninja_rts:0, lion_del:0, lion_rts:0, sicepat_del:0, sicepat_rts:0, idx_del:0, idx_rts:0, sap_del:0, sap_rts:0, anteraja_del:0, anteraja_rts:0 };
+        
+        Object.entries(colMap).forEach(([ci, {eks, type}]) => {
+          const val = parseFloat(String(row[ci]||'0').replace('%','')) || 0;
+          const eksLower = eks.toLowerCase().replace(/\s/g,'').replace('parcel','').replace('sicepat','sicepat').replace('anteraja','anteraja');
+          const fieldMap = {jne:'jne', jnt:'jnt', ninja:'ninja', lion:'lion', sicepat:'sicepat', idx:'idx', sap:'sap', anteraja:'anteraja'};
+          for (const [k,v] of Object.entries(fieldMap)) {
+            if (eksLower.includes(k)) {
+              result[key][v+'_'+type] = val;
+              break;
+            }
+          }
+        });
+      });
+      
+      masterEkspedisiParsed = Object.values(result);
+      document.getElementById('btn-save-ekspedisi').disabled = false;
+      setStatus(statusEl, 'ok', `✓ ${masterEkspedisiParsed.length} wilayah berhasil dibaca dari ${file.name}`);
+    } catch(e) {
+      setStatus(statusEl, 'err', `✗ Gagal parse: ${e.message}`);
+      console.error(e);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 async function loadEkspedisiCount() {
   try {
     const { count } = await sb.from('ekspedisi_rekomendasi').select('*', { count:'exact', head:true });
@@ -1953,24 +2024,19 @@ async function loadEkspedisiCache() {
         const kp = String(r.kodepos||'').trim();
         if (!kp) return;
         // Calculate RTS % for each ekspedisi
+        // Values stored as % delivered (e.g. 84.83)
+        // RTS% = 100 - delivered%
         const eks = [
           { name:'JNE',   del:r.jne_del,   rts:r.jne_rts   },
           { name:'JNT',   del:r.jnt_del,   rts:r.jnt_rts   },
           { name:'Ninja', del:r.ninja_del, rts:r.ninja_rts },
           { name:'Lion',  del:r.lion_del,  rts:r.lion_rts  },
         ];
-        const valid = eks.filter(e => (e.del+e.rts) >= 3);
-        valid.sort((a,b) => {
-          const pctA = a.rts/(a.del+a.rts);
-          const pctB = b.rts/(b.del+b.rts);
-          return pctA - pctB;
-        });
+        // Filter out zeros and sort by RTS% ascending (lower RTS = better)
+        const valid = eks.filter(e => e.rts > 0 || e.del > 0);
+        valid.sort((a,b) => a.rts - b.rts);
         if (valid.length) {
-          const top = valid.slice(0,3).map(e => {
-            const total = e.del+e.rts;
-            const pct = Math.round((e.rts/total)*100);
-            return e.name + '(' + pct + '%)';
-          });
+          const top = valid.slice(0,3).map(e => e.name + '(' + Math.round(e.rts) + '%)');
           ekspedisiCache[kp] = top.join(' > ');
         }
       });
