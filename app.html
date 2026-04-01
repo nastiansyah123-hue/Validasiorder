@@ -380,6 +380,27 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
 
     <!-- Summary -->
+    <!-- Grade Upload Card -->
+    <div class="card" id="grade-card" style="margin-bottom:1rem">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Upload Data Grade (Pihak Ketiga)</div>
+          <div class="card-desc">File berisi kolom Nomor HP dan Grade. Akan otomatis dicocokkan ke tabel validasi berdasarkan nomor HP.</div>
+        </div>
+        <button onclick="toggleGradeCard()" id="btn-toggle-grade" title="Sembunyikan/Tampilkan" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:6px">▲</button>
+      </div>
+      <div id="grade-body">
+        <div class="drop-zone" id="dz-grade">
+          <input type="file" id="file-grade" accept=".csv,.xlsx,.xls" />
+          <div class="drop-zone-icon">🎯</div>
+          <div class="drop-zone-text">Upload file Grade dari pihak ketiga<br><span>.csv / .xlsx — kolom: Nomor HP, Grade</span></div>
+        </div>
+        <div id="status-grade" class="drop-status"></div>
+        <div id="grade-match-info" style="font-size:12px;color:var(--muted);font-family:monospace;margin-top:6px;display:none"></div>
+      </div>
+    </div>
+
+
     <div class="summary-grid" id="summary-section" style="display:none;grid-template-columns:repeat(7,minmax(120px,1fr))">
       <div class="sum-card c-total" onclick="filterByCard('all')">
         <div class="s-label">Orderan Baru</div>
@@ -413,27 +434,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
 
     <!-- Result -->
     <div id="result-section" style="display:none">
-      <!-- Grade Upload Card -->
-    <div class="card" id="grade-card" style="margin-bottom:1rem">
-      <div class="card-header">
-        <div>
-          <div class="card-title">Upload Data Grade (Pihak Ketiga)</div>
-          <div class="card-desc">File berisi kolom Nomor HP dan Grade. Akan otomatis dicocokkan ke tabel validasi berdasarkan nomor HP.</div>
-        </div>
-        <button onclick="toggleGradeCard()" id="btn-toggle-grade" title="Sembunyikan/Tampilkan" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:6px">▲</button>
-      </div>
-      <div id="grade-body">
-        <div class="drop-zone" id="dz-grade">
-          <input type="file" id="file-grade" accept=".csv,.xlsx,.xls" />
-          <div class="drop-zone-icon">🎯</div>
-          <div class="drop-zone-text">Upload file Grade dari pihak ketiga<br><span>.csv / .xlsx — kolom: Nomor HP, Grade</span></div>
-        </div>
-        <div id="status-grade" class="drop-status"></div>
-        <div id="grade-match-info" style="font-size:12px;color:var(--muted);font-family:monospace;margin-top:6px;display:none"></div>
-      </div>
-    </div>
-
-    <!-- Bulk action bar -->
+      <!-- Bulk action bar -->
     <div id="bulk-bar" style="display:none;background:var(--accent-light);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
       <span id="bulk-count" style="font-size:13px;font-weight:600;color:var(--accent);font-family:monospace"></span>
       <span style="font-size:13px;color:var(--muted)">baris dipilih —</span>
@@ -454,6 +455,8 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <option value="cancel">Cancel</option>
           <option value="holdcancel">Hold / Cancel</option>
           <option value="ok">Belum Diputuskan</option>
+          <option value="grade-ada">Grade Ada</option>
+          <option value="grade-kosong">Grade Kosong</option>
         </select>
         <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
           <option value="all">Semua Ekspedisi</option>
@@ -1144,6 +1147,7 @@ function doFilter() {
   filteredData = validatedData.filter(row => {
     // Status filter
     const accVal = (row._accSPV||row._raw['ACC SPV CS']||'').toUpperCase();
+    const gradeVal = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade']||'').trim();
     const mf = f==='all'?true
       :f==='dupteam'?row._isDupTeam
       :f==='dupall'?row._isDup
@@ -1153,6 +1157,8 @@ function doFilter() {
       :f==='cancel'?accVal==='CANCEL'
       :f==='holdcancel'?['HOLD','CANCEL'].includes(accVal)
       :f==='ok'?(!accVal)
+      :f==='grade-ada'?!!gradeVal&&gradeVal!=='-'
+      :f==='grade-kosong'?(!gradeVal||gradeVal==='-')
       :true;
     if (!mf) return false;
 
@@ -1815,7 +1821,7 @@ function sortBy(col) {
     else if (col==='ekspedisi'){ va=a._raw['Ekspedisi']||''; vb=b._raw['Ekspedisi']||''; }
     else if (col==='pembayaran'){ va=a._raw['Pembayaran']||''; vb=b._raw['Pembayaran']||''; }
     else if (col==='returadsy'){ va=(a._rtsInfo||a._isRetur)?'1':'0'; vb=(b._rtsInfo||b._isRetur)?'1':'0'; }
-    else if (col==='grade')    { va=a._raw['GradeRekomendasi']||a._raw['Grade']||''; vb=b._raw['GradeRekomendasi']||b._raw['Grade']||''; }
+    else if (col==='grade')    { va=a._grade||a._raw['GradeRekomendasi']||a._raw['Grade']||''; vb=b._grade||b._raw['GradeRekomendasi']||b._raw['Grade']||''; }
     else if (col==='wilayah')  { va=parseFloat(a._wilayahRawan)||0; vb=parseFloat(b._wilayahRawan)||0; }
     else if (col==='tanggal')  { va=a._raw['Tanggal']||''; vb=b._raw['Tanggal']||''; }
     return va < vb ? -sortDir : va > vb ? sortDir : 0;
