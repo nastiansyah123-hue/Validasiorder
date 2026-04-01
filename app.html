@@ -795,6 +795,29 @@ async function doValidasiHarian() {
     const hpListStripped = hpList.map(hp => hp.replace(/^0+/, ''));
     const hpListAll = [...new Set([...hpList, ...hpListStripped])];
 
+    // 1b. Fetch kodepos stats dari semua data master (paginated, hanya kodepos+status_akhir)
+    badge.textContent = 'menghitung statistik wilayah...';
+    const kodeposStats = {};
+    let kpFrom = 0;
+    while (true) {
+      const { data: kpData, error: kpErr } = await sb.from('all_orderan')
+        .select('kodepos,status_akhir')
+        .range(kpFrom, kpFrom + 1999);
+      if (kpErr) throw kpErr;
+      if (!kpData || !kpData.length) break;
+      kpData.forEach(r => {
+        const kp = String(r.kodepos||'').trim().replace(/\.0$/, '');
+        if (!kp) return;
+        if (!kodeposStats[kp]) kodeposStats[kp] = { total:0, retur:0 };
+        kodeposStats[kp].total++;
+        if ((r.status_akhir||'').toLowerCase().includes('retur')) kodeposStats[kp].retur++;
+      });
+      if (kpData.length < 2000) break;
+      kpFrom += 2000;
+      badge.textContent = `menghitung statistik wilayah... ${kpFrom.toLocaleString()} baris`;
+    }
+    window._kodeposStats = kodeposStats;
+
     // 2. Query Supabase HANYA untuk HP yang ada di orderan baru (jauh lebih cepat)
     badge.textContent = `mengecek ${hpList.length} nomor HP di database...`;
     const allOrderan = [];
@@ -812,8 +835,6 @@ async function doValidasiHarian() {
     // 3. Index HP → daftar match + kodepos RTS rate
     badge.textContent = 'membangun index...';
     const hpIndex = {};
-    const kodeposStats = {}; // { kodepos: { total, retur } }
-
     allOrderan.forEach(r => {
       // HP index
       const hp = normalizeHP(r.hp);
@@ -821,20 +842,8 @@ async function doValidasiHarian() {
         if (!hpIndex[hp]) hpIndex[hp] = [];
         hpIndex[hp].push(r);
       }
-      // Kodepos stats — normalize to string, trim
-      const kp = String(r.kodepos||'').trim().replace(/\.0$/, '');
-      if (kp) {
-        if (!kodeposStats[kp]) kodeposStats[kp] = { total:0, retur:0 };
-        kodeposStats[kp].total++;
-        if ((r.status_akhir||'').toLowerCase().includes('retur')) {
-          kodeposStats[kp].retur++;
-        }
-      }
-    });
 
-    // Expose for debug
-    window._kodeposStats = kodeposStats;
-    console.log('kodeposStats total keys:', Object.keys(kodeposStats).length, '| sample:', Object.entries(kodeposStats).slice(0,3));
+    });
 
     // 4. Kumpulkan RESI lama yang perlu dicek RTS
     badge.textContent = 'mengecek RTS...';
