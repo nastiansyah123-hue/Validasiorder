@@ -73,20 +73,24 @@
     </div>
   </div>
 
-  <div class="summary-grid" id="summary-section" style="display:none">
-    <div class="sum-card ok" onclick="filterByCard('all')" style="cursor:pointer" title="Tampilkan semua">
+  <div class="summary-grid" id="summary-section" style="display:none;grid-template-columns:repeat(5,1fr)">
+    <div class="sum-card ok" onclick="filterByCard('all')" style="cursor:pointer">
       <div class="label">Orderan Baru</div>
       <div class="value" id="s-total">—</div>
     </div>
-    <div class="sum-card danger" onclick="filterByCard('dupall')" style="cursor:pointer" title="Tampilkan duplikat all team">
-      <div class="label">Duplikat HP ↗</div>
+    <div class="sum-card dup" onclick="filterByCard('dupteam')" style="cursor:pointer">
+      <div class="label">Duplikat Team ↗</div>
+      <div class="value" id="s-dupteam">—</div>
+    </div>
+    <div class="sum-card danger" onclick="filterByCard('dupall')" style="cursor:pointer">
+      <div class="label">Duplikat All Team ↗</div>
       <div class="value" id="s-dup">—</div>
     </div>
-    <div class="sum-card warn" onclick="filterByCard('rts')" style="cursor:pointer" title="Tampilkan pernah RTS">
+    <div class="sum-card warn" onclick="filterByCard('rts')" style="cursor:pointer">
       <div class="label">Pernah RTS ↗</div>
       <div class="value" id="s-rts">—</div>
     </div>
-    <div class="sum-card ok" onclick="filterByCard('ok')" style="cursor:pointer" title="Tampilkan hanya aman">
+    <div class="sum-card ok" onclick="filterByCard('ok')" style="cursor:pointer">
       <div class="label">Aman ↗</div>
       <div class="value" id="s-aman">—</div>
     </div>
@@ -609,14 +613,16 @@ async function doValidasiHarian() {
     });
 
     filteredData = [...validatedData];
-    const dupCount  = validatedData.filter(r=>r._isDup).length;
-    const rtsCount  = validatedData.filter(r=>r._isRetur||r._rtsInfo).length;
-    const amanCount = validatedData.filter(r=>!r._isDup&&!r._isRetur&&!r._rtsInfo).length;
+    const dupCount     = validatedData.filter(r=>r._isDup).length;
+    const dupTeamCount = validatedData.filter(r=>r._isDupTeam).length;
+    const rtsCount     = validatedData.filter(r=>r._isRetur||r._rtsInfo).length;
+    const amanCount    = validatedData.filter(r=>!r._isDup&&!r._isDupTeam&&!r._isRetur&&!r._rtsInfo).length;
 
-    document.getElementById('s-total').textContent = validatedData.length.toLocaleString();
-    document.getElementById('s-dup').textContent   = dupCount.toLocaleString();
-    document.getElementById('s-rts').textContent   = rtsCount.toLocaleString();
-    document.getElementById('s-aman').textContent  = amanCount.toLocaleString();
+    document.getElementById('s-total').textContent   = validatedData.length.toLocaleString();
+    document.getElementById('s-dupteam').textContent = dupTeamCount.toLocaleString();
+    document.getElementById('s-dup').textContent     = dupCount.toLocaleString();
+    document.getElementById('s-rts').textContent     = rtsCount.toLocaleString();
+    document.getElementById('s-aman').textContent    = amanCount.toLocaleString();
     document.getElementById('summary-section').style.display = 'grid';
     document.getElementById('result-section').style.display  = 'block';
     document.getElementById('step3-ind').className = 'step done';
