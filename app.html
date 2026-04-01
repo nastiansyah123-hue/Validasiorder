@@ -91,9 +91,9 @@
     <div class="action-bar" style="flex-wrap:wrap;gap:6px">
       <select class="filter-select" id="filter-status" onchange="doFilter()">
         <option value="all">Semua baris</option>
-        <option value="dup">Hanya Duplikat</option>
+        <option value="dupteam">Duplikat Team</option>
+        <option value="dupall">Duplikat All Team</option>
         <option value="rts">Hanya Pernah RTS</option>
-        <option value="both">Duplikat + RTS</option>
         <option value="ok">Hanya Aman</option>
       </select>
       <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
@@ -634,7 +634,7 @@ function doFilter() {
 
   filteredData = validatedData.filter(row => {
     // Status filter
-    const mf = f==='all'?true:f==='dup'?row._isDup:f==='rts'?!!row._rtsInfo||row._isRetur:f==='both'?(row._isDup&&(!!row._rtsInfo||row._isRetur)):f==='ok'?(!row._isDup&&!row._rtsInfo&&!row._isRetur):true;
+    const mf = f==='all'?true:f==='dupteam'?row._isDupTeam:f==='dupall'?row._isDup:f==='rts'?(row._isRetur||!!row._rtsInfo):f==='ok'?(!row._isDupTeam&&!row._isDup&&!row._isRetur&&!row._rtsInfo):true;
     if (!mf) return false;
 
     // Ekspedisi filter
