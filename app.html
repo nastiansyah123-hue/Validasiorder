@@ -684,7 +684,7 @@ function renderTable() {
       ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'')}
       ${td(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat'])}
       ${td(row._raw['Duplikat Team']||row._raw['duplikat team'])}
-      <td style="background:${row._isDup?'var(--c-dup-bg)':''};">${dupAllTeam}</td>
+      <td class="td-wide" style="background:${row._isDup?'var(--c-dup-bg)':''};">${dupAllTeam}</td>
       ${td(row._raw['ACC SPV CS']||row._raw['acc spv cs'])}
       ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
     </tr>`;
