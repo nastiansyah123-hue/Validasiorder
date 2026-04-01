@@ -40,7 +40,7 @@ function buildExportRows(filteredData) {
       'Kirim SS Chat Customer' : r['Kirim SS Chat Customer']||'',
       'Duplikat Team'          : row._isDupTeam ? 'DUPLIKAT TEAM' : '',
       'Duplikat All Team'      : dupAllTeam,
-      'ACC SPV CS'             : r['ACC SPV CS']||'',
+      'ACC SPV CS'             : row._accSPV || r['ACC SPV CS'] || '',
       'ACC SPV OP'             : r['ACC SPV OP']||'',
     };
   });
