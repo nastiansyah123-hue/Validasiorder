@@ -39,8 +39,30 @@
   --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
 }
+
+[data-theme="dark"] {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.13);
+  --text: #e8eaf0;
+  --muted: #8b92a5;
+  --accent: #6366f1;
+  --accent-light: #1e1f3a;
+  --accent-hover: #818cf8;
+  --danger: #ef4444;
+  --danger-light: #2a1515;
+  --warn: #f59e0b;
+  --warn-light: #2a2010;
+  --success: #22c55e;
+  --success-light: #0f2a1a;
+  --dup: #a855f7;
+  --dup-light: #1e1030;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;overflow-x:hidden}
 
 /* SIDEBAR */
 .sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform 0.25s}
@@ -63,7 +85,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .btn-logout-side:hover{background:var(--danger-light);color:var(--danger)}
 
 /* MAIN */
-.main-area{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.main-area{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;max-width:calc(100vw - var(--sidebar-w))}
 .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
 .topbar-title{font-size:15px;font-weight:700;color:var(--text)}
 .topbar-right{display:flex;align-items:center;gap:8px}
@@ -75,7 +97,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 #greeting-bar .g-date{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px}
 
 /* PAGE CONTENT */
-.page{display:none;padding:1.5rem;flex:1}
+.page{display:none;padding:1.5rem;flex:1;overflow-x:hidden}
 .page.active{display:block}
 .page-header{margin-bottom:1.25rem}
 .page-title{font-size:18px;font-weight:700}
@@ -88,7 +110,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:1rem}
 
 /* SUMMARY CARDS */
-.summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.25rem}
+.summary-grid{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:10px;margin-bottom:1.25rem;overflow-x:auto}
 .sum-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;cursor:pointer;transition:all 0.15s;box-shadow:var(--shadow)}
 .sum-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
 .sum-card .s-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--mono);margin-bottom:6px}
@@ -101,12 +123,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .sum-card.active-card{outline:2px solid var(--accent);outline-offset:2px}
 
 /* STEP BAR */
-.step-bar{display:flex;align-items:center;margin-bottom:1.25rem}
+.step-bar{display:flex;align-items:center;margin-bottom:1.25rem;overflow:hidden}
 .step{display:flex;align-items:center;gap:8px}
 .step-num{width:26px;height:26px;border-radius:50%;background:var(--border-strong);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:var(--mono);flex-shrink:0;transition:all 0.2s}
 .step.done .step-num{background:var(--success);color:white}
 .step.active .step-num{background:var(--accent);color:white}
-.step-label{font-size:12px;color:var(--muted);font-family:var(--mono);line-height:1.4}
+.step-label{font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.4;max-width:100px}
 .step-label span{font-size:10px}
 .step.done .step-label{color:var(--success)}
 .step.active .step-label{color:var(--accent)}
@@ -148,9 +170,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 /* TABLE */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
-.table-scroll{overflow-x:auto;max-height:560px;overflow-y:auto}
+.table-scroll{overflow-x:auto;max-height:calc(100vh - 340px);overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
-thead th{position:sticky;top:0;background:#f8f9ff;padding:10px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--mono);border-bottom:1px solid var(--border);white-space:nowrap;z-index:2}
+thead th{position:sticky;top:0;background:var(--bg);padding:10px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--mono);border-bottom:1px solid var(--border);white-space:nowrap;z-index:2}
 thead th[onclick]{cursor:pointer}
 thead th[onclick]:hover{background:var(--accent-light);color:var(--accent)}
 tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s}
@@ -239,6 +261,13 @@ tr.row-both{background:linear-gradient(90deg,var(--dup-light) 50%,var(--warn-lig
     </div>
   </nav>
   <div class="sidebar-user">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">Tampilan</span>
+      <div onclick="toggleDark()" id="theme-toggle" style="display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--bg);border:1px solid var(--border-strong);border-radius:99px;padding:4px 10px;font-size:11px;color:var(--muted);transition:all 0.2s;user-select:none">
+        <span id="theme-icon">🌙</span>
+        <span id="theme-label">Gelap</span>
+      </div>
+    </div>
     <div class="user-card">
       <div class="user-avatar" id="user-avatar">?</div>
       <div class="user-info">
@@ -303,7 +332,7 @@ tr.row-both{background:linear-gradient(90deg,var(--dup-light) 50%,var(--warn-lig
           <div class="card-title">Upload Orderan Baru Hari Ini</div>
           <div class="card-desc">Tidak disimpan ke database — hanya untuk pengecekan terhadap data master. Bisa pilih banyak file sekaligus.</div>
         </div>
-        <button onclick="toggleUploadCard()" id="btn-toggle-upload" class="btn-secondary" style="font-size:11px;flex-shrink:0">▲ Sembunyikan</button>
+        <button onclick="toggleUploadCard()" id="btn-toggle-upload" title="Sembunyikan/Tampilkan" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:6px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'">▲</button>
       </div>
       <div id="upload-body">
         <div class="drop-zone" id="dz-baru">
@@ -829,7 +858,7 @@ async function doValidasiHarian() {
     // Auto collapse upload card setelah validasi selesai
     const uploadBody = document.getElementById('upload-body');
     const toggleBtn  = document.getElementById('btn-toggle-upload');
-    if (uploadBody) { uploadBody.style.display='none'; toggleBtn.textContent='▼ Tampilkan'; }
+    if (uploadBody) { uploadBody.style.display='none'; toggleBtn.textContent='▼'; }
     setTimeout(()=>{ const res=document.getElementById('result-section'); if(res) res.scrollIntoView({behavior:'smooth',block:'start'}); },200);
     showToast(`Selesai — ${dupCount} duplikat, ${rtsCount} pernah RTS dari ${validatedData.length} orderan.`, dupCount>0?'error':'success');
 
@@ -1090,7 +1119,7 @@ function toggleUploadCard() {
   const btn  = document.getElementById('btn-toggle-upload');
   const hidden = body.style.display === 'none';
   body.style.display = hidden ? 'block' : 'none';
-  btn.textContent = hidden ? '▲ Sembunyikan' : '▼ Tampilkan';
+  btn.textContent = hidden ? '▲' : '▼';
   // Auto scroll to result if hiding
   if (!hidden) {
     setTimeout(() => {
@@ -1226,6 +1255,34 @@ function renderPag() {
 }
 
 function gp(p){ const max=Math.ceil(filteredData.length/PAGE_SIZE); if(p<1||p>max)return; currentPage=p; renderTable(); }
+
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const newTheme = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('vo-theme', newTheme);
+  updateThemeToggle(newTheme);
+}
+
+function updateThemeToggle(theme) {
+  const icon  = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+  if (!icon) return;
+  if (theme === 'dark') {
+    icon.textContent  = '☀️';
+    label.textContent = 'Terang';
+  } else {
+    icon.textContent  = '🌙';
+    label.textContent = 'Gelap';
+  }
+}
+
+// Apply saved theme on load
+(function() {
+  const saved = localStorage.getItem('vo-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  updateThemeToggle(saved);
+})();
 </script>
 </body>
 </html>
