@@ -1413,7 +1413,7 @@ async function cekHP() {
     const hp      = normalizeHP(raw);
     const hpStrip = hp.replace(/^0+/, '');
     const { data, error } = await sb.from('all_orderan')
-      .select('tanggal,nama,resi,status_akhir,kodepos,kabupaten,provinsi,cs,adv')
+      .select('tanggal,nama,resi,status_akhir,kodepos,kabupaten,provinsi,cs,adv,jumlah,instruksi')
       .or('hp.eq.' + hp + ',hp.eq.' + hpStrip)
       .order('tanggal', { ascending: false });
     if (error) throw error;
@@ -1431,6 +1431,14 @@ async function cekHP() {
       '<div class="sum-card c-dupall"><div class="s-label">RTS</div><div class="s-value" style="color:var(--danger)">' + retur + '</div></div>' +
       '<div class="sum-card c-rts"><div class="s-label">% RTS</div><div class="s-value" style="color:' + (pct>=30?'var(--danger)':pct>=15?'var(--warn)':'var(--success)') + '">' + pct + '%</div></div>';
     document.getElementById('cekHP-title').textContent = 'Riwayat HP: ' + hp + ' — ' + (data[0].nama||'');
+    // Ambil reason RTS untuk semua resi yang RETUR
+    const returResiList = data.filter(r=>(r.status_akhir||'').toLowerCase().includes('retur')).map(r=>(r.resi||'').toLowerCase()).filter(Boolean);
+    const rtsReasonMap = {};
+    if (returResiList.length) {
+      const { data: rtsData } = await sb.from('all_rts').select('resi,reason,status,bulan').in('resi', returResiList);
+      if (rtsData) rtsData.forEach(r => { if (!rtsReasonMap[r.resi]) rtsReasonMap[r.resi] = r; });
+    }
+
     document.getElementById('cekHP-timeline').innerHTML = data.map(function(r) {
       const isRetur = (r.status_akhir||'').toLowerCase().includes('retur');
       const dotColor = isRetur ? 'var(--danger)' : 'var(--success)';
@@ -1444,8 +1452,15 @@ async function cekHP() {
             '<span style="font-size:11px;font-family:monospace;font-weight:600;color:' + dotColor + '">' + (r.status_akhir||'—') + '</span>' +
           '</div>' +
           '<div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:16px;flex-wrap:wrap">' +
-            '<span>RESI: ' + (r.resi||'—') + '</span>' +
+            (function(){
+            var resiNorm = (r.resi||'').toLowerCase();
+            var rtsInfo = rtsReasonMap[resiNorm];
+            var reasonHtml = rtsInfo ? '<span style="color:var(--warn);font-weight:600">Reason: ' + (rtsInfo.reason||rtsInfo.status||'ditemukan') + ' (' + (rtsInfo.bulan||'') + ')</span>' : '';
+            return '<span>RESI: ' + (r.resi||'—') + '</span>' + reasonHtml;
+          })() +
+            '<span>Produk: ' + (r.jumlah||'—') + '</span>' +
             '<span>' + ([r.kabupaten,r.provinsi].filter(Boolean).join(', ')||'—') + '</span>' +
+            (r.instruksi ? '<span>Ekspedisi: ' + r.instruksi.split('/')[0].trim() + '</span>' : '') +
             '<span>KP: ' + (r.kodepos||'—') + '</span>' +
             (r.cs ? '<span>CS: ' + r.cs + '</span>' : '') +
           '</div>' +
