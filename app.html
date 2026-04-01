@@ -14,7 +14,6 @@
 </head>
 <body>
 
-<!-- TOPBAR -->
 <div class="topbar">
   <div class="topbar-title">ValidasiOrder</div>
   <div class="topbar-user">
@@ -24,56 +23,57 @@
   </div>
 </div>
 
-<!-- TABS -->
 <div class="tabs">
-  <div class="tab active" id="tab-btn-validasi"  onclick="switchTab('validasi')">Validasi Orderan</div>
-  <div class="tab"        id="tab-btn-rts"        onclick="switchTab('rts')">Data RTS</div>
-  <div class="tab"        id="tab-btn-panduan"    onclick="switchTab('panduan')">Panduan</div>
+  <div class="tab active" id="tab-btn-harian"  onclick="switchTab('harian')">Validasi Harian</div>
+  <div class="tab"        id="tab-btn-master"  onclick="switchTab('master')">Data Master</div>
+  <div class="tab"        id="tab-btn-panduan" onclick="switchTab('panduan')">Panduan</div>
 </div>
 
-<!-- ══ TAB: VALIDASI ══════════════════════════════════════════════════════════ -->
-<div id="tab-validasi" class="main">
+<!-- TAB VALIDASI HARIAN -->
+<div id="tab-harian" class="main">
 
-  <!-- Import -->
-  <div class="import-grid">
-    <div class="import-card">
-      <h3>Data All Orderan</h3>
-      <p>Export dari Google Sheets (CSV / XLSX). Kolom wajib ada: Nomor Hp dan RESI.</p>
-      <div class="drop-zone" id="dz-order">
-        <input type="file" id="file-order" accept=".csv,.xlsx,.xls" />
-        <div class="drop-zone-icon">📂</div>
-        <div class="drop-zone-text">Drag & drop atau klik untuk pilih file<br><span>.csv / .xlsx</span></div>
-      </div>
-      <div class="range-row">
-        <input type="text" id="order-range" placeholder="Range opsional, misal: A1:T5000" />
-      </div>
-      <div class="range-label">Kosongkan jika ingin baca seluruh sheet</div>
-      <div id="status-order" class="drop-status"></div>
+  <div class="step-bar">
+    <div class="step done" id="step1-ind">
+      <div class="step-num">1</div>
+      <div class="step-label">Data Master<br><span id="step1-sub">cek status...</span></div>
     </div>
-
-    <div class="import-card">
-      <h3>Data All RTS</h3>
-      <p>Pencarian reason RTS berdasarkan RESI, scan semua kolom bulan Jan–Des.</p>
-      <div class="drop-zone" id="dz-rts">
-        <input type="file" id="file-rts" accept=".csv,.xlsx,.xls" />
-        <div class="drop-zone-icon">📋</div>
-        <div class="drop-zone-text">Drag & drop atau klik untuk pilih file<br><span>.csv / .xlsx</span></div>
-      </div>
-      <div class="range-row">
-        <input type="text" id="rts-range" placeholder="Range opsional, misal: A1:CZ2000" />
-      </div>
-      <div class="range-label">Kosongkan jika ingin baca seluruh sheet</div>
-      <div id="status-rts" class="drop-status"></div>
+    <div class="step-line"></div>
+    <div class="step" id="step2-ind">
+      <div class="step-num">2</div>
+      <div class="step-label">Upload Orderan Baru<br><span id="step2-sub">belum diupload</span></div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="step3-ind">
+      <div class="step-num">3</div>
+      <div class="step-label">Hasil Validasi<br><span id="step3-sub">belum dijalankan</span></div>
     </div>
   </div>
 
-  <!-- Summary -->
-  <div class="summary-grid">
+  <div class="section-card">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Upload Orderan Baru Hari Ini</div>
+        <div class="section-desc">File orderan baru yang akan divalidasi. Tidak disimpan ke database — hanya untuk pengecekan terhadap data master.</div>
+      </div>
+    </div>
+    <div class="drop-zone" id="dz-baru">
+      <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" />
+      <div class="drop-zone-icon">📥</div>
+      <div class="drop-zone-text">Drag & drop atau klik — orderan baru hari ini<br><span>.csv / .xlsx</span></div>
+    </div>
+    <div id="status-baru" class="drop-status"></div>
+    <div style="margin-top:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn-run" id="btn-validasi" disabled onclick="doValidasiHarian()">Jalankan Validasi</button>
+      <span class="loading-badge" id="loading-validasi">memproses...</span>
+    </div>
+  </div>
+
+  <div class="summary-grid" id="summary-section" style="display:none">
     <div class="sum-card ok">
-      <div class="label">Total Orderan</div>
+      <div class="label">Orderan Baru</div>
       <div class="value" id="s-total">—</div>
     </div>
-    <div class="sum-card dup">
+    <div class="sum-card danger">
       <div class="label">Duplikat HP</div>
       <div class="value" id="s-dup">—</div>
     </div>
@@ -81,338 +81,535 @@
       <div class="label">Pernah RTS</div>
       <div class="value" id="s-rts">—</div>
     </div>
-    <div class="sum-card danger">
-      <div class="label">Bermasalah</div>
-      <div class="value" id="s-masalah">—</div>
+    <div class="sum-card ok">
+      <div class="label">Aman</div>
+      <div class="value" id="s-aman">—</div>
     </div>
   </div>
 
-  <!-- Action bar -->
-  <div class="action-bar">
-    <button class="btn-run" id="btn-run" disabled onclick="doValidation()">Jalankan Validasi</button>
-    <select class="filter-select" id="filter-status" onchange="doFilter()">
-      <option value="all">Semua baris</option>
-      <option value="dup">Hanya Duplikat</option>
-      <option value="rts">Hanya RTS</option>
-      <option value="both">Duplikat + RTS</option>
-      <option value="ok">Hanya Aman</option>
-    </select>
-    <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi..." oninput="doFilter()" />
-    <span class="spacer"></span>
-    <span class="loading-badge" id="loading-badge">memproses...</span>
-    <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
-    <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
-  </div>
-
-  <!-- Table -->
-  <div class="table-wrap">
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>No</th><th>Tanggal</th><th>Nama</th><th>No HP</th>
-            <th>Kode Pos</th><th>RESI</th><th>Pembayaran</th><th>Status Akhir</th>
-            <th>Status Validasi</th><th>Duplikat</th><th>RTS Info</th>
-          </tr>
-        </thead>
-        <tbody id="main-tbody">
-          <tr><td colspan="11" class="empty-state">Import data orderan dan RTS, lalu klik "Jalankan Validasi"</td></tr>
-        </tbody>
-      </table>
+  <div id="result-section" style="display:none">
+    <div class="action-bar">
+      <select class="filter-select" id="filter-status" onchange="doFilter()">
+        <option value="all">Semua baris</option>
+        <option value="dup">Hanya Duplikat</option>
+        <option value="rts">Hanya RTS</option>
+        <option value="both">Duplikat + RTS</option>
+        <option value="ok">Hanya Aman</option>
+      </select>
+      <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi..." oninput="doFilter()" />
+      <span class="spacer"></span>
+      <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
+      <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
     </div>
-    <div class="pagination">
-      <span id="page-info">—</span>
-      <div class="page-btns" id="page-btns"></div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>No</th><th>Nama</th><th>No HP</th><th>Kode Pos</th>
+              <th>RESI Baru</th><th>Pembayaran</th>
+              <th>Status Validasi</th>
+              <th>Pernah Order? (nama &amp; tanggal)</th>
+              <th>RESI Lama</th><th>Reason RTS</th>
+            </tr>
+          </thead>
+          <tbody id="main-tbody">
+            <tr><td colspan="10" class="empty-state">Belum ada hasil validasi</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="page-info">—</span>
+        <div class="page-btns" id="page-btns"></div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ══ TAB: RTS ════════════════════════════════════════════════════════════════ -->
-<div id="tab-rts" class="main" style="display:none">
-  <div class="action-bar">
-    <input class="search-input" id="rts-search" type="text" placeholder="Cari resi / reason..." oninput="doRtsFilter()" style="width:280px" />
-    <span class="spacer"></span>
-    <span id="rts-count" style="font-size:12px;color:var(--c-muted);font-family:monospace"></span>
-  </div>
-  <div class="table-wrap">
-    <div class="table-scroll">
-      <table>
-        <thead id="rts-thead"></thead>
-        <tbody id="rts-tbody">
-          <tr><td class="empty-state">Belum ada data RTS diimport</td></tr>
-        </tbody>
-      </table>
+<!-- TAB DATA MASTER -->
+<div id="tab-master" class="main" style="display:none">
+  <div class="master-grid">
+
+    <div class="section-card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">All Orderan (Historis)</div>
+          <div class="section-desc">Database semua orderan 2025–sekarang. Digunakan sebagai acuan cek duplikat HP dan cari RESI untuk dicek ke Data RTS.</div>
+        </div>
+        <div id="orderan-db-count" class="db-badge">—</div>
+      </div>
+      <div class="drop-zone" id="dz-order">
+        <input type="file" id="file-order" accept=".csv,.xlsx,.xls" />
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">Upload file All Orderan<br><span>.csv / .xlsx</span></div>
+      </div>
+      <div class="range-row">
+        <input type="text" id="order-range" placeholder="Range opsional, misal: A1:T10000" />
+      </div>
+      <div class="range-label">Kosongkan untuk baca seluruh sheet</div>
+      <div id="status-order" class="drop-status"></div>
+      <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-run" id="btn-save-order" disabled onclick="saveOrderanMaster()">Simpan ke Database</button>
+        <button class="btn-secondary" onclick="loadOrderanCount()" style="font-size:12px">Refresh</button>
+        <button class="btn-secondary" onclick="confirmClearOrderan()" style="font-size:12px;color:var(--c-danger)">Hapus Semua</button>
+        <span class="loading-badge" id="loading-order">menyimpan...</span>
+      </div>
+      <div id="status-order-save" class="drop-status" style="margin-top:8px"></div>
     </div>
-    <div class="pagination">
-      <span id="rts-page-info">—</span>
-      <div class="page-btns" id="rts-page-btns"></div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">All RTS (Reason Retur)</div>
+          <div class="section-desc">Database reason retur. RESI dari All Orderan dicari di sini untuk mendapatkan reason-nya (scan semua kolom bulan Jan–Des).</div>
+        </div>
+        <div id="rts-db-count" class="db-badge">—</div>
+      </div>
+      <div class="drop-zone" id="dz-rts">
+        <input type="file" id="file-rts" accept=".csv,.xlsx,.xls" />
+        <div class="drop-zone-icon">📋</div>
+        <div class="drop-zone-text">Upload file All RTS<br><span>.csv / .xlsx</span></div>
+      </div>
+      <div class="range-row">
+        <input type="text" id="rts-range" placeholder="Range opsional, misal: A1:CZ2000" />
+      </div>
+      <div class="range-label">Kosongkan untuk baca seluruh sheet</div>
+      <div id="status-rts" class="drop-status"></div>
+      <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-run" id="btn-save-rts" disabled onclick="saveRTSMaster()">Simpan ke Database</button>
+        <button class="btn-secondary" onclick="loadRTSCount()" style="font-size:12px">Refresh</button>
+        <button class="btn-secondary" onclick="confirmClearRTS()" style="font-size:12px;color:var(--c-danger)">Hapus Semua</button>
+        <span class="loading-badge" id="loading-rts">menyimpan...</span>
+      </div>
+      <div id="status-rts-save" class="drop-status" style="margin-top:8px"></div>
     </div>
+
   </div>
 </div>
 
-<!-- ══ TAB: PANDUAN ══════════════════════════════════════════════════════════ -->
+<!-- TAB PANDUAN -->
 <div id="tab-panduan" class="main" style="display:none">
   <div class="panduan-card">
     <h2>Panduan Penggunaan</h2>
 
-    <h3>1. Login</h3>
-    <p>Gunakan akun email yang sudah didaftarkan oleh admin di Supabase Authentication.</p>
-
-    <h3>2. Import Data</h3>
-    <p>Export dari Google Sheets sebagai CSV atau XLSX, lalu upload ke kotak import masing-masing. Isi kolom range jika ingin membatasi baris yang diproses (opsional).</p>
-
-    <h3>3. Jalankan Validasi</h3>
-    <p>Klik "Jalankan Validasi". Sistem akan mendeteksi duplikat berdasarkan nomor HP yang sama, dan mencari riwayat RTS berdasarkan RESI di semua kolom bulan (Jan–Des).</p>
-
-    <h3>4. Warna Highlight</h3>
-    <div class="legend-row">
-      <div class="legend-box" style="background:var(--c-dup-bg);border:1px solid var(--c-dup)"></div>
-      <span>Merah muda — Duplikat (nomor HP sama dengan order lain)</span>
+    <h3>Alur Kerja</h3>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div><strong>Setup Data Master</strong> (sekali setup, update berkala)<br>
+        Buka tab Data Master → upload All Orderan historis → Simpan ke Database. Lakukan hal sama untuk All RTS.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div><strong>Validasi Harian</strong> (setiap hari)<br>
+        Upload file orderan baru hari ini di tab Validasi Harian → klik Jalankan Validasi.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div><strong>Baca Hasil</strong><br>
+        Sistem cek HP orderan baru vs All Orderan historis. Jika HP pernah ada → duplikat + tampil nama & tanggal order lama. Jika RESI lama ada di data RTS → tampil reason RTS.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div><strong>Update Data Master</strong> (berkala)<br>
+        Setiap minggu atau setiap batch, upload ulang All Orderan yang sudah bertambah ke tab Data Master dan simpan lagi (upsert otomatis, tidak dobel).</div>
+      </div>
     </div>
-    <div class="legend-row">
-      <div class="legend-box" style="background:var(--c-warn-bg);border:1px solid var(--c-warn)"></div>
-      <span>Kuning — Pernah RTS (resi ditemukan di data RTS)</span>
+
+    <h3 style="margin-top:1.5rem">Logika Validasi</h3>
+    <div class="panduan-table">
+      <div class="pt-row header"><span>Kondisi</span><span>Status</span><span>Info Ditampilkan</span></div>
+      <div class="pt-row"><span>HP belum pernah ada di All Orderan</span><span class="badge badge-ok">AMAN</span><span>—</span></div>
+      <div class="pt-row"><span>HP sudah ada, RESI lama tidak ada di RTS</span><span class="badge badge-dup">DUPLIKAT</span><span>Nama + tanggal order lama</span></div>
+      <div class="pt-row"><span>HP sudah ada + RESI lama ditemukan di RTS</span><span class="badge badge-dup">DUPLIKAT</span><span>+ Reason &amp; status RTS</span></div>
     </div>
 
-    <h3>5. Export Hasil</h3>
-    <p>Klik Export CSV atau Export XLSX. File akan berisi kolom tambahan: Status_Validasi, Is_Duplikat, RTS_Bulan, RTS_Reason, RTS_Status, RTS_Pihak.</p>
+    <h3 style="margin-top:1.5rem">Warna Highlight</h3>
+    <div class="legend-row"><div class="legend-box" style="background:var(--c-dup-bg);border:1px solid var(--c-dup)"></div><span>Merah muda — Duplikat HP</span></div>
+    <div class="legend-row"><div class="legend-box" style="background:var(--c-warn-bg);border:1px solid var(--c-warn)"></div><span>Kuning — Pernah RTS (ada reason dari data RTS)</span></div>
 
-    <h3>6. Tambah Anggota Tim</h3>
-    <p>Masuk ke Supabase Dashboard → Authentication → Users → Invite User. Masukkan email anggota tim baru.</p>
+    <h3 style="margin-top:1.5rem">Tambah Anggota Tim</h3>
+    <p>Supabase Dashboard → Authentication → Users → Invite User → masukkan email anggota tim.</p>
 
-    <div class="info-box">
-      <p class="info-title">Nama Kolom yang Didukung (All Orderan)</p>
-      <p style="margin-top:4px">Tanggal · No · Nama · Nomor Hp · Alamat · Kelurahan · Kecamatan · Kabupaten · Provinsi · KODE POS · Jumlah Pesanan · Pembayaran · Instruksi Pengiriman · RESI · TEAM · Update CRM · Status Akhir · RETUR · CSA · DV · ADM</p>
+    <div class="info-box" style="margin-top:1.5rem">
+      <p class="info-title">SQL yang perlu dijalankan di Supabase</p>
+      <pre style="font-size:11px;margin-top:6px;white-space:pre-wrap;color:var(--c-muted)">Lihat README.md — jalankan SQL setup sebelum pertama kali pakai.</pre>
     </div>
   </div>
 </div>
 
-<!-- Toast container -->
 <div class="toast-wrap" id="toast-wrap"></div>
 
+<style>
+.step-bar { display:flex; align-items:center; margin-bottom:1.5rem; }
+.step { display:flex; align-items:center; gap:10px; }
+.step-num { width:28px; height:28px; border-radius:50%; background:var(--c-border-strong); color:var(--c-muted); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; font-family:var(--mono); flex-shrink:0; transition:all 0.2s; }
+.step.done .step-num { background:var(--c-success); color:white; }
+.step.active .step-num { background:var(--c-accent); color:white; }
+.step-label { font-size:12px; color:var(--c-muted); font-family:var(--mono); line-height:1.4; }
+.step-label span { font-size:11px; }
+.step.done .step-label { color:var(--c-success); }
+.step.active .step-label { color:var(--c-accent); }
+.step-line { flex:1; height:1px; background:var(--c-border-strong); margin:0 12px; min-width:30px; }
+
+.section-card { background:var(--c-surface); border:0.5px solid var(--c-border); border-radius:12px; padding:1.25rem; margin-bottom:1rem; }
+.section-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1rem; gap:10px; }
+.section-title { font-size:14px; font-weight:700; margin-bottom:3px; }
+.section-desc  { font-size:12px; color:var(--c-muted); line-height:1.5; max-width:480px; }
+.db-badge { font-size:12px; font-family:var(--mono); background:var(--c-accent-bg); color:var(--c-accent); padding:4px 10px; border-radius:99px; white-space:nowrap; flex-shrink:0; }
+
+.master-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+
+.flow-steps { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
+.flow-step { display:flex; gap:12px; align-items:flex-start; font-size:13px; color:var(--c-muted); line-height:1.6; }
+.flow-num { width:24px; height:24px; border-radius:50%; background:var(--c-accent); color:white; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; margin-top:1px; }
+
+.panduan-table { border:0.5px solid var(--c-border); border-radius:8px; overflow:hidden; font-size:12px; margin-top:8px; }
+.pt-row { display:grid; grid-template-columns:2fr 1fr 2fr; gap:12px; padding:10px 14px; border-bottom:0.5px solid var(--c-border); align-items:center; }
+.pt-row:last-child { border-bottom:none; }
+.pt-row.header { background:var(--c-bg); font-family:var(--mono); font-size:11px; color:var(--c-muted); text-transform:uppercase; }
+
+@media (max-width:768px) {
+  .master-grid { grid-template-columns:1fr; }
+  .step-label { display:none; }
+  .pt-row { grid-template-columns:1fr; }
+}
+</style>
+
 <script>
-// ── STATE ─────────────────────────────────────────────────────────────────────
-let orderRaw = [], rtsRaw = [];
+// STATE
+let orderBaruRaw = [];
+let masterOrderParsed = [];
+let masterRTSParsed = [];
 let validatedData = [], filteredData = [];
-let rtsAllData = [], rtsFiltered = [];
-let currentPage = 1, rtsPage = 1;
+let currentPage = 1;
 const PAGE_SIZE = 50;
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
+// INIT
 (async () => {
   const user = await requireAuth();
   if (!user) return;
   document.getElementById('user-email').textContent = user.email;
   document.getElementById('user-role').textContent  = user.user_metadata?.role || 'member';
 
-  setupDropzone('dz-order', 'file-order', 'order', (data) => {
-    orderRaw = data.map(extractOrderFields);
-    checkRunnable();
-  });
-  setupDropzone('dz-rts', 'file-rts', 'rts', (data) => {
-    rtsRaw = data;
-    rtsAllData = data;
-    rtsFiltered = [...data];
-    renderRtsTable();
-  });
-})();
-
-function checkRunnable() {
-  document.getElementById('btn-run').disabled = orderRaw.length === 0;
-}
-
-// ── TABS ──────────────────────────────────────────────────────────────────────
-function switchTab(name) {
-  ['validasi','rts','panduan'].forEach(t => {
-    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
-    document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
-  });
-}
-
-// ── VALIDASI ──────────────────────────────────────────────────────────────────
-async function doValidation() {
-  const badge = document.getElementById('loading-badge');
-  badge.classList.add('show');
-  await new Promise(r => setTimeout(r, 10)); // yield UI
-
-  const { result, summary } = runValidation(orderRaw, rtsRaw);
-  validatedData = result;
-  filteredData  = [...result];
-
-  document.getElementById('s-total').textContent   = summary.total.toLocaleString();
-  document.getElementById('s-dup').textContent     = summary.duplikat.toLocaleString();
-  document.getElementById('s-rts').textContent     = summary.rts.toLocaleString();
-  document.getElementById('s-masalah').textContent = summary.masalah.toLocaleString();
-
-  currentPage = 1;
-  renderTable();
-  badge.classList.remove('show');
-  showToast(`Validasi selesai — ${summary.masalah} masalah ditemukan dari ${summary.total} orderan.`,
-    summary.masalah ? 'error' : 'success');
-}
-
-function doFilter() {
-  const f = document.getElementById('filter-status').value;
-  const q = document.getElementById('search-box').value;
-  filteredData = applyFilters(validatedData, f, q);
-  currentPage = 1;
-  renderTable();
-}
-
-// ── RENDER TABLE ──────────────────────────────────────────────────────────────
-function renderTable() {
-  const start    = (currentPage - 1) * PAGE_SIZE;
-  const pageData = filteredData.slice(start, start + PAGE_SIZE);
-  const tbody    = document.getElementById('main-tbody');
-
-  if (!pageData.length) {
-    tbody.innerHTML = `<tr><td colspan="11" class="empty-state">Tidak ada data yang cocok</td></tr>`;
-    renderPagination();
-    return;
-  }
-
-  tbody.innerHTML = pageData.map(row => {
-    const cls = row._isDup && row._rtsInfo ? 'row-both'
-              : row._isDup  ? 'row-dup'
-              : row._rtsInfo? 'row-rts' : '';
-
-    const badge = row._status === 'AMAN'
-      ? `<span class="badge badge-ok">AMAN</span>`
-      : [
-          row._isDup    ? `<span class="badge badge-dup">DUPLIKAT</span>` : '',
-          row._rtsInfo  ? `<span class="badge badge-rts">RTS</span>`      : '',
-        ].join('');
-
-    const dupInfo = row._isDup
-      ? `<span style="font-size:11px;color:var(--c-dup);font-family:monospace">${row._hp}</span>` : '—';
-
-    const rtsInfo = row._rtsInfo
-      ? `<span style="font-size:11px;color:var(--c-warn);font-family:monospace"
-             title="${row._rtsInfo.reason}">${row._rtsInfo.bulan}: ${row._rtsInfo.reason || row._rtsInfo.status || 'ditemukan'}</span>` : '—';
-
-    return `<tr class="${cls}">
-      <td>${row.no}</td>
-      <td>${row.tanggal}</td>
-      <td title="${row.nama}">${row.nama}</td>
-      <td>${row.hp}</td>
-      <td>${row.kodepos}</td>
-      <td style="font-family:monospace;font-size:11px" title="${row.resi}">${row.resi}</td>
-      <td>${row.pembayaran}</td>
-      <td>${row.statusAkhir}</td>
-      <td>${badge}</td>
-      <td>${dupInfo}</td>
-      <td>${rtsInfo}</td>
-    </tr>`;
-  }).join('');
-
-  renderPagination();
-}
-
-function renderPagination() {
-  const total      = filteredData.length;
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-  const start      = (currentPage - 1) * PAGE_SIZE;
-
-  document.getElementById('page-info').textContent =
-    total ? `${Math.min(start+1,total)}–${Math.min(start+PAGE_SIZE,total)} dari ${total.toLocaleString()} baris` : '0 baris';
-
-  const btns = document.getElementById('page-btns');
-  btns.innerHTML = '';
-
-  const prev = document.createElement('button');
-  prev.className = 'page-btn'; prev.textContent = '‹';
-  prev.disabled = currentPage === 1;
-  prev.onclick = () => goPage(currentPage - 1);
-  btns.appendChild(prev);
-
-  pageRange(currentPage, totalPages).forEach(p => {
-    if (p === '…') {
-      const sp = document.createElement('span');
-      sp.textContent = '…'; sp.style.cssText = 'padding:4px 6px;font-size:12px;color:var(--c-muted)';
-      btns.appendChild(sp);
-    } else {
-      const b = document.createElement('button');
-      b.className = 'page-btn' + (p === currentPage ? ' active' : '');
-      b.textContent = p;
-      b.onclick = () => goPage(p);
-      btns.appendChild(b);
+  setupDropzone('dz-baru', 'file-baru', 'baru', (data) => {
+    orderBaruRaw = data.map(extractOrderFields);
+    document.getElementById('btn-validasi').disabled = orderBaruRaw.length === 0;
+    if (orderBaruRaw.length) {
+      document.getElementById('step2-ind').className = 'step done';
+      document.getElementById('step2-sub').textContent = orderBaruRaw.length.toLocaleString() + ' baris';
     }
   });
 
-  const next = document.createElement('button');
-  next.className = 'page-btn'; next.textContent = '›';
-  next.disabled = currentPage >= totalPages || totalPages === 0;
-  next.onclick = () => goPage(currentPage + 1);
-  btns.appendChild(next);
+  setupDropzone('dz-order', 'file-order', 'order', (data) => {
+    masterOrderParsed = data.map(extractOrderFields);
+    document.getElementById('btn-save-order').disabled = false;
+  });
+
+  setupDropzone('dz-rts', 'file-rts', 'rts', (data) => {
+    masterRTSParsed = data;
+    document.getElementById('btn-save-rts').disabled = false;
+  });
+
+  await loadMasterCounts();
+})();
+
+async function loadMasterCounts() {
+  await Promise.all([loadOrderanCount(), loadRTSCount()]);
+  updateStep1();
 }
 
-function goPage(p) {
-  const max = Math.ceil(filteredData.length / PAGE_SIZE);
-  if (p < 1 || p > max) return;
-  currentPage = p;
-  renderTable();
+async function loadOrderanCount() {
+  try {
+    const { count } = await sb.from('all_orderan').select('*', { count:'exact', head:true });
+    document.getElementById('orderan-db-count').textContent = (count||0).toLocaleString() + ' baris';
+    return count||0;
+  } catch(e) { document.getElementById('orderan-db-count').textContent = 'error'; return 0; }
 }
 
-function pageRange(cur, total) {
-  if (total <= 7) return Array.from({length: total}, (_,i) => i+1);
-  if (cur <= 4)   return [1,2,3,4,5,'…',total];
-  if (cur >= total-3) return [1,'…',total-4,total-3,total-2,total-1,total];
-  return [1,'…',cur-1,cur,cur+1,'…',total];
+async function loadRTSCount() {
+  try {
+    const { count } = await sb.from('all_rts').select('*', { count:'exact', head:true });
+    document.getElementById('rts-db-count').textContent = (count||0).toLocaleString() + ' baris';
+    return count||0;
+  } catch(e) { document.getElementById('rts-db-count').textContent = 'error'; return 0; }
 }
 
-// ── RTS TABLE ─────────────────────────────────────────────────────────────────
-function renderRtsTable() {
-  if (!rtsAllData.length) return;
-  const cols = Object.keys(rtsAllData[0]).slice(0, 14);
-  document.getElementById('rts-thead').innerHTML =
-    '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
-  renderRtsPage(cols);
+function updateStep1() {
+  const txt = document.getElementById('orderan-db-count').textContent;
+  const hasData = txt !== '—' && txt !== 'error' && txt !== '0 baris';
+  document.getElementById('step1-sub').textContent = hasData ? txt : 'belum ada data master';
+  document.getElementById('step1-ind').className = hasData ? 'step done' : 'step';
 }
 
-function doRtsFilter() {
-  const q = document.getElementById('rts-search').value.toLowerCase();
-  rtsFiltered = rtsAllData.filter(row =>
-    Object.values(row).some(v => String(v||'').toLowerCase().includes(q))
-  );
-  rtsPage = 1;
-  const cols = rtsAllData.length ? Object.keys(rtsAllData[0]).slice(0,14) : [];
-  renderRtsPage(cols);
+// TABS
+function switchTab(name) {
+  ['harian','master','panduan'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
+    document.getElementById('tab-btn-'+t).classList.toggle('active', t===name);
+  });
 }
 
-function renderRtsPage(cols) {
-  const start    = (rtsPage - 1) * PAGE_SIZE;
-  const pageData = rtsFiltered.slice(start, start + PAGE_SIZE);
-  const tbody    = document.getElementById('rts-tbody');
-  const total    = rtsFiltered.length;
+// SIMPAN ALL ORDERAN
+async function saveOrderanMaster() {
+  if (!masterOrderParsed.length) return;
+  const badge = document.getElementById('loading-order');
+  const saveEl = document.getElementById('status-order-save');
+  badge.classList.add('show');
+  document.getElementById('btn-save-order').disabled = true;
 
-  document.getElementById('rts-count').textContent = `${total.toLocaleString()} baris`;
+  try {
+    const rows = masterOrderParsed.map(r => ({
+      no:r.no, tanggal:r.tanggal, nama:r.nama, hp:r.hp,
+      alamat:r.alamat, kelurahan:r.kelurahan, kecamatan:r.kecamatan,
+      kabupaten:r.kabupaten, provinsi:r.provinsi, kodepos:r.kodepos,
+      jumlah:r.jumlah, pembayaran:r.pembayaran, instruksi:r.instruksi,
+      resi:r.resi||null, team:r.team, update_crm:r.updateCRM,
+      status_akhir:r.statusAkhir, retur:r.retur, csa:r.csa, dv:r.dv, adm:r.adm
+    })).filter(r => r.resi); // skip baris tanpa resi
 
-  if (!pageData.length) {
-    tbody.innerHTML = `<tr><td colspan="${cols.length}" class="empty-state">Tidak ada data</td></tr>`;
-  } else {
-    tbody.innerHTML = pageData.map(row =>
-      '<tr>' + cols.map(c =>
-        `<td style="font-family:monospace;font-size:11px" title="${row[c]||''}">${String(row[c]||'').slice(0,40)}</td>`
-      ).join('') + '</tr>'
-    ).join('');
+    let saved = 0;
+    for (let i = 0; i < rows.length; i += 500) {
+      const batch = rows.slice(i, i+500);
+      const { error } = await sb.from('all_orderan').upsert(batch, { onConflict:'resi' });
+      if (error) throw error;
+      saved += batch.length;
+      badge.textContent = `menyimpan... ${saved}/${rows.length}`;
+    }
+
+    setStatus(saveEl, 'ok', `✓ ${rows.length.toLocaleString()} baris disimpan ke database.`);
+    showToast(`${rows.length.toLocaleString()} orderan tersimpan!`, 'success');
+    await loadOrderanCount(); updateStep1();
+  } catch(e) {
+    setStatus(saveEl, 'err', `✗ ${e.message}`);
+    showToast('Gagal: ' + e.message, 'error');
+  }
+  badge.classList.remove('show'); badge.textContent='menyimpan...';
+  document.getElementById('btn-save-order').disabled = false;
+}
+
+// SIMPAN ALL RTS
+async function saveRTSMaster() {
+  if (!masterRTSParsed.length) return;
+  const badge = document.getElementById('loading-rts');
+  const saveEl = document.getElementById('status-rts-save');
+  badge.classList.add('show');
+  document.getElementById('btn-save-rts').disabled = true;
+
+  try {
+    const MONTHS = ['jan','feb','mar','apr','mei','jun','jul','agus','sept','okt','nov','des'];
+    const rows = [];
+    for (const rawRow of masterRTSParsed) {
+      const keys = Object.keys(rawRow);
+      for (const mon of MONTHS) {
+        const resiKey = keys.find(k => { const kl=k.toLowerCase().replace(/[\s_-]/g,''); return kl.includes('resi')&&kl.includes(mon); });
+        if (!resiKey || !rawRow[resiKey]) continue;
+        const reasonKey = keys.find(k => { const kl=k.toLowerCase().replace(/[\s_-]/g,''); return kl.includes('reason')&&kl.includes(mon); });
+        const statusKey = keys.find(k => { const kl=k.toLowerCase().replace(/[\s_-]/g,''); return kl.includes('status')&&kl.includes(mon); });
+        const pihakKey  = keys.find(k => { const kl=k.toLowerCase().replace(/[\s_-]/g,''); return (kl.includes('pihak')||kl.includes('tertangani'))&&kl.includes(mon); });
+        rows.push({
+          resi   : String(rawRow[resiKey]).trim().toLowerCase(),
+          bulan  : mon,
+          reason : reasonKey ? rawRow[reasonKey] : '',
+          status : statusKey ? rawRow[statusKey] : '',
+          pihak  : pihakKey  ? rawRow[pihakKey]  : '',
+        });
+      }
+    }
+
+    if (!rows.length) { setStatus(saveEl,'err','✗ Tidak ada entri RTS ditemukan. Periksa nama kolom bulan.'); badge.classList.remove('show'); document.getElementById('btn-save-rts').disabled=false; return; }
+
+    let saved = 0;
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await sb.from('all_rts').upsert(rows.slice(i,i+500), { onConflict:'resi,bulan' });
+      if (error) throw error;
+      saved += Math.min(500, rows.length-i);
+      badge.textContent = `menyimpan... ${saved}/${rows.length}`;
+    }
+
+    setStatus(saveEl,'ok',`✓ ${rows.length.toLocaleString()} entri RTS tersimpan.`);
+    showToast(`${rows.length.toLocaleString()} entri RTS tersimpan!`, 'success');
+    await loadRTSCount(); updateStep1();
+  } catch(e) {
+    setStatus(saveEl,'err',`✗ ${e.message}`);
+    showToast('Gagal simpan RTS: ' + e.message, 'error');
+  }
+  badge.classList.remove('show'); badge.textContent='menyimpan...';
+  document.getElementById('btn-save-rts').disabled = false;
+}
+
+// HAPUS
+function confirmClearOrderan() {
+  if (!confirm('Hapus SEMUA data All Orderan dari database?')) return;
+  clearTable('all_orderan', loadOrderanCount);
+}
+function confirmClearRTS() {
+  if (!confirm('Hapus SEMUA data RTS dari database?')) return;
+  clearTable('all_rts', loadRTSCount);
+}
+async function clearTable(tbl, reload) {
+  try {
+    const { error } = await sb.from(tbl).delete().gte('id', 0);
+    if (error) throw error;
+    showToast('Data berhasil dihapus.','info');
+    await reload(); updateStep1();
+  } catch(e) { showToast('Gagal hapus: '+e.message,'error'); }
+}
+
+// VALIDASI HARIAN
+async function doValidasiHarian() {
+  if (!orderBaruRaw.length) return;
+  const badge = document.getElementById('loading-validasi');
+  badge.textContent='memuat data master HP...'; badge.classList.add('show');
+  document.getElementById('btn-validasi').disabled = true;
+  document.getElementById('summary-section').style.display = 'none';
+  document.getElementById('result-section').style.display = 'none';
+
+  try {
+    // 1. Ambil semua HP dari Supabase (paginated)
+    const allOrderan = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await sb.from('all_orderan').select('hp,resi,nama,tanggal').range(from, from+999);
+      if (error) throw error;
+      if (!data||!data.length) break;
+      allOrderan.push(...data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+
+    // 2. Index HP → daftar match
+    badge.textContent = 'mengindeks '+allOrderan.length.toLocaleString()+' orderan...';
+    const hpIndex = {};
+    allOrderan.forEach(r => {
+      const hp = normalizeHP(r.hp||'');
+      if (!hp) return;
+      if (!hpIndex[hp]) hpIndex[hp] = [];
+      hpIndex[hp].push(r);
+    });
+
+    // 3. Kumpulkan semua RESI lama yang perlu dicek RTS
+    badge.textContent = 'mengecek duplikat & RTS...';
+    const resiToCheck = new Set();
+    orderBaruRaw.forEach(row => {
+      const hp = normalizeHP(row.hp||'');
+      if (hp && hpIndex[hp]) hpIndex[hp].forEach(m => { if(m.resi) resiToCheck.add(m.resi.trim().toLowerCase()); });
+    });
+
+    // 4. Ambil RTS dari Supabase
+    const rtsMap = {};
+    const resiArr = [...resiToCheck];
+    for (let i = 0; i < resiArr.length; i += 500) {
+      const { data, error } = await sb.from('all_rts').select('resi,bulan,reason,status,pihak').in('resi', resiArr.slice(i,i+500));
+      if (error) throw error;
+      (data||[]).forEach(r => { if(!rtsMap[r.resi]) rtsMap[r.resi]=r; });
+    }
+
+    // 5. Gabungkan
+    validatedData = orderBaruRaw.map(row => {
+      const hp = normalizeHP(row.hp||'');
+      const matches = hp && hpIndex[hp] ? hpIndex[hp] : [];
+      const isDup = matches.length > 0;
+      let rtsInfo = null;
+      for (const m of matches) {
+        const rn = (m.resi||'').trim().toLowerCase();
+        if (rtsMap[rn]) { rtsInfo = { ...rtsMap[rn], resiLama: m.resi }; break; }
+      }
+      const _status = isDup && rtsInfo ? 'DUPLIKAT+RTS' : isDup ? 'DUPLIKAT' : 'AMAN';
+      return { ...row, _isDup:isDup, _matches:matches, _rtsInfo:rtsInfo, _status };
+    });
+
+    filteredData = [...validatedData];
+    const dupCount  = validatedData.filter(r=>r._isDup).length;
+    const rtsCount  = validatedData.filter(r=>r._rtsInfo).length;
+    const amanCount = validatedData.filter(r=>!r._isDup).length;
+
+    document.getElementById('s-total').textContent = validatedData.length.toLocaleString();
+    document.getElementById('s-dup').textContent   = dupCount.toLocaleString();
+    document.getElementById('s-rts').textContent   = rtsCount.toLocaleString();
+    document.getElementById('s-aman').textContent  = amanCount.toLocaleString();
+    document.getElementById('summary-section').style.display = 'grid';
+    document.getElementById('result-section').style.display  = 'block';
+    document.getElementById('step3-ind').className = 'step done';
+    document.getElementById('step3-sub').textContent = dupCount+' duplikat, '+rtsCount+' RTS';
+
+    currentPage = 1; renderTable();
+    showToast(`Selesai — ${dupCount} duplikat, ${rtsCount} pernah RTS dari ${validatedData.length} orderan.`, dupCount>0?'error':'success');
+
+  } catch(e) {
+    showToast('Error: '+e.message,'error'); console.error(e);
   }
 
-  document.getElementById('rts-page-info').textContent =
-    total ? `${Math.min(start+1,total)}–${Math.min(start+PAGE_SIZE,total)} dari ${total.toLocaleString()} baris` : '0 baris';
-
-  const btns = document.getElementById('rts-page-btns');
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-  btns.innerHTML = `
-    <button class="page-btn" ${rtsPage===1?'disabled':''} onclick="goRtsPage(${rtsPage-1}, ${JSON.stringify(cols).replace(/"/g,"'")})">‹</button>
-    <button class="page-btn" ${rtsPage>=totalPages||totalPages===0?'disabled':''} onclick="goRtsPage(${rtsPage+1}, ${JSON.stringify(cols).replace(/"/g,"'")})">›</button>`;
+  badge.classList.remove('show'); badge.textContent='memproses...';
+  document.getElementById('btn-validasi').disabled = false;
 }
 
-function goRtsPage(p, cols) {
-  const max = Math.ceil(rtsFiltered.length / PAGE_SIZE);
-  if (p < 1 || p > max) return;
-  rtsPage = p;
-  renderRtsPage(cols);
+// FILTER
+function doFilter() {
+  const f = document.getElementById('filter-status').value;
+  const q = document.getElementById('search-box').value.toLowerCase();
+  filteredData = validatedData.filter(row => {
+    const mf = f==='all'?true:f==='dup'?row._isDup:f==='rts'?!!row._rtsInfo:f==='both'?(row._isDup&&!!row._rtsInfo):f==='ok'?(!row._isDup&&!row._rtsInfo):true;
+    if (!mf) return false;
+    if (!q) return true;
+    return String(row.hp||'').includes(q)||String(row.nama||'').toLowerCase().includes(q)||String(row.resi||'').toLowerCase().includes(q);
+  });
+  currentPage=1; renderTable();
 }
+
+// RENDER TABLE
+function renderTable() {
+  const start = (currentPage-1)*PAGE_SIZE;
+  const pageData = filteredData.slice(start, start+PAGE_SIZE);
+  const tbody = document.getElementById('main-tbody');
+
+  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="10" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
+
+  tbody.innerHTML = pageData.map(row => {
+    const cls = row._isDup&&row._rtsInfo?'row-both':row._isDup?'row-dup':row._rtsInfo?'row-rts':'';
+    const badge = row._status==='AMAN'
+      ? `<span class="badge badge-ok">AMAN</span>`
+      : [row._isDup?`<span class="badge badge-dup">DUPLIKAT</span>`:'',row._rtsInfo?`<span class="badge badge-rts">RTS</span>`:''].join('');
+
+    const dupInfo = row._isDup && row._matches.length
+      ? row._matches.slice(0,2).map(m=>`<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block">${m.nama||''} · ${m.tanggal||''}</span>`).join('')
+      : '—';
+
+    const resiLama  = row._rtsInfo ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)">${row._rtsInfo.resiLama||''}</span>` : '—';
+    const rtsReason = row._rtsInfo
+      ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="${row._rtsInfo.reason||''}">${(row._rtsInfo.reason||row._rtsInfo.status||'ditemukan di RTS').slice(0,50)}</span>`
+      : '—';
+
+    return `<tr class="${cls}">
+      <td>${row.no}</td>
+      <td title="${row.nama}">${row.nama}</td>
+      <td style="font-family:monospace">${row.hp}</td>
+      <td>${row.kodepos}</td>
+      <td style="font-family:monospace;font-size:11px">${row.resi}</td>
+      <td>${row.pembayaran}</td>
+      <td>${badge}</td>
+      <td>${dupInfo}</td>
+      <td>${resiLama}</td>
+      <td>${rtsReason}</td>
+    </tr>`;
+  }).join('');
+  renderPag();
+}
+
+function renderPag() {
+  const total=filteredData.length, tp=Math.ceil(total/PAGE_SIZE), start=(currentPage-1)*PAGE_SIZE;
+  document.getElementById('page-info').textContent=total?`${Math.min(start+1,total)}–${Math.min(start+PAGE_SIZE,total)} dari ${total.toLocaleString()} baris`:'0 baris';
+  const btns=document.getElementById('page-btns'); btns.innerHTML='';
+  const mb=(lbl,fn,dis,act=false)=>{ const b=document.createElement('button'); b.className='page-btn'+(act?' active':''); b.textContent=lbl; b.disabled=dis; b.onclick=fn; return b; };
+  btns.appendChild(mb('‹',()=>gp(currentPage-1),currentPage===1));
+  (total<=0?[]:(currentPage<=4?[1,2,3,4,5,'…',tp]:currentPage>=tp-3?[1,'…',tp-4,tp-3,tp-2,tp-1,tp]:[1,'…',currentPage-1,currentPage,currentPage+1,'…',tp])).forEach(p=>{
+    if(p==='…'){const s=document.createElement('span');s.textContent='…';s.style.cssText='padding:4px 6px;font-size:12px;color:var(--c-muted)';btns.appendChild(s);}
+    else btns.appendChild(mb(p,()=>gp(p),false,p===currentPage));
+  });
+  btns.appendChild(mb('›',()=>gp(currentPage+1),currentPage>=tp||tp===0));
+}
+
+function gp(p){ const max=Math.ceil(filteredData.length/PAGE_SIZE); if(p<1||p>max)return; currentPage=p; renderTable(); }
 </script>
 </body>
 </html>
