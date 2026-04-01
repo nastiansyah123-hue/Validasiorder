@@ -832,6 +832,10 @@ async function doValidasiHarian() {
       }
     });
 
+    // Expose for debug
+    window._kodeposStats = kodeposStats;
+    console.log('kodeposStats total keys:', Object.keys(kodeposStats).length, '| sample:', Object.entries(kodeposStats).slice(0,3));
+
     // 4. Kumpulkan RESI lama yang perlu dicek RTS
     badge.textContent = 'mengecek RTS...';
     const resiToCheck = new Set();
@@ -881,7 +885,6 @@ async function doValidasiHarian() {
       // Wilayah rawan dari kodepos
       const kp = String(row._raw['Kode Pos']||row._raw['Kode pos']||row._raw['kode pos']||row._raw['KODE POS']||row._raw['kodepos']||row.kodepos||'').trim().replace(/\.0$/, '');
       const kpStat = kodeposStats[kp];
-      if (!window._kpDbg && kp) { console.log('kp sample:', kp, '| stats:', kpStat, '| kodeposStats keys sample:', Object.keys(kodeposStats).slice(0,5)); window._kpDbg=true; }
       let wilayahRawan = '';
       if (kpStat && kpStat.total >= 3) {
         const pct = Math.round((kpStat.retur / kpStat.total) * 100);
