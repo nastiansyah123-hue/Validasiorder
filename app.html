@@ -1345,8 +1345,9 @@ async function calcKodeposStats(statusEl) {
     if (statusEl) setStatus(statusEl, 'ok', `✓ Statistik ${upsertRows.length.toLocaleString()} wilayah berhasil dihitung & disimpan!`);
     showToast(`Statistik ${upsertRows.length.toLocaleString()} wilayah tersimpan!`, 'success');
 
-    // Refresh statistik page if visible
-    if (document.getElementById('page-statistik')?.classList.contains('active')) loadStatistik();
+    // Always refresh statistik data
+    statAllData = [];
+    await loadStatistik();
   } catch(e) {
     showToast('Gagal hitung statistik: '+e.message, 'error');
     console.error(e);
