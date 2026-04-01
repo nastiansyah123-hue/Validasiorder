@@ -2419,7 +2419,10 @@ async function loadDashboard() {
             <td style="padding:9px 12px;text-align:right;color:var(--success)">${s.kirim}</td>
             <td style="padding:9px 12px;text-align:right;color:var(--warn)">${s.hold}</td>
             <td style="padding:9px 12px;text-align:right;color:var(--danger)">${s.cancel}</td>
-            <td style="padding:9px 12px"><button class="btn-secondary" style="font-size:11px" onclick="filterBySesi('${s.sesi_id}')">Detail</button></td>
+            <td style="padding:9px 12px;display:flex;gap:6px">
+              <button class="btn-secondary" style="font-size:11px" onclick="filterBySesi('${s.sesi_id}')">Detail</button>
+              <button class="btn-secondary btn-danger" style="font-size:11px" onclick="hapusSesi('${s.sesi_id}')">Hapus</button>
+            </td>
           </tr>`).join('')}
         </tbody>
       </table>` : '<p style="color:var(--muted);font-size:13px">Tidak ada data sesi.</p>';
@@ -2501,6 +2504,18 @@ function renderDbTable() {
   const mb = (lbl,fn,dis,act=false)=>{ const b=document.createElement('button'); b.className='page-btn'+(act?' active':''); b.textContent=lbl; b.disabled=dis; b.onclick=fn; return b; };
   btns.appendChild(mb('‹',()=>{dbPage--;renderDbTable();},dbPage===1));
   btns.appendChild(mb('›',()=>{dbPage++;renderDbTable();},dbPage>=totalPages||totalPages===0));
+}
+
+async function hapusSesi(sesiId) {
+  if (!confirm('Hapus semua data sesi ini? Tidak bisa dibatalkan.')) return;
+  try {
+    const { error } = await sb.from('validasi_detail').delete().eq('sesi_id', sesiId);
+    if (error) throw error;
+    showToast('Sesi berhasil dihapus.', 'success');
+    await loadDashboard();
+  } catch(e) {
+    showToast('Gagal hapus: '+e.message, 'error');
+  }
 }
 
 function exportDbCSV() {
