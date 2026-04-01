@@ -677,17 +677,39 @@ function excelDateToStr(val) {
   if (!val && val !== 0) return '';
   const s = String(val).trim();
   if (!s) return '';
-  // If already looks like a date string, return as-is
+  // If already looks like a date string (has separator), return as-is
   if (s.match(/[\/-]/)) return s;
-  // If pure number, convert from Excel serial
+  // If pure number in Excel serial date range (>44000 = year 2020+, <50000 = year 2036-)
+  // Kode pos values are typically 5-digit numbers like 10510, 55281 which overlap this range
+  // So only convert if value is clearly a decimal/float Excel serial (has decimal part)
+  // OR if context tells us it's a date (handled by caller)
   const n = parseFloat(s);
-  if (!isNaN(n) && n > 40000 && n < 60000) {
-    // Excel serial date (days since 1900-01-01, with leap year bug)
+  if (!isNaN(n) && n > 44000 && n < 50000 && s.includes('.')) {
     const date = new Date((n - 25569) * 86400 * 1000);
     const d = date.getUTCDate().toString().padStart(2,'0');
     const m = (date.getUTCMonth()+1).toString().padStart(2,'0');
     const y = date.getUTCFullYear();
     return `${d}/${m}/${y}`;
+  }
+  return s;
+}
+
+// Convert Excel date only for date fields (stricter check)
+function excelDateFieldToStr(val) {
+  if (!val && val !== 0) return '';
+  const s = String(val).trim();
+  if (!s) return '';
+  if (s.match(/[\/-]/)) return s;
+  const n = parseFloat(s);
+  // Excel dates for 2020-2030 range: 43831-45291
+  if (!isNaN(n) && n > 43000 && n < 50000) {
+    const date = new Date((n - 25569) * 86400 * 1000);
+    const d = date.getUTCDate().toString().padStart(2,'0');
+    const m = (date.getUTCMonth()+1).toString().padStart(2,'0');
+    const y = date.getUTCFullYear();
+    const hh = date.getUTCHours().toString().padStart(2,'0');
+    const mm = date.getUTCMinutes().toString().padStart(2,'0');
+    return `${d}/${m}/${y} ${hh}:${mm}`;
   }
   return s;
 }
@@ -1196,6 +1218,9 @@ async function confirmMood() {
   document.getElementById('welcome-modal').style.display = 'none';
   const bar = document.getElementById('greeting-bar');
   bar.style.display = 'flex';
+  // Save so modal doesn't show again this session
+  sessionStorage.setItem('vo_greeted_' + new Date().toDateString(), '1');
+  if (selectedMood) sessionStorage.setItem('vo_mood', JSON.stringify(selectedMood));
 
   if (selectedMood) {
     document.getElementById('greeting-emoji').textContent = selectedMood.emoji;
@@ -1282,8 +1307,20 @@ function initGreeting(email) {
   document.getElementById('greeting-text').textContent = msg;
   document.getElementById('greeting-date').textContent = day;
 
-  // Show welcome modal
-  showWelcomeModal(capName, period, timeEmojis[period]);
+  // Show welcome modal only once per session
+  const todayKey = 'vo_greeted_' + new Date().toDateString();
+  if (!sessionStorage.getItem(todayKey)) {
+    showWelcomeModal(capName, period, timeEmojis[period]);
+  } else {
+    // Already greeted — just show bar with saved mood
+    const savedMood = sessionStorage.getItem('vo_mood');
+    if (savedMood) {
+      const m = JSON.parse(savedMood);
+      selectedMood = m;
+      document.getElementById('greeting-emoji').textContent = m.emoji;
+    }
+    document.getElementById('greeting-bar').style.display = 'flex';
+  }
 }
 
 function updateAccSummary() {
@@ -1729,7 +1766,7 @@ function renderTable() {
 
     return `<tr class="${cls}">
       <td style="text-align:center"><input type="checkbox" class="row-chk" data-idx="${filteredData.indexOf(row)}" style="cursor:pointer;width:14px;height:14px" ${row._selected?'checked':''}></td>
-      ${td(excelDateToStr(row._raw['Tanggal']||row._raw['tanggal']))}
+      ${td(excelDateFieldToStr(row._raw['Tanggal']||row._raw['tanggal']))}
       ${td(row._raw['No']||row._raw['no'])}
       ${td(row._raw['Nama']||row._raw['nama'])}
       ${td(row._raw['No telpon']||row._raw['No Telpon']||row._raw['Nomor Hp']||row.hp,'font-family:monospace')}
