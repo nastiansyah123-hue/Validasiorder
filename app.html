@@ -4,352 +4,513 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ValidasiOrder</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/import.js"></script>
 <script src="js/validation.js"></script>
 <script src="js/export.js"></script>
+<style>
+:root {
+  --sidebar-w: 220px;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.15);
+  --text: #1a1a2e;
+  --muted: #6b7280;
+  --accent: #4f46e5;
+  --accent-light: #eef2ff;
+  --accent-hover: #4338ca;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --warn: #d97706;
+  --warn-light: #fffbeb;
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  --dup: #9333ea;
+  --dup-light: #faf5ff;
+  --font: 'Plus Jakarta Sans', sans-serif;
+  --mono: 'Courier New', monospace;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform 0.25s}
+.sidebar-logo{padding:1.25rem 1.25rem 0.75rem;border-bottom:1px solid var(--border)}
+.logo-mark{font-size:15px;font-weight:700;color:var(--accent);letter-spacing:-0.3px}
+.logo-sub{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.sidebar-nav{flex:1;padding:0.75rem 0.75rem;overflow-y:auto}
+.nav-section{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;font-family:var(--mono);padding:0 0.5rem;margin:1rem 0 0.4rem}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all 0.15s;user-select:none;margin-bottom:2px}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--accent-light);color:var(--accent)}
+.nav-item .nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.sidebar-user{padding:1rem;border-top:1px solid var(--border)}
+.user-card{display:flex;align-items:center;gap:10px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.user-info{flex:1;min-width:0}
+.user-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-role{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.btn-logout-side{font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:4px;border-radius:6px;flex-shrink:0}
+.btn-logout-side:hover{background:var(--danger-light);color:var(--danger)}
+
+/* MAIN */
+.main-area{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:15px;font-weight:700;color:var(--text)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+
+/* GREETING BAR */
+#greeting-bar{background:linear-gradient(135deg,var(--accent-light),#f0f9ff);border-bottom:1px solid var(--border);padding:10px 1.5rem;display:none;align-items:center;justify-content:space-between;gap:12px}
+#greeting-bar .g-emoji{font-size:22px}
+#greeting-bar .g-text{font-size:13px;font-weight:500;color:var(--text);flex:1}
+#greeting-bar .g-date{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+
+/* PAGE CONTENT */
+.page{display:none;padding:1.5rem;flex:1}
+.page.active{display:block}
+.page-header{margin-bottom:1.25rem}
+.page-title{font-size:18px;font-weight:700}
+.page-sub{font-size:13px;color:var(--muted);margin-top:3px}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;box-shadow:var(--shadow)}
+.card-title{font-size:13px;font-weight:700;margin-bottom:0.25rem}
+.card-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:1rem}
+
+/* SUMMARY CARDS */
+.summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.25rem}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;cursor:pointer;transition:all 0.15s;box-shadow:var(--shadow)}
+.sum-card:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.sum-card .s-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--mono);margin-bottom:6px}
+.sum-card .s-value{font-size:26px;font-weight:700;line-height:1}
+.sum-card.c-total .s-value{color:var(--accent)}
+.sum-card.c-dupteam .s-value{color:var(--dup)}
+.sum-card.c-dupall .s-value{color:var(--danger)}
+.sum-card.c-rts .s-value{color:var(--warn)}
+.sum-card.c-aman .s-value{color:var(--success)}
+.sum-card.active-card{outline:2px solid var(--accent);outline-offset:2px}
+
+/* STEP BAR */
+.step-bar{display:flex;align-items:center;margin-bottom:1.25rem}
+.step{display:flex;align-items:center;gap:8px}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--border-strong);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:var(--mono);flex-shrink:0;transition:all 0.2s}
+.step.done .step-num{background:var(--success);color:white}
+.step.active .step-num{background:var(--accent);color:white}
+.step-label{font-size:12px;color:var(--muted);font-family:var(--mono);line-height:1.4}
+.step-label span{font-size:10px}
+.step.done .step-label{color:var(--success)}
+.step.active .step-label{color:var(--accent)}
+.step-line{flex:1;height:1px;background:var(--border-strong);margin:0 10px;min-width:20px}
+
+/* DROPZONE */
+.drop-zone{border:1.5px dashed var(--border-strong);border-radius:var(--radius);padding:1.5rem;text-align:center;cursor:pointer;transition:all 0.15s;position:relative}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:var(--accent-light)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-zone-icon{font-size:24px;margin-bottom:6px}
+.drop-zone-text{font-size:12px;color:var(--muted)}
+.drop-zone-text span{font-family:var(--mono);font-size:11px}
+.drop-status{font-size:12px;margin-top:8px;padding:6px 10px;border-radius:6px;display:none;font-family:var(--mono)}
+.drop-status.ok{background:var(--success-light);color:var(--success);display:block}
+.drop-status.err{background:var(--danger-light);color:var(--danger);display:block}
+.range-row{display:flex;gap:8px;margin-top:0.75rem}
+.range-row input{flex:1;padding:7px 10px;border:1px solid var(--border-strong);border-radius:6px;font-size:12px;font-family:var(--mono);background:var(--bg);color:var(--text);outline:none}
+.range-row input:focus{border-color:var(--accent)}
+.range-label{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)}
+.db-badge{font-size:11px;font-family:var(--mono);background:var(--accent-light);color:var(--accent);padding:3px 10px;border-radius:99px;white-space:nowrap;flex-shrink:0}
+
+/* BUTTONS */
+.btn-primary{padding:9px 18px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:var(--font);font-weight:600;transition:all 0.15s}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed}
+.btn-secondary{padding:7px 13px;background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font);color:var(--text);transition:all 0.15s}
+.btn-secondary:hover{background:var(--bg)}
+.btn-danger{color:var(--danger)}
+.btn-danger:hover{background:var(--danger-light)!important}
+.loading-badge{font-size:12px;font-family:var(--mono);color:var(--muted);display:none}
+.loading-badge.show{display:inline}
+
+/* ACTION BAR */
+.action-bar{display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.filter-select{padding:7px 11px;border:1px solid var(--border-strong);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);font-family:var(--font);outline:none}
+.search-input{padding:7px 11px;border:1px solid var(--border-strong);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);font-family:var(--font);outline:none;width:220px}
+.search-input:focus,.filter-select:focus{border-color:var(--accent)}
+.spacer{flex:1}
+
+/* TABLE */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
+.table-scroll{overflow-x:auto;max-height:560px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{position:sticky;top:0;background:#f8f9ff;padding:10px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--mono);border-bottom:1px solid var(--border);white-space:nowrap;z-index:2}
+thead th[onclick]{cursor:pointer}
+thead th[onclick]:hover{background:var(--accent-light);color:var(--accent)}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s}
+tbody tr:hover{background:#fafbff}
+tbody td{padding:9px 12px;vertical-align:middle;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+tbody td.td-wide{max-width:360px;white-space:normal;word-break:break-word;line-height:1.5}
+tr.row-dup{background:var(--dup-light)!important}
+tr.row-rts{background:var(--warn-light)!important}
+tr.row-both{background:linear-gradient(90deg,var(--dup-light) 50%,var(--warn-light) 50%)!important}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-family:var(--mono);font-weight:600;white-space:nowrap;margin-right:3px}
+.badge-dup{background:var(--dup-light);color:var(--dup)}
+.badge-rts{background:var(--warn-light);color:var(--warn)}
+.badge-ok{background:var(--success-light);color:var(--success)}
+.empty-state{text-align:center;padding:3rem;color:var(--muted);font-size:14px}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);font-family:var(--mono);flex-wrap:wrap;gap:8px}
+#page-btns{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.page-btn{padding:4px 10px;border:1px solid var(--border-strong);border-radius:6px;background:none;cursor:pointer;font-size:12px;font-family:var(--mono);color:var(--text);transition:all 0.1s}
+.page-btn.active{background:var(--accent);color:white;border-color:var(--accent)}
+.page-btn:disabled{opacity:0.4;cursor:not-allowed}
+.page-btn:hover:not(.active):not(:disabled){background:var(--bg)}
+
+/* MASTER GRID */
+.master-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+/* PANDUAN */
+.panduan-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;max-width:680px;box-shadow:var(--shadow)}
+.flow-steps{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+.flow-step{display:flex;gap:12px;align-items:flex-start;font-size:13px;color:var(--muted);line-height:1.6}
+.flow-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px}
+.panduan-table{border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:12px;margin-top:8px}
+.pt-row{display:grid;grid-template-columns:2fr 1fr 2fr;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);align-items:center}
+.pt-row:last-child{border-bottom:none}
+.pt-row.header{background:var(--bg);font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase}
+.legend-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px}
+.legend-box{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+.info-box{margin-top:1.5rem;padding:1rem;background:var(--accent-light);border-radius:8px;border-left:3px solid var(--accent)}
+
+/* TOAST */
+.toast-wrap{position:fixed;bottom:1.5rem;right:1.5rem;display:flex;flex-direction:column;gap:8px;z-index:9999}
+.toast{padding:10px 16px;border-radius:8px;font-size:13px;font-family:var(--mono);color:white;animation:slideIn 0.2s ease;box-shadow:var(--shadow-md)}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+.toast.info{background:var(--accent)}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* WELCOME MODAL */
+#welcome-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center}
+.welcome-card{background:var(--surface);border-radius:24px;padding:2rem 1.75rem;max-width:400px;width:92%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+#welcome-mood-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+.mood-opt{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:12px;cursor:pointer;border:1.5px solid var(--border);transition:all 0.15s;background:var(--bg)}
+.mood-opt:hover{border-color:var(--accent);background:var(--accent-light)}
+.mood-opt.selected{border:2px solid var(--accent);background:var(--accent-light)}
+.mood-opt .mood-e{font-size:30px}
+.mood-opt .mood-l{font-size:10px;color:var(--muted);font-family:var(--mono)}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .main-area{margin-left:0}
+  .master-grid{grid-template-columns:1fr}
+  .summary-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-title">ValidasiOrder</div>
-  <div class="topbar-user">
-    <span id="user-email"></span>
-    <span class="topbar-role" id="user-role">—</span>
-    <button class="btn-logout" onclick="signOut()">Keluar</button>
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">ValidasiOrder</div>
+    <div class="logo-sub">sistem validasi orderan</div>
   </div>
-</div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Menu</div>
+    <div class="nav-item active" id="nav-harian" onclick="switchPage('harian')">
+      <span class="nav-icon">✅</span> Validasi Harian
+    </div>
+    <div class="nav-item" id="nav-master" onclick="switchPage('master')">
+      <span class="nav-icon">🗄️</span> Data Master
+    </div>
+    <div class="nav-section">Info</div>
+    <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
+      <span class="nav-icon">📖</span> Panduan
+    </div>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-card">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="user-email">—</div>
+        <div class="user-role" id="user-role">—</div>
+      </div>
+      <button class="btn-logout-side" onclick="signOut()" title="Keluar">⏻</button>
+    </div>
+  </div>
+</aside>
 
-<!-- Greeting bar (muncul setelah pilih mood) -->
-<div id="greeting-bar" style="display:none;background:var(--c-surface);border-bottom:0.5px solid var(--c-border);padding:10px 1.5rem;align-items:center;justify-content:space-between;gap:12px">
-  <div style="display:flex;align-items:center;gap:12px;flex:1">
-    <span id="greeting-emoji" style="font-size:24px"></span>
+<!-- MAIN AREA -->
+<div class="main-area">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Validasi Harian</div>
+    <div class="topbar-right">
+      <span id="topbar-date" style="font-size:11px;color:var(--muted);font-family:var(--mono)"></span>
+    </div>
+  </div>
+
+  <!-- GREETING BAR -->
+  <div id="greeting-bar">
+    <span class="g-emoji" id="greeting-emoji">😊</span>
     <div style="flex:1">
-      <div id="greeting-text" style="font-size:13px;font-weight:500;color:var(--c-text)"></div>
-      <div id="greeting-date" style="font-size:11px;color:var(--c-muted);font-family:monospace;margin-top:2px"></div>
+      <div class="g-text" id="greeting-text"></div>
+      <div class="g-date" id="greeting-date"></div>
+    </div>
+    <button onclick="document.getElementById('greeting-bar').style.display='none'" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer">✕</button>
+  </div>
+
+  <!-- PAGE: VALIDASI HARIAN -->
+  <div class="page active" id="page-harian">
+    <div class="page-header">
+      <div class="page-title">Validasi Harian</div>
+      <div class="page-sub">Upload orderan baru dan validasi terhadap data master</div>
+    </div>
+
+    <!-- Step bar -->
+    <div class="step-bar">
+      <div class="step done" id="step1-ind">
+        <div class="step-num">1</div>
+        <div class="step-label">Data Master<br><span id="step1-sub">cek status...</span></div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" id="step2-ind">
+        <div class="step-num">2</div>
+        <div class="step-label">Upload Orderan Baru<br><span id="step2-sub">belum diupload</span></div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" id="step3-ind">
+        <div class="step-num">3</div>
+        <div class="step-label">Hasil Validasi<br><span id="step3-sub">belum dijalankan</span></div>
+      </div>
+    </div>
+
+    <!-- Upload card -->
+    <div class="card" id="upload-card" style="margin-bottom:1rem">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Upload Orderan Baru Hari Ini</div>
+          <div class="card-desc">Tidak disimpan ke database — hanya untuk pengecekan terhadap data master. Bisa pilih banyak file sekaligus.</div>
+        </div>
+        <button onclick="toggleUploadCard()" id="btn-toggle-upload" class="btn-secondary" style="font-size:11px;flex-shrink:0">▲ Sembunyikan</button>
+      </div>
+      <div id="upload-body">
+        <div class="drop-zone" id="dz-baru">
+          <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" multiple />
+          <div class="drop-zone-icon">📥</div>
+          <div class="drop-zone-text">Drag & drop atau klik — bisa pilih banyak file<br><span>.csv / .xlsx</span></div>
+        </div>
+        <div id="file-list-baru" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
+        <div id="status-baru" class="drop-status"></div>
+        <div style="margin-top:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="btn-primary" id="btn-validasi" disabled onclick="doValidasiHarian()">Jalankan Validasi</button>
+          <button class="btn-secondary btn-danger" id="btn-clear-files" onclick="clearFiles()" style="display:none;font-size:12px">Hapus File</button>
+          <span class="loading-badge" id="loading-validasi">memproses...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-grid" id="summary-section" style="display:none">
+      <div class="sum-card c-total" onclick="filterByCard('all')">
+        <div class="s-label">Orderan Baru</div>
+        <div class="s-value" id="s-total">—</div>
+      </div>
+      <div class="sum-card c-dupteam" onclick="filterByCard('dupteam')">
+        <div class="s-label">Duplikat Team ↗</div>
+        <div class="s-value" id="s-dupteam">—</div>
+      </div>
+      <div class="sum-card c-dupall" onclick="filterByCard('dupall')">
+        <div class="s-label">Duplikat All Team ↗</div>
+        <div class="s-value" id="s-dup">—</div>
+      </div>
+      <div class="sum-card c-rts" onclick="filterByCard('rts')">
+        <div class="s-label">Pernah RTS ↗</div>
+        <div class="s-value" id="s-rts">—</div>
+      </div>
+      <div class="sum-card c-aman" onclick="filterByCard('ok')">
+        <div class="s-label">Aman ↗</div>
+        <div class="s-value" id="s-aman">—</div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="result-section" style="display:none">
+      <div class="action-bar">
+        <select class="filter-select" id="filter-status" onchange="doFilter()">
+          <option value="all">Semua baris</option>
+          <option value="dupteam">Duplikat Team</option>
+          <option value="dupall">Duplikat All Team</option>
+          <option value="rts">Hanya Pernah RTS</option>
+          <option value="ok">Hanya Aman</option>
+        </select>
+        <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
+          <option value="all">Semua Ekspedisi</option>
+          <option value="JNE">JNE</option><option value="JNT">JNT</option>
+          <option value="LION">Lion</option><option value="SICEPAT">SiCepat</option>
+          <option value="ANTERAJA">Anteraja</option><option value="NINJA">Ninja</option>
+          <option value="SAP">SAP</option><option value="TIKI">TIKI</option>
+        </select>
+        <select class="filter-select" id="filter-pembayaran" onchange="doFilter()">
+          <option value="all">Semua Pembayaran</option>
+          <option value="COD">COD</option>
+          <option value="TRANSFER">Transfer</option>
+        </select>
+        <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi / alamat..." oninput="doFilter()" />
+        <span class="spacer"></span>
+        <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
+        <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th data-col="tanggal" data-label="Tanggal" onclick="sortBy('tanggal')">Tanggal</th>
+                <th data-label="No">No</th>
+                <th data-col="nama" data-label="Nama" onclick="sortBy('nama')">Nama</th>
+                <th data-col="hp" data-label="No Telpon" onclick="sortBy('hp')">No Telpon</th>
+                <th data-label="Alamat">Alamat</th><th data-label="Kelurahan">Kelurahan</th>
+                <th data-label="Kecamatan">Kecamatan</th><th data-label="Kabupaten">Kabupaten</th>
+                <th data-label="Provinsi">Provinsi</th><th data-label="Kode Pos">Kode Pos</th>
+                <th data-label="Jml Pesanan">Jml Pesanan</th><th data-label="Qty">Qty</th>
+                <th data-col="pembayaran" data-label="Pembayaran" onclick="sortBy('pembayaran')">Pembayaran</th>
+                <th data-label="Total">Total</th><th data-label="Instruksi">Instruksi</th>
+                <th data-label="Keterangan">Keterangan</th><th data-label="Rincian">Rincian</th>
+                <th data-label="Keluhan">Keluhan</th><th data-label="Real Ongkir">Real Ongkir</th>
+                <th data-label="Cek Ongkir">Cek Ongkir</th>
+                <th data-col="returadsy" data-label="Retur ADSY" onclick="sortBy('returadsy')" style="color:#9333ea;cursor:pointer">Retur ADSY ↕</th>
+                <th data-label="Wil. Rawan">Wil. Rawan</th>
+                <th data-col="grade" data-label="Grade" onclick="sortBy('grade')">Grade</th>
+                <th data-col="ekspedisi" data-label="Ekspedisi" onclick="sortBy('ekspedisi')">Ekspedisi</th>
+                <th data-label="SS Chat">SS Chat</th>
+                <th data-col="dupteam" data-label="Duplikat Team" onclick="sortBy('dupteam')" style="cursor:pointer">Duplikat Team ↕</th>
+                <th data-col="dupall" data-label="Duplikat All Team" onclick="sortBy('dupall')" style="color:#dc2626;cursor:pointer">Duplikat All Team ↕</th>
+                <th data-label="ACC SPV CS">ACC SPV CS</th>
+                <th data-label="ACC SPV OP">ACC SPV OP</th>
+              </tr>
+            </thead>
+            <tbody id="main-tbody">
+              <tr><td colspan="29" class="empty-state">Belum ada hasil validasi</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span id="page-info">—</span>
+          <div id="page-btns"></div>
+        </div>
+      </div>
     </div>
   </div>
-  <button onclick="document.getElementById('greeting-bar').style.display='none'" style="font-size:11px;color:var(--c-muted);background:none;border:none;cursor:pointer;flex-shrink:0">✕</button>
-</div>
 
-<!-- Welcome Modal -->
-<div id="welcome-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:var(--c-surface);border-radius:24px;padding:2rem 1.5rem;max-width:400px;width:92%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.2)">
-    <div id="welcome-time-emoji" style="font-size:48px;margin-bottom:1rem"></div>
+  <!-- PAGE: DATA MASTER -->
+  <div class="page" id="page-master">
+    <div class="page-header">
+      <div class="page-title">Data Master</div>
+      <div class="page-sub">Kelola database All Orderan dan All RTS</div>
+    </div>
+    <div class="master-grid">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">All Orderan (Historis)</div>
+            <div class="card-desc">Database acuan cek duplikat HP dan ambil RESI untuk cek RTS.</div>
+          </div>
+          <div id="orderan-db-count" class="db-badge">—</div>
+        </div>
+        <div class="drop-zone" id="dz-order">
+          <input type="file" id="file-order" accept=".csv,.xlsx,.xls" />
+          <div class="drop-zone-icon">📂</div>
+          <div class="drop-zone-text">Upload file All Orderan<br><span>.csv / .xlsx</span></div>
+        </div>
+        <div class="range-row"><input type="text" id="order-range" placeholder="Range opsional: A1:T10000" /></div>
+        <div class="range-label">Kosongkan untuk baca seluruh sheet</div>
+        <div id="status-order" class="drop-status"></div>
+        <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn-primary" id="btn-save-order" disabled onclick="saveOrderanMaster()">Simpan ke Database</button>
+          <button class="btn-secondary" onclick="loadOrderanCount()" style="font-size:12px">Refresh</button>
+          <button class="btn-secondary btn-danger" onclick="confirmClearOrderan()" style="font-size:12px">Hapus Semua</button>
+          <span class="loading-badge" id="loading-order">menyimpan...</span>
+        </div>
+        <div id="status-order-save" class="drop-status" style="margin-top:8px"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">All RTS (Reason Retur)</div>
+            <div class="card-desc">Database reason retur. Scan semua kolom bulan Jan–Des.</div>
+          </div>
+          <div id="rts-db-count" class="db-badge">—</div>
+        </div>
+        <div class="drop-zone" id="dz-rts">
+          <input type="file" id="file-rts" accept=".csv,.xlsx,.xls" />
+          <div class="drop-zone-icon">📋</div>
+          <div class="drop-zone-text">Upload file All RTS<br><span>.csv / .xlsx</span></div>
+        </div>
+        <div class="range-row"><input type="text" id="rts-range" placeholder="Range opsional: A1:CZ2000" /></div>
+        <div class="range-label">Kosongkan untuk baca seluruh sheet</div>
+        <div id="status-rts" class="drop-status"></div>
+        <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn-primary" id="btn-save-rts" disabled onclick="saveRTSMaster()">Simpan ke Database</button>
+          <button class="btn-secondary" onclick="loadRTSCount()" style="font-size:12px">Refresh</button>
+          <button class="btn-secondary btn-danger" onclick="confirmClearRTS()" style="font-size:12px">Hapus Semua</button>
+          <span class="loading-badge" id="loading-rts">menyimpan...</span>
+        </div>
+        <div id="status-rts-save" class="drop-status" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: PANDUAN -->
+  <div class="page" id="page-panduan">
+    <div class="page-header">
+      <div class="page-title">Panduan</div>
+      <div class="page-sub">Cara menggunakan aplikasi ValidasiOrder</div>
+    </div>
+    <div class="panduan-card">
+      <h3 style="font-size:14px;margin-bottom:8px;font-family:var(--mono)">Alur Kerja</h3>
+      <div class="flow-steps">
+        <div class="flow-step"><div class="flow-num">1</div><div><strong>Setup Data Master</strong> — Upload All Orderan historis + All RTS ke menu Data Master → Simpan ke Database.</div></div>
+        <div class="flow-step"><div class="flow-num">2</div><div><strong>Validasi Harian</strong> — Upload file orderan baru hari ini → Jalankan Validasi.</div></div>
+        <div class="flow-step"><div class="flow-num">3</div><div><strong>Baca Hasil</strong> — Sistem cek HP vs data master. Duplikat & RTS otomatis terdeteksi.</div></div>
+        <div class="flow-step"><div class="flow-num">4</div><div><strong>Update Master</strong> — Upload ulang All Orderan berkala agar data selalu terkini.</div></div>
+      </div>
+      <h3 style="font-size:14px;margin:1.5rem 0 8px;font-family:var(--mono)">Warna Highlight</h3>
+      <div class="legend-row"><div class="legend-box" style="background:var(--dup-light);border:1px solid var(--dup)"></div><span>Ungu — Duplikat HP</span></div>
+      <div class="legend-row"><div class="legend-box" style="background:var(--warn-light);border:1px solid var(--warn)"></div><span>Kuning — Pernah RTS</span></div>
+      <div class="info-box">
+        <p style="font-size:12px;font-family:var(--mono);font-weight:700;color:var(--accent)">SQL Setup Supabase</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:4px">Jalankan SQL di README.md sebelum pertama kali digunakan.</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main-area -->
+
+<!-- WELCOME MODAL -->
+<div id="welcome-modal">
+  <div class="welcome-card">
+    <div id="welcome-time-emoji" style="font-size:52px;margin-bottom:0.75rem"></div>
     <div id="welcome-title" style="font-size:22px;font-weight:700;margin-bottom:6px;line-height:1.3"></div>
-    <div style="font-size:13px;color:var(--c-muted);margin-bottom:1.5rem">Bagaimana perasaan kamu hari ini?</div>
-    <div id="welcome-mood-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem"></div>
-    <button id="btn-mulai" onclick="confirmMood()" disabled style="width:100%;padding:12px;background:var(--c-accent);color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;opacity:0.45;transition:opacity 0.2s">Mulai Kerja →</button>
-    <div onclick="confirmMood()" style="margin-top:10px;font-size:12px;color:var(--c-muted);cursor:pointer">Lewati</div>
-  </div>
-</div>
-
-<div class="tabs">
-  <div class="tab active" id="tab-btn-harian"  onclick="switchTab('harian')">Validasi Harian</div>
-  <div class="tab"        id="tab-btn-master"  onclick="switchTab('master')">Data Master</div>
-  <div class="tab"        id="tab-btn-panduan" onclick="switchTab('panduan')">Panduan</div>
-</div>
-
-<!-- TAB VALIDASI HARIAN -->
-<div id="tab-harian" class="main">
-
-  <div class="step-bar">
-    <div class="step done" id="step1-ind">
-      <div class="step-num">1</div>
-      <div class="step-label">Data Master<br><span id="step1-sub">cek status...</span></div>
-    </div>
-    <div class="step-line"></div>
-    <div class="step" id="step2-ind">
-      <div class="step-num">2</div>
-      <div class="step-label">Upload Orderan Baru<br><span id="step2-sub">belum diupload</span></div>
-    </div>
-    <div class="step-line"></div>
-    <div class="step" id="step3-ind">
-      <div class="step-num">3</div>
-      <div class="step-label">Hasil Validasi<br><span id="step3-sub">belum dijalankan</span></div>
-    </div>
-  </div>
-
-  <div class="section-card" id="upload-card">
-    <div class="section-header">
-      <div>
-        <div class="section-title">Upload Orderan Baru Hari Ini</div>
-        <div class="section-desc">File orderan baru yang akan divalidasi. Tidak disimpan ke database — hanya untuk pengecekan terhadap data master.</div>
-      </div>
-      <button onclick="toggleUploadCard()" id="btn-toggle-upload" class="btn-secondary" style="font-size:12px;padding:5px 12px;flex-shrink:0">▲ Sembunyikan</button>
-    </div>
-    <div id="upload-body">
-      <div class="drop-zone" id="dz-baru">
-        <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" multiple />
-        <div class="drop-zone-icon">📥</div>
-        <div class="drop-zone-text">Drag & drop atau klik — bisa pilih banyak file sekaligus<br><span>.csv / .xlsx</span></div>
-      </div>
-      <div id="file-list-baru" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
-      <div id="status-baru" class="drop-status"></div>
-      <div style="margin-top:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn-run" id="btn-validasi" disabled onclick="doValidasiHarian()">Jalankan Validasi</button>
-        <button class="btn-secondary" id="btn-clear-files" onclick="clearFiles()" style="display:none;font-size:12px">Hapus Semua File</button>
-        <span class="loading-badge" id="loading-validasi">memproses...</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="summary-grid" id="summary-section" style="display:none;grid-template-columns:repeat(5,1fr)">
-    <div class="sum-card ok" onclick="filterByCard('all')" style="cursor:pointer">
-      <div class="label">Orderan Baru</div>
-      <div class="value" id="s-total">—</div>
-    </div>
-    <div class="sum-card dup" onclick="filterByCard('dupteam')" style="cursor:pointer">
-      <div class="label">Duplikat Team ↗</div>
-      <div class="value" id="s-dupteam">—</div>
-    </div>
-    <div class="sum-card danger" onclick="filterByCard('dupall')" style="cursor:pointer">
-      <div class="label">Duplikat All Team ↗</div>
-      <div class="value" id="s-dup">—</div>
-    </div>
-    <div class="sum-card warn" onclick="filterByCard('rts')" style="cursor:pointer">
-      <div class="label">Pernah RTS ↗</div>
-      <div class="value" id="s-rts">—</div>
-    </div>
-    <div class="sum-card ok" onclick="filterByCard('ok')" style="cursor:pointer">
-      <div class="label">Aman ↗</div>
-      <div class="value" id="s-aman">—</div>
-    </div>
-  </div>
-
-  <div id="result-section" style="display:none">
-    <div class="action-bar" style="flex-wrap:wrap;gap:6px">
-      <select class="filter-select" id="filter-status" onchange="doFilter()">
-        <option value="all">Semua baris</option>
-        <option value="dupteam">Duplikat Team</option>
-        <option value="dupall">Duplikat All Team</option>
-        <option value="rts">Hanya Pernah RTS</option>
-        <option value="ok">Hanya Aman</option>
-      </select>
-      <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
-        <option value="all">Semua Ekspedisi</option>
-        <option value="JNE">JNE</option>
-        <option value="JNT">JNT</option>
-        <option value="LION">Lion Parcel</option>
-        <option value="SICEPAT">SiCepat</option>
-        <option value="ANTERAJA">Anteraja</option>
-        <option value="NINJA">Ninja</option>
-        <option value="SAP">SAP</option>
-        <option value="TIKI">TIKI</option>
-      </select>
-      <select class="filter-select" id="filter-pembayaran" onchange="doFilter()">
-        <option value="all">Semua Pembayaran</option>
-        <option value="COD">COD</option>
-        <option value="TRANSFER">Transfer</option>
-      </select>
-      <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi / alamat..." oninput="doFilter()" style="width:240px" />
-      <span class="spacer"></span>
-      <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
-      <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
-    </div>
-    <div class="table-wrap">
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th data-col="tanggal" data-label="Tanggal" onclick="sortBy('tanggal')">Tanggal</th>
-              <th data-label="No">No</th>
-              <th data-col="nama" data-label="Nama" onclick="sortBy('nama')">Nama</th>
-              <th data-col="hp" data-label="No Telpon" onclick="sortBy('hp')">No Telpon</th>
-              <th data-label="Alamat">Alamat</th>
-              <th data-label="Kelurahan">Kelurahan</th>
-              <th data-label="Kecamatan">Kecamatan</th>
-              <th data-label="Kabupaten">Kabupaten</th>
-              <th data-label="Provinsi">Provinsi</th>
-              <th data-label="Kode Pos">Kode Pos</th>
-              <th data-label="Jml Pesanan">Jml Pesanan</th>
-              <th data-label="Qty">Qty</th>
-              <th data-col="pembayaran" data-label="Pembayaran" onclick="sortBy('pembayaran')">Pembayaran</th>
-              <th data-label="Total">Total</th>
-              <th data-label="Instruksi">Instruksi</th>
-              <th data-label="Keterangan">Keterangan</th>
-              <th data-label="Rincian">Rincian</th>
-              <th data-label="Keluhan">Keluhan</th>
-              <th data-label="Real Ongkir">Real Ongkir</th>
-              <th data-label="Cek Ongkir">Cek Ongkir</th>
-              <th data-col="returadsy" data-label="Retur ADSY" onclick="sortBy('returadsy')" style="background:#fbeaf0;color:#993556;cursor:pointer">Retur ADSY ↕</th>
-              <th data-label="Wil. Rawan">Wil. Rawan</th>
-              <th data-col="grade" data-label="Grade" onclick="sortBy('grade')">Grade</th>
-              <th data-col="ekspedisi" data-label="Ekspedisi" onclick="sortBy('ekspedisi')">Ekspedisi</th>
-              <th data-label="SS Chat">SS Chat</th>
-              <th data-col="dupteam" data-label="Duplikat Team" onclick="sortBy('dupteam')" style="cursor:pointer">Duplikat Team ↕</th>
-              <th data-col="dupall" data-label="Duplikat All Team" onclick="sortBy('dupall')" style="background:#fbeaf0;color:#993556;cursor:pointer">Duplikat All Team ↕</th>
-              <th data-label="ACC SPV CS">ACC SPV CS</th>
-              <th data-label="ACC SPV OP">ACC SPV OP</th>
-            </tr>
-          </thead>
-          <tbody id="main-tbody">
-            <tr><td colspan="29" class="empty-state">Belum ada hasil validasi</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="pagination">
-        <span id="page-info">—</span>
-        <div id="page-btns" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- TAB DATA MASTER -->
-<div id="tab-master" class="main" style="display:none">
-  <div class="master-grid">
-
-    <div class="section-card">
-      <div class="section-header">
-        <div>
-          <div class="section-title">All Orderan (Historis)</div>
-          <div class="section-desc">Database semua orderan 2025–sekarang. Digunakan sebagai acuan cek duplikat HP dan cari RESI untuk dicek ke Data RTS.</div>
-        </div>
-        <div id="orderan-db-count" class="db-badge">—</div>
-      </div>
-      <div class="drop-zone" id="dz-order">
-        <input type="file" id="file-order" accept=".csv,.xlsx,.xls" />
-        <div class="drop-zone-icon">📂</div>
-        <div class="drop-zone-text">Upload file All Orderan<br><span>.csv / .xlsx</span></div>
-      </div>
-      <div class="range-row">
-        <input type="text" id="order-range" placeholder="Range opsional, misal: A1:T10000" />
-      </div>
-      <div class="range-label">Kosongkan untuk baca seluruh sheet</div>
-      <div id="status-order" class="drop-status"></div>
-      <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-run" id="btn-save-order" disabled onclick="saveOrderanMaster()">Simpan ke Database</button>
-        <button class="btn-secondary" onclick="loadOrderanCount()" style="font-size:12px">Refresh</button>
-        <button class="btn-secondary" onclick="confirmClearOrderan()" style="font-size:12px;color:var(--c-danger)">Hapus Semua</button>
-        <span class="loading-badge" id="loading-order">menyimpan...</span>
-      </div>
-      <div id="status-order-save" class="drop-status" style="margin-top:8px"></div>
-    </div>
-
-    <div class="section-card">
-      <div class="section-header">
-        <div>
-          <div class="section-title">All RTS (Reason Retur)</div>
-          <div class="section-desc">Database reason retur. RESI dari All Orderan dicari di sini untuk mendapatkan reason-nya (scan semua kolom bulan Jan–Des).</div>
-        </div>
-        <div id="rts-db-count" class="db-badge">—</div>
-      </div>
-      <div class="drop-zone" id="dz-rts">
-        <input type="file" id="file-rts" accept=".csv,.xlsx,.xls" />
-        <div class="drop-zone-icon">📋</div>
-        <div class="drop-zone-text">Upload file All RTS<br><span>.csv / .xlsx</span></div>
-      </div>
-      <div class="range-row">
-        <input type="text" id="rts-range" placeholder="Range opsional, misal: A1:CZ2000" />
-      </div>
-      <div class="range-label">Kosongkan untuk baca seluruh sheet</div>
-      <div id="status-rts" class="drop-status"></div>
-      <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn-run" id="btn-save-rts" disabled onclick="saveRTSMaster()">Simpan ke Database</button>
-        <button class="btn-secondary" onclick="loadRTSCount()" style="font-size:12px">Refresh</button>
-        <button class="btn-secondary" onclick="confirmClearRTS()" style="font-size:12px;color:var(--c-danger)">Hapus Semua</button>
-        <span class="loading-badge" id="loading-rts">menyimpan...</span>
-      </div>
-      <div id="status-rts-save" class="drop-status" style="margin-top:8px"></div>
-    </div>
-
-  </div>
-</div>
-
-<!-- TAB PANDUAN -->
-<div id="tab-panduan" class="main" style="display:none">
-  <div class="panduan-card">
-    <h2>Panduan Penggunaan</h2>
-
-    <h3>Alur Kerja</h3>
-    <div class="flow-steps">
-      <div class="flow-step">
-        <div class="flow-num">1</div>
-        <div><strong>Setup Data Master</strong> (sekali setup, update berkala)<br>
-        Buka tab Data Master → upload All Orderan historis → Simpan ke Database. Lakukan hal sama untuk All RTS.</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-num">2</div>
-        <div><strong>Validasi Harian</strong> (setiap hari)<br>
-        Upload file orderan baru hari ini di tab Validasi Harian → klik Jalankan Validasi.</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-num">3</div>
-        <div><strong>Baca Hasil</strong><br>
-        Sistem cek HP orderan baru vs All Orderan historis. Jika HP pernah ada → duplikat + tampil nama & tanggal order lama. Jika RESI lama ada di data RTS → tampil reason RTS.</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-num">4</div>
-        <div><strong>Update Data Master</strong> (berkala)<br>
-        Setiap minggu atau setiap batch, upload ulang All Orderan yang sudah bertambah ke tab Data Master dan simpan lagi (upsert otomatis, tidak dobel).</div>
-      </div>
-    </div>
-
-    <h3 style="margin-top:1.5rem">Logika Validasi</h3>
-    <div class="panduan-table">
-      <div class="pt-row header"><span>Kondisi</span><span>Status</span><span>Info Ditampilkan</span></div>
-      <div class="pt-row"><span>HP belum pernah ada di All Orderan</span><span class="badge badge-ok">AMAN</span><span>—</span></div>
-      <div class="pt-row"><span>HP sudah ada, RESI lama tidak ada di RTS</span><span class="badge badge-dup">DUPLIKAT</span><span>Nama + tanggal order lama</span></div>
-      <div class="pt-row"><span>HP sudah ada + RESI lama ditemukan di RTS</span><span class="badge badge-dup">DUPLIKAT</span><span>+ Reason &amp; status RTS</span></div>
-    </div>
-
-    <h3 style="margin-top:1.5rem">Warna Highlight</h3>
-    <div class="legend-row"><div class="legend-box" style="background:var(--c-dup-bg);border:1px solid var(--c-dup)"></div><span>Merah muda — Duplikat HP</span></div>
-    <div class="legend-row"><div class="legend-box" style="background:var(--c-warn-bg);border:1px solid var(--c-warn)"></div><span>Kuning — Pernah RTS (ada reason dari data RTS)</span></div>
-
-    <h3 style="margin-top:1.5rem">Tambah Anggota Tim</h3>
-    <p>Supabase Dashboard → Authentication → Users → Invite User → masukkan email anggota tim.</p>
-
-    <div class="info-box" style="margin-top:1.5rem">
-      <p class="info-title">SQL yang perlu dijalankan di Supabase</p>
-      <pre style="font-size:11px;margin-top:6px;white-space:pre-wrap;color:var(--c-muted)">Lihat README.md — jalankan SQL setup sebelum pertama kali pakai.</pre>
-    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">Bagaimana perasaan kamu hari ini?</div>
+    <div id="welcome-mood-grid"></div>
+    <button id="btn-mulai" onclick="confirmMood()" disabled style="width:100%;padding:12px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;opacity:0.4;transition:opacity 0.2s;margin-bottom:10px">Mulai Kerja →</button>
+    <div onclick="confirmMood()" style="font-size:12px;color:var(--muted);cursor:pointer">Lewati</div>
   </div>
 </div>
 
 <div class="toast-wrap" id="toast-wrap"></div>
-
-<style>
-thead th[onclick] { cursor: pointer !important; user-select:none; }
-thead th[onclick]:hover { background: var(--c-accent-bg) !important; color: var(--c-accent) !important; }
-.step-bar { display:flex; align-items:center; margin-bottom:1.5rem; }
-.step { display:flex; align-items:center; gap:10px; }
-.step-num { width:28px; height:28px; border-radius:50%; background:var(--c-border-strong); color:var(--c-muted); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; font-family:var(--mono); flex-shrink:0; transition:all 0.2s; }
-.step.done .step-num { background:var(--c-success); color:white; }
-.step.active .step-num { background:var(--c-accent); color:white; }
-.step-label { font-size:12px; color:var(--c-muted); font-family:var(--mono); line-height:1.4; }
-.step-label span { font-size:11px; }
-.step.done .step-label { color:var(--c-success); }
-.step.active .step-label { color:var(--c-accent); }
-.step-line { flex:1; height:1px; background:var(--c-border-strong); margin:0 12px; min-width:30px; }
-
-.section-card { background:var(--c-surface); border:0.5px solid var(--c-border); border-radius:12px; padding:1.25rem; margin-bottom:1rem; }
-.section-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:1rem; gap:10px; }
-.section-title { font-size:14px; font-weight:700; margin-bottom:3px; }
-.section-desc  { font-size:12px; color:var(--c-muted); line-height:1.5; max-width:480px; }
-.db-badge { font-size:12px; font-family:var(--mono); background:var(--c-accent-bg); color:var(--c-accent); padding:4px 10px; border-radius:99px; white-space:nowrap; flex-shrink:0; }
-
-.master-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-
-.flow-steps { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
-.flow-step { display:flex; gap:12px; align-items:flex-start; font-size:13px; color:var(--c-muted); line-height:1.6; }
-.flow-num { width:24px; height:24px; border-radius:50%; background:var(--c-accent); color:white; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; margin-top:1px; }
-
-.panduan-table { border:0.5px solid var(--c-border); border-radius:8px; overflow:hidden; font-size:12px; margin-top:8px; }
-.pt-row { display:grid; grid-template-columns:2fr 1fr 2fr; gap:12px; padding:10px 14px; border-bottom:0.5px solid var(--c-border); align-items:center; }
-.pt-row:last-child { border-bottom:none; }
-.pt-row.header { background:var(--c-bg); font-family:var(--mono); font-size:11px; color:var(--c-muted); text-transform:uppercase; }
-
-@media (max-width:768px) {
-  .master-grid { grid-template-columns:1fr; }
-  .step-label { display:none; }
-  .pt-row { grid-template-columns:1fr; }
-}
-</style>
 
 <script>
 // STATE
@@ -367,6 +528,12 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   if (!user) return;
   document.getElementById('user-email').textContent = user.email;
   document.getElementById('user-role').textContent  = user.user_metadata?.role || 'member';
+  // Set avatar initials
+  const av = document.getElementById('user-avatar');
+  if (av) av.textContent = user.email.charAt(0).toUpperCase();
+  // Topbar date
+  const dateEl = document.getElementById('topbar-date');
+  if (dateEl) dateEl.textContent = new Date().toLocaleDateString('id-ID', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
   initGreeting(user.email);
 
   // Multi-file handler untuk orderan baru
@@ -423,11 +590,16 @@ function updateStep1() {
 }
 
 // TABS
-function switchTab(name) {
+function switchPage(name) {
   ['harian','master','panduan'].forEach(t => {
-    document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
-    document.getElementById('tab-btn-'+t).classList.toggle('active', t===name);
+    const pg = document.getElementById('page-'+t);
+    if (pg) pg.classList.toggle('active', t===name);
+    const nav = document.getElementById('nav-'+t);
+    if (nav) nav.classList.toggle('active', t===name);
   });
+  const titles = {harian:'Validasi Harian', master:'Data Master', panduan:'Panduan'};
+  const titleEl = document.getElementById('topbar-title');
+  if (titleEl) titleEl.textContent = titles[name] || '';
 }
 
 // SIMPAN ALL ORDERAN
