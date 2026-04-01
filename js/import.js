@@ -120,7 +120,7 @@ function extractOrderFields(row) {
     no      : getCol(row, 'No', 'no', 'Nomor'),
     tanggal : getCol(row, 'Tanggal', 'tanggal', 'Tgl'),
     nama    : getCol(row, 'Nama', 'nama', 'NamaCustomer', 'name'),
-    hp      : getCol(row, 'NomorHp', 'NomorHP', 'No HP', 'NoHP', 'HP', 'Telp', 'Telepon', 'phone'),
+    hp      : getCol(row, 'No telpon', 'No Telpon', 'Notelpon', 'NomorHp', 'NomorHP', 'No HP', 'NoHP', 'HP', 'Telp', 'Telepon', 'phone'),
     alamat  : getCol(row, 'Alamat', 'alamat', 'address'),
     kelurahan  : getCol(row, 'Kelurahan', 'kelurahan'),
     kecamatan  : getCol(row, 'kecamatan', 'Kecamatan'),
