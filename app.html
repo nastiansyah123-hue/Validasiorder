@@ -1921,13 +1921,16 @@ function parseEkspedisiFile(file) {
         });
       });
       
-      // Fix: rename _delivered to _del
+      // Fix: rename _delivered to _del, multiply by 100 to store as percentage
       const eksKeys = ['jne','jnt','ninja','lion','sicepat','idx','sap','anteraja'];
       Object.values(result).forEach(r => {
         eksKeys.forEach(eks => {
           if (r[eks+'_delivered'] !== undefined) {
-            r[eks+'_del'] = r[eks+'_delivered'];
+            r[eks+'_del'] = Math.round((r[eks+'_delivered']||0) * 100 * 100) / 100;
             delete r[eks+'_delivered'];
+          }
+          if (r[eks+'_rts'] !== undefined) {
+            r[eks+'_rts'] = Math.round((r[eks+'_rts']||0) * 100 * 100) / 100;
           }
         });
       });
