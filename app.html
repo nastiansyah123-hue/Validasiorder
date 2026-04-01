@@ -367,7 +367,7 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
     </div>
 
     <!-- Summary -->
-    <div class="summary-grid" id="summary-section" style="display:none">
+    <div class="summary-grid" id="summary-section" style="display:none;grid-template-columns:repeat(6,1fr)">
       <div class="sum-card c-total" onclick="filterByCard('all')">
         <div class="s-label">Orderan Baru</div>
         <div class="s-value" id="s-total">—</div>
@@ -384,9 +384,13 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
         <div class="s-label">Pernah RTS ↗</div>
         <div class="s-value" id="s-rts">—</div>
       </div>
-      <div class="sum-card c-aman" onclick="filterByCard('ok')">
-        <div class="s-label">Aman ↗</div>
-        <div class="s-value" id="s-aman">—</div>
+      <div class="sum-card c-aman" onclick="filterByCard('kirim')" style="cursor:pointer">
+        <div class="s-label">Kirim ↗</div>
+        <div class="s-value" id="s-kirim" style="color:var(--success)">—</div>
+      </div>
+      <div class="sum-card" onclick="filterByCard('holdcancel')" style="cursor:pointer;border:1px solid var(--border)">
+        <div class="s-label">Hold / Cancel ↗</div>
+        <div class="s-value" id="s-holdcancel" style="color:var(--warn)">—</div>
       </div>
     </div>
 
@@ -408,7 +412,11 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
           <option value="dupteam">Duplikat Team</option>
           <option value="dupall">Duplikat All Team</option>
           <option value="rts">Hanya Pernah RTS</option>
-          <option value="ok">Hanya Aman</option>
+          <option value="kirim">Kirim</option>
+          <option value="hold">Hold</option>
+          <option value="cancel">Cancel</option>
+          <option value="holdcancel">Hold / Cancel</option>
+          <option value="ok">Belum Diputuskan</option>
         </select>
         <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
           <option value="all">Semua Ekspedisi</option>
@@ -993,11 +1001,13 @@ async function doValidasiHarian() {
     const rtsCount     = validatedData.filter(r=>r._isRetur||r._rtsInfo).length;
     const amanCount    = validatedData.filter(r=>!r._isDup&&!r._isDupTeam&&!r._isRetur&&!r._rtsInfo).length;
 
-    document.getElementById('s-total').textContent   = validatedData.length.toLocaleString();
-    document.getElementById('s-dupteam').textContent = dupTeamCount.toLocaleString();
-    document.getElementById('s-dup').textContent     = dupCount.toLocaleString();
-    document.getElementById('s-rts').textContent     = rtsCount.toLocaleString();
-    document.getElementById('s-aman').textContent    = amanCount.toLocaleString();
+    document.getElementById('s-total').textContent      = validatedData.length.toLocaleString();
+    document.getElementById('s-dupteam').textContent    = dupTeamCount.toLocaleString();
+    document.getElementById('s-dup').textContent        = dupCount.toLocaleString();
+    document.getElementById('s-rts').textContent        = rtsCount.toLocaleString();
+    document.getElementById('s-kirim').textContent      = '—';
+    document.getElementById('s-holdcancel').textContent = '—';
+    // Live update kirim/hold/cancel via updateAccSummary()
     document.getElementById('summary-section').style.display = 'grid';
     document.getElementById('result-section').style.display  = 'block';
     document.getElementById('step3-ind').className = 'step done';
@@ -1028,7 +1038,17 @@ function doFilter() {
 
   filteredData = validatedData.filter(row => {
     // Status filter
-    const mf = f==='all'?true:f==='dupteam'?row._isDupTeam:f==='dupall'?row._isDup:f==='rts'?(row._isRetur||!!row._rtsInfo):f==='ok'?(!row._isDupTeam&&!row._isDup&&!row._isRetur&&!row._rtsInfo):true;
+    const accVal = (row._accSPV||row._raw['ACC SPV CS']||'').toUpperCase();
+    const mf = f==='all'?true
+      :f==='dupteam'?row._isDupTeam
+      :f==='dupall'?row._isDup
+      :f==='rts'?(row._isRetur||!!row._rtsInfo)
+      :f==='kirim'?accVal==='KIRIM'
+      :f==='hold'?accVal==='HOLD'
+      :f==='cancel'?accVal==='CANCEL'
+      :f==='holdcancel'?['HOLD','CANCEL'].includes(accVal)
+      :f==='ok'?(!accVal)
+      :true;
     if (!mf) return false;
 
     // Ekspedisi filter
@@ -1240,10 +1260,17 @@ function initGreeting(email) {
   showWelcomeModal(capName, period, timeEmojis[period]);
 }
 
+function updateAccSummary() {
+  const kirim      = validatedData.filter(r=>(r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase()==='KIRIM').length;
+  const holdcancel = validatedData.filter(r=>['HOLD','CANCEL'].includes((r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase())).length;
+  const elK = document.getElementById('s-kirim');
+  const elH = document.getElementById('s-holdcancel');
+  if (elK) elK.textContent = kirim.toLocaleString();
+  if (elH) elH.textContent = holdcancel.toLocaleString();
+}
+
 function filterByCard(val) {
-  // Set filter dropdown
   const sel = document.getElementById('filter-status');
-  if (sel) sel.value = val;
   // Clear search
   const sb = document.getElementById('search-box');
   if (sb) sb.value = '';
@@ -1494,6 +1521,7 @@ function setAccSPV(sel) {
     const origIdx = validatedData.indexOf(filteredData[idx]);
     if (origIdx >= 0) { validatedData[origIdx]._accSPV = val; validatedData[origIdx]._raw['ACC SPV CS'] = val; }
   }
+  updateAccSummary();
   if (val) showToast(val==='KIRIM'?'✅ Kirim':val==='HOLD'?'⏸ Hold':'❌ Cancel', val==='KIRIM'?'success':val==='CANCEL'?'error':'info');
 }
 
@@ -1710,7 +1738,7 @@ function bulkSetAcc(val) {
     if (orig) { orig._accSPV = val; orig._raw['ACC SPV CS'] = val; }
   });
   showToast(selected.length + ' orderan → ' + val, val==='KIRIM'?'success':val==='CANCEL'?'error':'info');
-  renderTable(); updateBulkBar();
+  updateAccSummary(); renderTable(); updateBulkBar();
 }
 
 function renderPag() {
