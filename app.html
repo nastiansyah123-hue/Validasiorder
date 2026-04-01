@@ -1778,10 +1778,16 @@ function toggleGradeCard() {
 function applyGradeToTable() {
   if (!Object.keys(gradeMap).length || !validatedData.length) return;
   let matched = 0;
+  // Build normalized gradeMap — normalize all keys first
+  const normalizedGradeMap = {};
+  Object.entries(gradeMap).forEach(([k, v]) => {
+    const norm = normalizeHP(k);
+    if (norm) normalizedGradeMap[norm] = v;
+  });
+
   validatedData.forEach(row => {
     const hp = normalizeHP(row.hp||'');
-    const hpStrip = hp.replace(/^0+/,'');
-    const grade = gradeMap[hp] || gradeMap[hpStrip] || gradeMap['0'+hpStrip] || '';
+    const grade = normalizedGradeMap[hp] || '';
     if (grade) {
       row._grade = grade;
       row._raw['Grade'] = grade;
