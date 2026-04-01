@@ -799,10 +799,11 @@ async function doValidasiHarian() {
     badge.textContent = 'menghitung statistik wilayah...';
     const kodeposStats = {};
     let kpFrom = 0;
+    const KP_BATCH = 1000; // Supabase max per request
     while (true) {
       const { data: kpData, error: kpErr } = await sb.from('all_orderan')
         .select('kodepos,status_akhir')
-        .range(kpFrom, kpFrom + 1999);
+        .range(kpFrom, kpFrom + KP_BATCH - 1);
       if (kpErr) throw kpErr;
       if (!kpData || !kpData.length) break;
       kpData.forEach(r => {
@@ -812,8 +813,8 @@ async function doValidasiHarian() {
         kodeposStats[kp].total++;
         if ((r.status_akhir||'').toLowerCase().includes('retur')) kodeposStats[kp].retur++;
       });
-      if (kpData.length < 2000) break;
-      kpFrom += 2000;
+      if (kpData.length < KP_BATCH) break;
+      kpFrom += KP_BATCH;
       badge.textContent = `menghitung statistik wilayah... ${kpFrom.toLocaleString()} baris`;
     }
     window._kodeposStats = kodeposStats;
