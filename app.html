@@ -511,7 +511,7 @@ async function doValidasiHarian() {
         .select('hp,resi,nama,tanggal,status_akhir,cs,adv')
         .in('hp', batch);
       if (error) throw error;
-      if (data) { allOrderan.push(...data); if(data[0]) console.log('sample row:', JSON.stringify(data[0])); }
+      if (data) allOrderan.push(...data);
       badge.textContent = `mengecek HP... ${Math.min(i+batchSize, hpList.length)}/${hpList.length}`;
     }
 
@@ -643,6 +643,7 @@ function renderTable() {
     const cls = row._isDup&&row._rtsInfo?'row-both':row._isDup?'row-dup':row._rtsInfo?'row-rts':'';
 
     // Kolom Duplikat All Team — isi nama+tanggal jika duplikat
+    if(row._isDup && row._matches.length && !window._dbgDone){ console.log('match sample:', JSON.stringify(row._matches[0])); window._dbgDone=true; }
     const dupAllTeam = row._isDup && row._matches.length
       ? row._matches.slice(0,3).map(m => {
           const cs = m.cs ? `<span style="background:var(--c-accent-bg);color:var(--c-accent);padding:1px 6px;border-radius:99px;font-size:10px;margin-left:4px">CS: ${m.cs}</span>` : '';
