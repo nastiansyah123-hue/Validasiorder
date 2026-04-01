@@ -240,6 +240,20 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
 .mood-opt .mood-e{font-size:30px}
 .mood-opt .mood-l{font-size:10px;color:var(--muted);font-family:var(--mono)}
 
+/* FULLSCREEN MODE */
+body.fullscreen-mode .sidebar,
+body.fullscreen-mode .topbar,
+body.fullscreen-mode #greeting-bar,
+body.fullscreen-mode .page-header,
+body.fullscreen-mode .step-bar,
+body.fullscreen-mode #upload-card,
+body.fullscreen-mode #summary-section,
+body.fullscreen-mode #bulk-bar { display:none !important; }
+body.fullscreen-mode .main-area { margin-left:0 !important; max-width:100vw !important; }
+body.fullscreen-mode #result-section { padding:0.75rem; }
+body.fullscreen-mode .table-scroll { max-height:calc(100vh - 100px) !important; }
+body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;border-color:var(--accent); }
+
 /* RESPONSIVE */
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}
@@ -436,6 +450,7 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
         </select>
         <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi / alamat..." oninput="doFilter()" />
         <span class="spacer"></span>
+        <button class="btn-secondary" id="btn-fullscreen" onclick="toggleFullscreen()" title="Layar Penuh">⛶ Layar Penuh</button>
         <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
         <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
       </div>
@@ -1537,6 +1552,21 @@ function setAccSPV(sel) {
   if (val) showToast(val==='KIRIM'?'✅ Kirim':val==='HOLD'?'⏸ Hold':'❌ Cancel', val==='KIRIM'?'success':val==='CANCEL'?'error':'info');
 }
 
+function toggleFullscreen() {
+  const isFs = document.body.classList.toggle('fullscreen-mode');
+  const btn = document.getElementById('btn-fullscreen');
+  if (btn) btn.textContent = isFs ? '✕ Keluar Layar Penuh' : '⛶ Layar Penuh';
+  // Recalculate table height
+  setTimeout(() => renderTable(), 50);
+}
+
+// ESC to exit fullscreen
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.body.classList.contains('fullscreen-mode')) {
+    toggleFullscreen();
+  }
+});
+
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
   const btn  = document.getElementById('btn-toggle-upload');
@@ -1652,7 +1682,7 @@ function renderTable() {
       ${td(row._raw['Real Ongkir']||row._raw['real ongkir'])}
       ${td(row._raw['Pengecekkan Ongkir']||row._raw['cek ongkir'])}
       <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
-      <td title="${row._wilayahRawan||''}" style="font-family:monospace;font-size:11px;${
+      <td title="${row._wilayahRawan||''}" style="font-family:monospace;font-size:12px;${
   row._wilayahRawan && parseInt(row._wilayahRawan)>=30 ? 'color:#dc2626;font-weight:600' :
   row._wilayahRawan && parseInt(row._wilayahRawan)>=15 ? 'color:#d97706;font-weight:600' :
   row._wilayahRawan ? 'color:#16a34a' : 'color:var(--muted)'
