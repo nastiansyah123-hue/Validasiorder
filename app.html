@@ -59,13 +59,15 @@
     </div>
     <div id="upload-body">
       <div class="drop-zone" id="dz-baru">
-        <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" />
+        <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" multiple />
         <div class="drop-zone-icon">📥</div>
-        <div class="drop-zone-text">Drag & drop atau klik — orderan baru hari ini<br><span>.csv / .xlsx</span></div>
+        <div class="drop-zone-text">Drag & drop atau klik — bisa pilih banyak file sekaligus<br><span>.csv / .xlsx</span></div>
       </div>
+      <div id="file-list-baru" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
       <div id="status-baru" class="drop-status"></div>
       <div style="margin-top:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <button class="btn-run" id="btn-validasi" disabled onclick="doValidasiHarian()">Jalankan Validasi</button>
+        <button class="btn-secondary" id="btn-clear-files" onclick="clearFiles()" style="display:none;font-size:12px">Hapus Semua File</button>
         <span class="loading-badge" id="loading-validasi">memproses...</span>
       </div>
     </div>
@@ -338,14 +340,17 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   document.getElementById('user-email').textContent = user.email;
   document.getElementById('user-role').textContent  = user.user_metadata?.role || 'member';
 
-  setupDropzone('dz-baru', 'file-baru', 'baru', (data) => {
-    orderBaruRaw = data.map(extractOrderFields);
-    document.getElementById('btn-validasi').disabled = orderBaruRaw.length === 0;
-    if (orderBaruRaw.length) {
-      document.getElementById('step2-ind').className = 'step done';
-      document.getElementById('step2-sub').textContent = orderBaruRaw.length.toLocaleString() + ' baris';
-    }
+  // Multi-file handler untuk orderan baru
+  const dzBaru = document.getElementById('dz-baru');
+  const fileBaru = document.getElementById('file-baru');
+
+  dzBaru.addEventListener('dragover', e => { e.preventDefault(); dzBaru.classList.add('drag-over'); });
+  dzBaru.addEventListener('dragleave', () => dzBaru.classList.remove('drag-over'));
+  dzBaru.addEventListener('drop', e => {
+    e.preventDefault(); dzBaru.classList.remove('drag-over');
+    handleMultiFiles([...e.dataTransfer.files]);
   });
+  fileBaru.addEventListener('change', () => handleMultiFiles([...fileBaru.files]));
 
   setupDropzone('dz-order', 'file-order', 'order', (data) => {
     masterOrderParsed = data.map(extractOrderFields);
@@ -670,6 +675,58 @@ function doFilter() {
 }
 
 // RENDER TABLE
+let loadedFiles = {}; // filename -> parsed rows
+
+function clearFiles() {
+  loadedFiles = {};
+  orderBaruRaw = [];
+  document.getElementById('file-list-baru').innerHTML = '';
+  document.getElementById('status-baru').style.display = 'none';
+  document.getElementById('btn-validasi').disabled = true;
+  document.getElementById('btn-clear-files').style.display = 'none';
+  document.getElementById('step2-ind').className = 'step';
+  document.getElementById('step2-sub').textContent = 'belum diupload';
+  document.getElementById('file-baru').value = '';
+}
+
+function handleMultiFiles(files) {
+  if (!files.length) return;
+  files.forEach(file => processFile(file, 'baru-multi', (data, fname) => {
+    loadedFiles[fname] = data.map(extractOrderFields);
+    updateFileList();
+  }));
+}
+
+function updateFileList() {
+  // Gabungkan semua file
+  orderBaruRaw = Object.values(loadedFiles).flat();
+  const listEl = document.getElementById('file-list-baru');
+  listEl.innerHTML = Object.entries(loadedFiles).map(([fname, rows]) =>
+(() => {
+      const safeId = encodeURIComponent(fname);
+      return `<div style="display:flex;align-items:center;gap:6px;background:var(--c-success-bg);color:var(--c-success);padding:4px 10px;border-radius:99px;font-size:11px;font-family:monospace">
+        ✓ ${fname} (${rows.length.toLocaleString()} baris)
+        <span data-fname="${safeId}" onclick="removeFile(decodeURIComponent(this.dataset.fname))" style="cursor:pointer;color:var(--c-danger);font-weight:700;margin-left:4px">✕</span>
+      </div>`;
+    })()
+  ).join('');
+  document.getElementById('btn-validasi').disabled = orderBaruRaw.length === 0;
+  document.getElementById('btn-clear-files').style.display = orderBaruRaw.length ? 'inline-block' : 'none';
+  if (orderBaruRaw.length) {
+    document.getElementById('step2-ind').className = 'step done';
+    document.getElementById('step2-sub').textContent = orderBaruRaw.length.toLocaleString() + ' baris (' + Object.keys(loadedFiles).length + ' file)';
+    document.getElementById('status-baru').className = 'drop-status ok';
+    document.getElementById('status-baru').style.display = 'block';
+    document.getElementById('status-baru').textContent = `✓ Total ${orderBaruRaw.length.toLocaleString()} baris dari ${Object.keys(loadedFiles).length} file`;
+  }
+}
+
+function removeFile(fname) {
+  delete loadedFiles[fname];
+  updateFileList();
+  if (!Object.keys(loadedFiles).length) clearFiles();
+}
+
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
   const btn  = document.getElementById('btn-toggle-upload');
