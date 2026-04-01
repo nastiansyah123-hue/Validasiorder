@@ -508,7 +508,7 @@ async function doValidasiHarian() {
     for (let i = 0; i < hpList.length; i += batchSize) {
       const batch = hpList.slice(i, i + batchSize);
       const { data, error } = await sb.from('all_orderan')
-        .select('hp,resi,nama,tanggal,status_akhir')
+        .select('hp,resi,nama,tanggal,status_akhir,csa')
         .in('hp', batch);
       if (error) throw error;
       if (data) allOrderan.push(...data);
@@ -644,7 +644,10 @@ function renderTable() {
 
     // Kolom Duplikat All Team — isi nama+tanggal jika duplikat
     const dupAllTeam = row._isDup && row._matches.length
-      ? `<span style="font-size:11px;color:var(--c-dup);font-family:monospace">${row._matches.slice(0,2).map(m=>(m.nama||'')+(m.tanggal?' ('+m.tanggal+')':'')).join(' | ')}</span>`
+      ? row._matches.slice(0,3).map(m => {
+          const cs = m.csa ? `<span style="background:var(--c-accent-bg);color:var(--c-accent);padding:1px 6px;border-radius:99px;font-size:10px;margin-left:4px">CS: ${m.csa}</span>` : '';
+          return `<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block">${m.nama||''}${m.tanggal?' ('+m.tanggal+')':''}${cs}</span>`;
+        }).join('')
       : '';
 
     // Kolom Retur ADSY — isi reason RTS jika pernah RTS
