@@ -986,6 +986,12 @@ async function doValidasiHarian() {
       const hp = normalizeHP(row.hp||'');
       if (hp && hpIndex[hp]) hpIndex[hp].forEach(m => { if(m.resi) resiToCheck.add(m.resi.trim().toLowerCase()); });
     });
+    // Juga kumpulkan resi dari yang pernah RETUR untuk hitung total RTS per HP
+    const hpRturCount = {}; // hp -> jumlah retur
+    Object.entries(hpIndex).forEach(([hp, matches]) => {
+      const rturCount = matches.filter(m => (m.status_akhir||'').toLowerCase().includes('retur')).length;
+      if (rturCount > 0) hpRturCount[hp] = rturCount;
+    });
 
     // 5. Ambil RTS dari Supabase
     const rtsMap = {};
@@ -1038,7 +1044,8 @@ async function doValidasiHarian() {
         _kpExists = false;
       }
 
-      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status, _wilayahRawan:wilayahRawan, _kpExists, _kpLowSample };
+      const _rtsCount = hpRturCount[normalizeHP(row.hp||'')] || 0;
+      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _rtsCount, _status, _wilayahRawan:wilayahRawan, _kpExists, _kpLowSample };
     });
 
     filteredData = [...validatedData];
@@ -1747,10 +1754,13 @@ function renderTable() {
         }).join('')
       : '';
 
-    // Kolom Retur ADSY — isi reason RTS jika pernah RTS
+    // Kolom Retur ADSY — isi reason RTS + jumlah RTS
+    const rtsCountBadge = row._rtsCount > 0
+      ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;font-family:monospace;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">${row._rtsCount}x RTS</span>`
+      : '';
     const returADSY = row._rtsInfo
-      ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="${row._rtsInfo.reason||''}">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}</span>`
-      : (row._isRetur ? '<span style="font-size:11px;color:var(--c-warn);font-family:monospace">Pernah RTS (no reason)</span>' : '');
+      ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="${row._rtsInfo.reason||''}">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}${rtsCountBadge}</span>`
+      : (row._isRetur ? `<span style="font-size:11px;color:var(--c-warn);font-family:monospace">Pernah RTS${rtsCountBadge}</span>` : '');
 
     const td = (v,style='') => {
       let val = String(v||'').trim();
