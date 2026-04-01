@@ -2317,10 +2317,32 @@ function renderTable() {
   row._kpLowSample ? '<span style="font-size:10px">data kurang</span>' : '—'
 }</td>
       ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
-      <td style="font-family:monospace;font-size:12px;font-weight:500">${
+      <td style="font-family:monospace;font-size:12px;font-weight:500;${(function(){
+  const usedEks = extractEkspedisi(row._raw['Pembayaran']||row._raw['pembayaran']);
+  if (!usedEks || !row._rekEkspedisi) return '';
+  // Check if used ekspedisi is in top recommendation
+  const topRek = row._rekEkspedisi.split(' > ')[0].replace(/\(.*?\)/,'').trim();
+  const rekList = row._rekEkspedisi.split(' > ').map(e=>e.replace(/\(.*?\)/,'').trim());
+  if (!rekList.some(r=>r.toLowerCase()===usedEks.toLowerCase())) return 'background:#fee2e2;color:#dc2626;font-weight:700;';
+  if (topRek.toLowerCase()!==usedEks.toLowerCase()) return 'background:#fef3c7;color:#d97706;';
+  return 'background:#dcfce7;color:#16a34a;';
+})()}"
+  title="${(function(){
+  const usedEks = extractEkspedisi(row._raw['Pembayaran']||row._raw['pembayaran']);
+  if (!usedEks || !row._rekEkspedisi) return '';
+  const rekList = row._rekEkspedisi.split(' > ').map(e=>e.replace(/\(.*?\)/,'').trim());
+  if (!rekList.some(r=>r.toLowerCase()===usedEks.toLowerCase())) return 'Tidak sesuai rekomendasi! Rekomendasi: '+row._rekEkspedisi;
+  return 'Sesuai rekomendasi ✓';
+})()}">${
   extractEkspedisi(row._raw['Pembayaran']||row._raw['pembayaran']) ||
   row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||''
-}</td>
+}${(function(){
+  const usedEks = extractEkspedisi(row._raw['Pembayaran']||row._raw['pembayaran']);
+  if (!usedEks || !row._rekEkspedisi) return '';
+  const rekList = row._rekEkspedisi.split(' > ').map(e=>e.replace(/\(.*?\)/,'').trim());
+  if (!rekList.some(r=>r.toLowerCase()===usedEks.toLowerCase())) return ' ⚠';
+  return ' ✓';
+})()}</td>
       <td style="text-align:center">
         <input type="checkbox" class="ss-chk" title="SS Chat sudah ada?"
           ${(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat']||'').toUpperCase()==='TRUE'||row._ssChatDone?'checked':''}
