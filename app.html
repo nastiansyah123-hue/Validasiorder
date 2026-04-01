@@ -986,12 +986,15 @@ async function doValidasiHarian() {
       const hp = normalizeHP(row.hp||'');
       if (hp && hpIndex[hp]) hpIndex[hp].forEach(m => { if(m.resi) resiToCheck.add(m.resi.trim().toLowerCase()); });
     });
-    // Hitung total RTS per HP dari allOrderan
+    // Hitung total RTS per HP dari allOrderan (normalize HP saat counting)
     const hpRturCount = {};
     allOrderan.forEach(r => {
+      const hp = normalizeHP(r.hp||'');
+      if (!hp) return;
+      if (!hpRturCount[hp]) hpRturCount[hp] = { total:0, retur:0 };
+      hpRturCount[hp].total++;
       if ((r.status_akhir||'').toLowerCase().includes('retur')) {
-        const hp = normalizeHP(r.hp||'');
-        if (hp) hpRturCount[hp] = (hpRturCount[hp]||0) + 1;
+        hpRturCount[hp].retur++;
       }
     });
 
@@ -1046,7 +1049,8 @@ async function doValidasiHarian() {
         _kpExists = false;
       }
 
-      const _rtsCount = hpRturCount[normalizeHP(row.hp||'')] || 0;
+      const _hpStat = hpRturCount[normalizeHP(row.hp||'')];
+      const _rtsCount = _hpStat ? _hpStat.retur : 0;
       return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _rtsCount, _status, _wilayahRawan:wilayahRawan, _kpExists, _kpLowSample };
     });
 
