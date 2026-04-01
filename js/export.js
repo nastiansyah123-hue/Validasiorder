@@ -38,7 +38,7 @@ function buildExportRows(filteredData) {
       GradeRekomendasi         : r['GradeRekomendasi']||r['Grade']||'',
       Ekspedisi                : r['Ekspedisi']||r[' Ekspedisi']||'',
       'Kirim SS Chat Customer' : r['Kirim SS Chat Customer']||'',
-      'Duplikat Team'          : r['Duplikat Team']||'',
+      'Duplikat Team'          : row._isDupTeam ? 'DUPLIKAT TEAM' : '',
       'Duplikat All Team'      : dupAllTeam,
       'ACC SPV CS'             : r['ACC SPV CS']||'',
       'ACC SPV OP'             : r['ACC SPV OP']||'',
