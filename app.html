@@ -788,8 +788,14 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
     data.forEach(row => {
       // Find HP and Grade columns flexibly
       const keys = Object.keys(row);
-      const hpKey = keys.find(k => k.toLowerCase().replace(/\s/g,'').includes('hp') || k.toLowerCase().includes('telp') || k.toLowerCase().includes('nomer') || k.toLowerCase().includes('nomor') || k.toLowerCase().includes('phone'));
-      const gradeKey = keys.find(k => k.toLowerCase().includes('grade'));
+      const hpKey = keys.find(k => {
+        const kl = k.toLowerCase().replace(/\s/g,'');
+        return kl.includes('phone') || kl.includes('hp') || kl.includes('telp') || kl.includes('nomer') || kl.includes('nomor');
+      });
+      const gradeKey = keys.find(k => {
+        const kl = k.toLowerCase().replace(/\s/g,'');
+        return kl.includes('averagescore') || kl.includes('average') || kl.includes('score') || kl.includes('grade');
+      });
       if (!hpKey || !gradeKey) return;
       const hp = normalizeHP(row[hpKey]||'');
       const grade = String(row[gradeKey]||'').trim();
