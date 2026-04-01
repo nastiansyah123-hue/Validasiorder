@@ -95,8 +95,9 @@ function smartSplitCSV(line) {
 
 // ── NORMALIZE HELPERS ─────────────────────────────────────────────────────────
 function normalizeHP(hp) {
-  if (!hp) return '';
-  let s = String(hp).replace(/\D/g, '');
+  if (!hp && hp !== 0) return '';
+  let s = String(hp).trim().replace(/\D/g, '');
+  if (!s) return '';
   if (s.startsWith('62')) s = '0' + s.slice(2);
   if (s.startsWith('8'))  s = '0' + s;
   return s;
