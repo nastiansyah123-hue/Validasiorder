@@ -802,22 +802,34 @@ async function doValidasiHarian() {
     for (let i = 0; i < hpListAll.length; i += batchSize) {
       const batch = hpListAll.slice(i, i + batchSize);
       const { data, error } = await sb.from('all_orderan')
-        .select('hp,resi,nama,tanggal,status_akhir,cs,adv')
+        .select('hp,resi,nama,tanggal,status_akhir,cs,adv,kodepos')
         .in('hp', batch);
       if (error) throw error;
       if (data) allOrderan.push(...data);
       badge.textContent = `mengecek HP... ${Math.min(i+batchSize, hpListAll.length)}/${hpListAll.length}`;
     }
 
-    // 3. Index HP → daftar match
+    // 3. Index HP → daftar match + kodepos RTS rate
     badge.textContent = 'membangun index...';
     const hpIndex = {};
+    const kodeposStats = {}; // { kodepos: { total, retur } }
+
     allOrderan.forEach(r => {
-      // hp dari Supabase bisa berupa angka (tanpa leading 0) — normalizeHP handles both
+      // HP index
       const hp = normalizeHP(r.hp);
-      if (!hp) return;
-      if (!hpIndex[hp]) hpIndex[hp] = [];
-      hpIndex[hp].push(r);
+      if (hp) {
+        if (!hpIndex[hp]) hpIndex[hp] = [];
+        hpIndex[hp].push(r);
+      }
+      // Kodepos stats
+      const kp = String(r.kodepos||'').trim();
+      if (kp) {
+        if (!kodeposStats[kp]) kodeposStats[kp] = { total:0, retur:0 };
+        kodeposStats[kp].total++;
+        if ((r.status_akhir||'').toLowerCase().includes('retur')) {
+          kodeposStats[kp].retur++;
+        }
+      }
     });
 
     // 4. Kumpulkan RESI lama yang perlu dicek RTS
@@ -865,7 +877,19 @@ async function doValidasiHarian() {
       const hpNorm = normalizeHP(row.hp);
       const isDupTeam = hpNorm && hpCountBaru[hpNorm] > 1;
       const _status = isDup && (rtsInfo||isRetur) ? 'DUPLIKAT+RTS' : isDup ? 'DUPLIKAT' : isRetur ? 'RTS' : 'AMAN';
-      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status };
+
+      // Wilayah rawan dari kodepos
+      const kp = String(row._raw['Kode Pos']||row._raw['kodepos']||row._raw['KODE POS']||row.kodepos||'').trim();
+      const kpStat = kodeposStats[kp];
+      let wilayahRawan = '';
+      if (kpStat && kpStat.total >= 3) {
+        const pct = Math.round((kpStat.retur / kpStat.total) * 100);
+        if (pct > 0) {
+          wilayahRawan = pct + '% (' + kpStat.retur + '/' + kpStat.total + ')';
+        }
+      }
+
+      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status, _wilayahRawan:wilayahRawan };
     });
 
     filteredData = [...validatedData];
@@ -1257,7 +1281,7 @@ function renderTable() {
       ${td(row._raw['Real Ongkir']||row._raw['real ongkir'])}
       ${td(row._raw['Pengecekkan Ongkir']||row._raw['cek ongkir'])}
       <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
-      ${td(row._raw['Wilayah Rawan']||row._raw['wilayah rawan'])}
+      <td title="${row._wilayahRawan||''}" style="font-family:monospace;font-size:11px;${row._wilayahRawan && parseInt(row._wilayahRawan)>=30 ? 'color:#dc2626;font-weight:600' : row._wilayahRawan && parseInt(row._wilayahRawan)>=15 ? 'color:#d97706;font-weight:600' : row._wilayahRawan ? 'color:#16a34a' : ''}">${row._wilayahRawan||row._raw['Wilayah Rawan']||row._raw['wilayah rawan']||''}</td>
       ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
       ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'')}
       ${td(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat'])}
