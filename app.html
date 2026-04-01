@@ -1926,11 +1926,13 @@ function parseEkspedisiFile(file) {
       Object.values(result).forEach(r => {
         eksKeys.forEach(eks => {
           if (r[eks+'_delivered'] !== undefined) {
-            r[eks+'_del'] = Math.round((r[eks+'_delivered']||0) * 100 * 10) / 10;
+            r[eks+'_del'] = Math.round((r[eks+'_delivered']||0) * 1000) / 10;
             delete r[eks+'_delivered'];
+          } else if (r[eks+'_del'] !== undefined && r[eks+'_del'] < 2) {
+            r[eks+'_del'] = Math.round((r[eks+'_del']||0) * 1000) / 10;
           }
-          if (r[eks+'_rts'] !== undefined) {
-            r[eks+'_rts'] = Math.round((r[eks+'_rts']||0) * 100 * 10) / 10;
+          if (r[eks+'_rts'] !== undefined && r[eks+'_rts'] < 2) {
+            r[eks+'_rts'] = Math.round((r[eks+'_rts']||0) * 1000) / 10;
           }
         });
       });
