@@ -420,16 +420,22 @@ async function saveRTSMaster() {
 
     if (!rows.length) { setStatus(saveEl,'err','✗ Tidak ada entri RTS ditemukan. Periksa nama kolom bulan.'); badge.classList.remove('show'); document.getElementById('btn-save-rts').disabled=false; return; }
 
+    // Deduplikasi resi+bulan dalam file sebelum insert
+    const rtsMap = new Map();
+    rows.forEach(r => rtsMap.set(r.resi + '|' + r.bulan, r));
+    const uniqueRows = [...rtsMap.values()];
+
+
     let saved = 0;
-    for (let i = 0; i < rows.length; i += 500) {
-      const { error } = await sb.from('all_rts').upsert(rows.slice(i,i+500), { onConflict:'resi,bulan' });
+    for (let i = 0; i < uniqueRows.length; i += 500) {
+      const { error } = await sb.from('all_rts').insert(uniqueRows.slice(i,i+500));
       if (error) throw error;
-      saved += Math.min(500, rows.length-i);
-      badge.textContent = `menyimpan... ${saved}/${rows.length}`;
+      saved += Math.min(500, uniqueRows.length-i);
+      badge.textContent = `menyimpan... ${saved}/${uniqueRows.length}`;
     }
 
-    setStatus(saveEl,'ok',`✓ ${rows.length.toLocaleString()} entri RTS tersimpan.`);
-    showToast(`${rows.length.toLocaleString()} entri RTS tersimpan!`, 'success');
+    setStatus(saveEl,'ok',`✓ ${uniqueRows.length.toLocaleString()} entri RTS tersimpan.`);
+    showToast(`${uniqueRows.length.toLocaleString()} entri RTS tersimpan!`, 'success');
     await loadRTSCount(); updateStep1();
   } catch(e) {
     setStatus(saveEl,'err',`✗ ${e.message}`);
