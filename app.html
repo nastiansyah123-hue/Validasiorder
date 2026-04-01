@@ -1223,9 +1223,17 @@ async function loadStatistik() {
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td></tr>';
   try {
-    const { data, error } = await sb.from('kodepos_stats').select('*').order('pct', { ascending: false });
-    if (error) throw error;
-    statAllData = data || [];
+    // Fetch semua kodepos_stats (paginated)
+    let allStats = [], statsFrom = 0;
+    while (true) {
+      const { data, error } = await sb.from('kodepos_stats').select('*').order('pct', { ascending: false }).range(statsFrom, statsFrom+999);
+      if (error) throw error;
+      if (!data||!data.length) break;
+      allStats.push(...data);
+      if (data.length < 1000) break;
+      statsFrom += 1000;
+    }
+    statAllData = allStats;
     statFiltered = [...statAllData];
     document.getElementById('stat-count').textContent = statAllData.length.toLocaleString() + ' wilayah';
     renderStatistik();
