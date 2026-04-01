@@ -498,28 +498,34 @@ async function doValidasiHarian() {
     // 1. Kumpulkan semua HP unik dari orderan baru
     badge.textContent = 'menyiapkan data...';
     const hpList = [...new Set(
-      orderBaruRaw.map(r => normalizeHP(r.hp||'')).filter(Boolean)
+      orderBaruRaw.map(r => normalizeHP(r.hp)).filter(Boolean)
     )];
+
+    // Also build list with leading-zero stripped for Supabase query
+    // because Supabase might store HP as number without leading 0
+    const hpListStripped = hpList.map(hp => hp.replace(/^0+/, ''));
+    const hpListAll = [...new Set([...hpList, ...hpListStripped])];
 
     // 2. Query Supabase HANYA untuk HP yang ada di orderan baru (jauh lebih cepat)
     badge.textContent = `mengecek ${hpList.length} nomor HP di database...`;
     const allOrderan = [];
     const batchSize = 500;
-    for (let i = 0; i < hpList.length; i += batchSize) {
-      const batch = hpList.slice(i, i + batchSize);
+    for (let i = 0; i < hpListAll.length; i += batchSize) {
+      const batch = hpListAll.slice(i, i + batchSize);
       const { data, error } = await sb.from('all_orderan')
         .select('hp,resi,nama,tanggal,status_akhir,cs,adv')
         .in('hp', batch);
       if (error) throw error;
       if (data) allOrderan.push(...data);
-      badge.textContent = `mengecek HP... ${Math.min(i+batchSize, hpList.length)}/${hpList.length}`;
+      badge.textContent = `mengecek HP... ${Math.min(i+batchSize, hpListAll.length)}/${hpListAll.length}`;
     }
 
     // 3. Index HP → daftar match
     badge.textContent = 'membangun index...';
     const hpIndex = {};
     allOrderan.forEach(r => {
-      const hp = normalizeHP(r.hp||'');
+      // hp dari Supabase bisa berupa angka (tanpa leading 0) — normalizeHP handles both
+      const hp = normalizeHP(r.hp);
       if (!hp) return;
       if (!hpIndex[hp]) hpIndex[hp] = [];
       hpIndex[hp].push(r);
