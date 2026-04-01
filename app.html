@@ -1677,6 +1677,8 @@ function saveState() {
     sessionStorage.setItem('vo_pagesize', PAGE_SIZE);
     sessionStorage.setItem('vo_filter', document.getElementById('filter-status')?.value||'all');
     sessionStorage.setItem('vo_search', document.getElementById('search-box')?.value||'');
+    // Save gradeMap
+    if (Object.keys(gradeMap).length) sessionStorage.setItem('vo_grade_map', JSON.stringify(gradeMap));
   } catch(e) { console.warn('saveState error:', e); }
 }
 
@@ -1717,6 +1719,19 @@ function restoreState() {
     document.getElementById('step3-sub').textContent = dupCount+' duplikat, '+rtsCount+' RTS';
     document.getElementById('step2-ind').className = 'step done';
     document.getElementById('step2-sub').textContent = validatedData.length.toLocaleString() + ' baris (sesi sebelumnya)';
+
+    // Restore gradeMap
+    const savedGrade = sessionStorage.getItem('vo_grade_map');
+    if (savedGrade) {
+      gradeMap = JSON.parse(savedGrade);
+      // Re-apply grades to validatedData
+      validatedData.forEach(row => {
+        const hp = normalizeHP(row.hp||'');
+        const hpStrip = hp.replace(/^0+/,'');
+        const grade = gradeMap[hp] || gradeMap[hpStrip] || gradeMap['0'+hpStrip] || '';
+        if (grade) { row._grade = grade; row._raw['Grade'] = grade; }
+      });
+    }
 
     updateAccSummary();
     renderTable();
