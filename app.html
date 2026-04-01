@@ -171,7 +171,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 /* TABLE */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
 .table-scroll{overflow-x:auto;max-height:calc(100vh - 340px);overflow-y:auto}
-table{width:100%;border-collapse:collapse;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+col.resizable{min-width:60px}
+thead th{position:relative}
+.col-resize-handle{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;z-index:3}
+.col-resize-handle:hover{background:var(--accent)}
+thead th{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 thead th{position:sticky;top:0;background:var(--bg);padding:10px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--mono);border-bottom:1px solid var(--border);white-space:nowrap;z-index:2}
 thead th[onclick]{cursor:pointer}
 thead th[onclick]:hover{background:var(--accent-light);color:var(--accent)}
@@ -542,6 +547,26 @@ tr.row-both{background:linear-gradient(90deg,var(--dup-light) 50%,var(--warn-lig
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
+// EXCEL DATE HELPER
+function excelDateToStr(val) {
+  if (!val && val !== 0) return '';
+  const s = String(val).trim();
+  if (!s) return '';
+  // If already looks like a date string, return as-is
+  if (s.match(/[\/-]/)) return s;
+  // If pure number, convert from Excel serial
+  const n = parseFloat(s);
+  if (!isNaN(n) && n > 40000 && n < 60000) {
+    // Excel serial date (days since 1900-01-01, with leap year bug)
+    const date = new Date((n - 25569) * 86400 * 1000);
+    const d = date.getUTCDate().toString().padStart(2,'0');
+    const m = (date.getUTCMonth()+1).toString().padStart(2,'0');
+    const y = date.getUTCFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  return s;
+}
+
 // STATE
 let orderBaruRaw = [];
 let masterOrderParsed = [];
@@ -1187,10 +1212,21 @@ function renderTable() {
       ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="${row._rtsInfo.reason||''}">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}</span>`
       : (row._isRetur ? '<span style="font-size:11px;color:var(--c-warn);font-family:monospace">Pernah RTS (no reason)</span>' : '');
 
-    const td = (v,style='') => { const val = String(v||'').trim(); const clean = val.startsWith('#')?'':val; return `<td${style?' style="'+style+'"':''}>${clean}</td>`; };
+    const td = (v,style='') => {
+      let val = String(v||'').trim();
+      if (val.startsWith('#')) val = '';
+      // Convert Excel serial date number to readable date
+      if (/^\d{5}$/.test(val)) {
+        try {
+          const d = new Date(Math.round((parseFloat(val) - 25569) * 86400 * 1000));
+          val = d.toLocaleDateString('id-ID', {day:'2-digit',month:'2-digit',year:'numeric'});
+        } catch(e) {}
+      }
+      return `<td${style?' style="'+style+'"':''}>${val}</td>`;
+    };
 
     return `<tr class="${cls}">
-      ${td(row._raw['Tanggal']||row._raw['tanggal'])}
+      ${td(excelDateToStr(row._raw['Tanggal']||row._raw['tanggal']))}
       ${td(row._raw['No']||row._raw['no'])}
       ${td(row._raw['Nama']||row._raw['nama'])}
       ${td(row._raw['No telpon']||row._raw['No Telpon']||row._raw['Nomor Hp']||row.hp,'font-family:monospace')}
@@ -1222,6 +1258,35 @@ function renderTable() {
     </tr>`;
   }).join('');
   renderPag();
+  addResizeHandles();
+}
+
+function addResizeHandles() {
+  const ths = document.querySelectorAll('#main-tbody').length ? document.querySelectorAll('thead th') : [];
+  ths.forEach(th => {
+    if (th.querySelector('.col-resize-handle')) return;
+    const handle = document.createElement('div');
+    handle.className = 'col-resize-handle';
+    handle.addEventListener('mousedown', e => startColResize(e, th));
+    th.appendChild(handle);
+  });
+}
+
+function startColResize(e, th) {
+  e.preventDefault();
+  const startX = e.pageX;
+  const startW = th.offsetWidth;
+  const onMove = ev => {
+    const newW = Math.max(60, startW + ev.pageX - startX);
+    th.style.width = newW + 'px';
+    th.style.minWidth = newW + 'px';
+  };
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
 }
 
 function renderPag() {
@@ -1255,6 +1320,41 @@ function renderPag() {
 }
 
 function gp(p){ const max=Math.ceil(filteredData.length/PAGE_SIZE); if(p<1||p>max)return; currentPage=p; renderTable(); }
+
+// COLUMN RESIZE
+function initColResize() {
+  const ths = document.querySelectorAll('#main-tbody').length ? document.querySelectorAll('thead th') : [];
+  ths.forEach(th => {
+    if (th.querySelector('.col-resizer')) return;
+    const resizer = document.createElement('div');
+    resizer.className = 'col-resizer';
+    th.appendChild(resizer);
+    let startX, startW;
+    resizer.addEventListener('mousedown', e => {
+      startX = e.pageX;
+      startW = th.offsetWidth;
+      resizer.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      const onMove = ev => {
+        const newW = Math.max(60, startW + (ev.pageX - startX));
+        th.style.minWidth = newW + 'px';
+        th.style.maxWidth = newW + 'px';
+        th.style.width = newW + 'px';
+      };
+      const onUp = () => {
+        resizer.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      e.preventDefault();
+    });
+  });
+}
 
 function toggleDark() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
