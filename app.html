@@ -796,15 +796,55 @@ function selectWelcomeMood(idx, emoji, label) {
   btn.disabled = false; btn.style.opacity = '1';
 }
 
-function confirmMood() {
+async function confirmMood() {
   document.getElementById('welcome-modal').style.display = 'none';
   const bar = document.getElementById('greeting-bar');
   bar.style.display = 'flex';
+
   if (selectedMood) {
     document.getElementById('greeting-emoji').textContent = selectedMood.emoji;
-    const cur = document.getElementById('greeting-text').textContent;
-    document.getElementById('greeting-text').textContent = cur + ` — Mood: ${selectedMood.label} ${selectedMood.emoji}`;
   }
+  document.getElementById('greeting-text').textContent = 'Memuat motivasi...';
+
+  await refreshMotivation();
+
+  // Auto-refresh motivasi setiap 2 jam
+  setInterval(refreshMotivation, 2 * 60 * 60 * 1000);
+}
+
+async function refreshMotivation() {
+  const now = new Date();
+  const hour = now.getHours();
+  const period = hour<11?'pagi':hour<15?'siang':hour<19?'sore':'malam';
+  const mood = selectedMood ? selectedMood.label : 'Biasa Aja';
+  const moodEmoji = selectedMood ? selectedMood.emoji : '🙂';
+
+  try {
+    const res = await fetch('/api/motivasi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mood, period })
+    });
+    const data = await res.json();
+    const text = data.text || '';
+    if (text) {
+      document.getElementById('greeting-text').textContent = `${text} ${moodEmoji}`;
+    }
+  } catch(e) {
+    // Fallback ke motivasi lokal jika API gagal
+    const fallbacks = [
+      `Teliti hari ini, tim bangga besok! ${moodEmoji}`,
+      `Satu orderan valid = satu pelanggan senang! ${moodEmoji}`,
+      `Kerja cermat lebih baik dari kerja cepat tapi salah. ${moodEmoji}`,
+      `Kamu bagian penting dari kesuksesan tim! ${moodEmoji}`,
+    ];
+    document.getElementById('greeting-text').textContent = fallbacks[Math.floor(Math.random()*fallbacks.length)];
+  }
+
+  // Update tanggal & waktu
+  const day = now.toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  const time = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+  document.getElementById('greeting-date').textContent = `${day} · ${time}`;
 }
 
 function initGreeting(email) {
