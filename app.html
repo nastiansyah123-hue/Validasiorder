@@ -1337,6 +1337,7 @@ function updateAccSummary() {
 
 function filterByCard(val) {
   const sel = document.getElementById('filter-status');
+  if (sel) sel.value = val;
   // Clear search
   const sb = document.getElementById('search-box');
   if (sb) sb.value = '';
