@@ -444,6 +444,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div id="bulk-bar" style="display:none;background:var(--accent-light);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
       <span id="bulk-count" style="font-size:13px;font-weight:600;color:var(--accent);font-family:monospace"></span>
       <span style="font-size:13px;color:var(--muted)">baris dipilih —</span>
+      <button class="btn-secondary" onclick="filterSelected()" style="font-size:12px;background:var(--accent-light);color:var(--accent);border-color:var(--accent)">🔍 Tampilkan Dipilih</button>
       <button class="btn-primary" onclick="bulkSetAcc('KIRIM')" style="background:#16a34a;padding:7px 14px;font-size:12px">✅ Kirim Semua</button>
       <button class="btn-primary" onclick="bulkSetAcc('HOLD')"  style="background:#d97706;padding:7px 14px;font-size:12px">⏸ Hold Semua</button>
       <button class="btn-primary" onclick="bulkSetAcc('CANCEL')" style="background:#dc2626;padding:7px 14px;font-size:12px">❌ Cancel Semua</button>
@@ -453,6 +454,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="action-bar">
         <select class="filter-select" id="filter-status" onchange="doFilter()">
           <option value="all">Semua baris</option>
+          <option value="selected">Yang Dicentang ✓</option>
           <option value="dupteam">Duplikat Team</option>
           <option value="dupall">Duplikat All Team</option>
           <option value="rts">Hanya Pernah RTS</option>
@@ -1231,6 +1233,7 @@ function doFilter() {
     const accVal = (row._accSPV||row._raw['ACC SPV CS']||'').toUpperCase();
     const gradeVal = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade']||'').trim();
     const mf = f==='all'?true
+      :f==='selected'?!!row._selected
       :f==='dupteam'?row._isDupTeam
       :f==='dupall'?row._isDup
       :f==='rts'?(row._isRetur||!!row._rtsInfo)
@@ -2384,6 +2387,16 @@ function initCheckboxes() {
     const idx = parseInt(chk.dataset.idx);
     if (!isNaN(idx) && filteredData[idx]) chk.checked = !!filteredData[idx]._selected;
   });
+}
+
+function filterSelected() {
+  const sel = document.getElementById('filter-status');
+  if (sel) sel.value = 'selected';
+  doFilter();
+  setTimeout(() => {
+    const res = document.getElementById('result-section');
+    if (res) res.scrollIntoView({ behavior:'smooth', block:'start' });
+  }, 100);
 }
 
 function updateBulkBar() {
