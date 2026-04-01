@@ -698,7 +698,7 @@ function renderTable() {
       ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
       ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'')}
       ${td(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat'])}
-      <td style="background:${row._isDupTeam?'var(--c-dup-bg)':''}">${row._isDupTeam?'<span style="font-size:11px;color:var(--c-dup);font-family:monospace;font-weight:700">DUPLIKAT TEAM</span>':''}</td>
+      <td style="background:${row._isDupTeam?'var(--c-dup-bg)':''}">${row._isDupTeam?'<span style="font-size:11px;color:var(--c-dup);font-family:monospace;font-weight:700">DUPLIKAT TEAM</span>':`<span class="badge badge-ok">AMAN</span>`}</td>
       <td class="td-wide" style="background:${row._isDup?'var(--c-dup-bg)':''};">${dupAllTeam}</td>
       ${td(row._raw['ACC SPV CS']||row._raw['acc spv cs'])}
       ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
