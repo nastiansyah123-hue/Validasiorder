@@ -36,7 +36,7 @@ function buildExportRows(filteredData) {
       'Retur ADSY'             : returADSY,
       'Wilayah Rawan'          : row._wilayahRawan || r['Wilayah Rawan'] || '',
       GradeRekomendasi         : r['GradeRekomendasi']||r['Grade']||'',
-      Ekspedisi                : r['Ekspedisi']||r[' Ekspedisi']||'',
+      Ekspedisi                : (function(p){const opts=['SICEPAT','ANTERAJA','NINJA','LION','TIKI','SAP','IDX','JNE','JNT'];for(const e of opts){if(String(p||'').toUpperCase().includes(e))return e==='SICEPAT'?'SiCepat':e==='ANTERAJA'?'Anteraja':e==='NINJA'?'Ninja':e==='LION'?'Lion':e;}return r['Ekspedisi']||'';})(r['Pembayaran']||''),
       'Kirim SS Chat Customer' : r['Kirim SS Chat Customer']||'',
       'Duplikat Team'          : row._isDupTeam ? 'DUPLIKAT TEAM' : '',
       'Duplikat All Team'      : dupAllTeam,
