@@ -581,6 +581,32 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
+  <!-- Ekspedisi Rekomendasi Upload -->
+  <div class="card" style="margin-top:1rem">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Data Rekomendasi Ekspedisi</div>
+        <div class="card-desc">Upload data dari pihak ketiga. Kolom: KODE POS, KECAMATAN, JNE DELIVERED, JNE RTS, JNT DELIVERED, JNT RTS, NINJA DELIVERED, NINJA RTS, LION DELIVERED, LION RTS.</div>
+      </div>
+      <div id="ekspedisi-db-count" class="db-badge">—</div>
+    </div>
+    <div class="drop-zone" id="dz-ekspedisi">
+      <input type="file" id="file-ekspedisi" accept=".csv,.xlsx,.xls" />
+      <div class="drop-zone-icon">🚚</div>
+      <div class="drop-zone-text">Upload file rekomendasi ekspedisi<br><span>.csv / .xlsx</span></div>
+    </div>
+    <div id="status-ekspedisi" class="drop-status"></div>
+    <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn-primary" id="btn-save-ekspedisi" disabled onclick="saveEkspedisiMaster()">Simpan ke Database</button>
+      <button class="btn-secondary" onclick="loadEkspedisiCount()" style="font-size:12px">Refresh</button>
+      <button class="btn-secondary btn-danger" onclick="confirmClearEkspedisi()" style="font-size:12px">Hapus Semua</button>
+      <span class="loading-badge" id="loading-ekspedisi">menyimpan...</span>
+    </div>
+    <div id="status-ekspedisi-save" class="drop-status" style="margin-top:8px"></div>
+  </div>
+
+</div>
+
   <!-- PAGE: STATISTIK WILAYAH -->
   <div class="page" id="page-statistik">
     <div class="page-header">
