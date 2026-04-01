@@ -247,7 +247,7 @@ body.fullscreen-mode #greeting-bar,
 body.fullscreen-mode .page-header,
 body.fullscreen-mode .step-bar,
 body.fullscreen-mode #upload-card,
-body.fullscreen-mode #summary-section { display:none !important; }
+/* summary stays visible in fullscreen */
 body.fullscreen-mode .main-area { margin-left:0 !important; max-width:100vw !important; }
 body.fullscreen-mode #result-section { padding:0.75rem; }
 body.fullscreen-mode .table-scroll { max-height:calc(100vh - 100px) !important; }
@@ -1781,7 +1781,13 @@ function applyGradeToTable() {
     info.textContent = `✓ ${matched} dari ${validatedData.length} orderan berhasil dicocokkan grade-nya.`;
     info.style.color = matched > 0 ? 'var(--success)' : 'var(--warn)';
   }
-  if (matched > 0) showToast(`${matched} grade berhasil dicocokkan!`, 'success');
+  if (matched > 0) {
+    showToast(`${matched} grade berhasil dicocokkan!`, 'success');
+    // Auto collapse grade card
+    const gradeBody = document.getElementById('grade-body');
+    const gradeBtn  = document.getElementById('btn-toggle-grade');
+    if (gradeBody) { gradeBody.style.display='none'; gradeBtn.textContent='▼'; }
+  }
   saveState();
 }
 
