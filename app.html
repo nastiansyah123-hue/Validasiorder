@@ -645,7 +645,7 @@ function renderTable() {
     // Kolom Duplikat All Team — isi nama+tanggal jika duplikat
     const dupAllTeam = row._isDup && row._matches.length
       ? row._matches.slice(0,3).map(m => {
-          const csBadge = m.cs ? `<span style="background:var(--c-accent-bg);color:var(--c-accent);padding:1px 6px;border-radius:99px;font-size:10px;margin-left:4px">CS: ${m.cs}</span>` : '';
+          const csBadge = m.cs ? ` · CS: ${m.cs}` : '';
           return `<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block">${m.nama||''}${m.tanggal?' ('+m.tanggal+')':''}${csBadge}</span>`;
         }).join('')
       : '';
