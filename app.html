@@ -285,6 +285,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-cekHP" onclick="switchPage('cekHP')">
       <span class="nav-icon">🔍</span> Cek Nomor HP
     </div>
+    <div class="nav-item" id="nav-cekKodepos" onclick="switchPage('cekKodepos')">
+      <span class="nav-icon">📮</span> Cek Kode Pos
+    </div>
     <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
       <span class="nav-icon">📖</span> Panduan
     </div>
@@ -683,6 +686,42 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
+  <!-- PAGE: CEK KODE POS -->
+  <div class="page" id="page-cekKodepos">
+    <div class="page-header">
+      <div class="page-title">Cek Kode Pos</div>
+      <div class="page-sub">Lihat rekomendasi ekspedisi dan statistik RTS berdasarkan kode pos</div>
+    </div>
+
+    <div class="card" style="max-width:500px;margin-bottom:1.25rem">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="kp-input" type="text" class="search-input" placeholder="Masukkan kode pos..." style="flex:1;width:auto"
+          onkeydown="if(event.key==='Enter') cekKodepos()" />
+        <button class="btn-primary" onclick="cekKodepos()">Cek</button>
+        <span class="loading-badge" id="loading-cekKP">mencari...</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-family:monospace;margin-top:6px">Contoh: 55281, 10110</div>
+    </div>
+
+    <div id="cekKP-result" style="display:none">
+      <!-- Summary cards -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem" id="cekKP-summary"></div>
+      <!-- Ekspedisi table -->
+      <div class="card" style="margin-bottom:1rem">
+        <div style="font-size:13px;font-weight:700;margin-bottom:1rem" id="cekKP-eks-title">Rekomendasi Ekspedisi</div>
+        <div id="cekKP-eks-table"></div>
+      </div>
+      <!-- Wilayah stats -->
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;margin-bottom:1rem">Statistik Wilayah (dari Data Master)</div>
+        <div id="cekKP-wilayah"></div>
+      </div>
+    </div>
+    <div id="cekKP-empty" style="display:none;text-align:center;padding:3rem;color:var(--muted);font-size:14px">
+      Kode pos tidak ditemukan di database.
+    </div>
+  </div>
+
   <!-- PAGE: PANDUAN -->
   <div class="page" id="page-panduan">
     <div class="page-header">
@@ -880,14 +919,14 @@ function updateStep1() {
 
 // TABS
 function switchPage(name) {
-  ['harian','master','statistik','cekHP','panduan'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
     if (nav) nav.classList.toggle('active', t===name);
   });
   if (name === 'statistik') loadStatistik();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', panduan:'Panduan'};
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -2052,6 +2091,106 @@ async function loadEkspedisiCache() {
       from += 1000;
     }
   } catch(e) { console.warn('loadEkspedisiCache error:', e); }
+}
+
+
+// ── CEK KODE POS ──────────────────────────────────────────────────────────────
+async function cekKodepos() {
+  const kp = document.getElementById('kp-input').value.trim();
+  if (!kp) return;
+  const badge = document.getElementById('loading-cekKP');
+  badge.classList.add('show');
+  document.getElementById('cekKP-result').style.display = 'none';
+  document.getElementById('cekKP-empty').style.display  = 'none';
+
+  try {
+    // Fetch ekspedisi data
+    const { data: eksData } = await sb.from('ekspedisi_rekomendasi')
+      .select('*').eq('kodepos', kp).limit(5);
+
+    // Fetch wilayah stats
+    const { data: wilData } = await sb.from('kodepos_stats')
+      .select('*').eq('kodepos', kp).limit(1);
+
+    if ((!eksData||!eksData.length) && (!wilData||!wilData.length)) {
+      document.getElementById('cekKP-empty').style.display = 'block';
+      badge.classList.remove('show'); return;
+    }
+
+    // Summary
+    const wil = wilData?.[0] || null;
+    const eks = eksData?.[0] || null;
+    const totalOrderan = wil ? wil.total : '—';
+    const totalRetur   = wil ? wil.retur : '—';
+    const pctRTS       = wil ? wil.pct + '%' : '—';
+    const kecamatan    = eks ? eks.kecamatan : (wil ? '' : '—');
+
+    document.getElementById('cekKP-summary').innerHTML = `
+      <div class="sum-card c-total"><div class="s-label">Kode Pos</div><div class="s-value" style="font-size:20px">${kp}</div></div>
+      <div class="sum-card c-total"><div class="s-label">Total Orderan</div><div class="s-value">${totalOrderan}</div></div>
+      <div class="sum-card c-dupall"><div class="s-label">Total RTS</div><div class="s-value" style="color:var(--danger)">${totalRetur}</div></div>
+      <div class="sum-card c-rts"><div class="s-label">% RTS</div><div class="s-value" style="color:${wil&&wil.pct>=30?'var(--danger)':wil&&wil.pct>=15?'var(--warn)':'var(--success)'}">${pctRTS}</div></div>
+    `;
+
+    // Ekspedisi table
+    const eksTitle = document.getElementById('cekKP-eks-title');
+    eksTitle.textContent = 'Rekomendasi Ekspedisi' + (kecamatan ? ' — ' + kecamatan : '');
+
+    if (eks) {
+      const eksList = [
+        { name:'JNE',      del:eks.jne_del,      rts:eks.jne_rts      },
+        { name:'JNT',      del:eks.jnt_del,      rts:eks.jnt_rts      },
+        { name:'SiCepat',  del:eks.sicepat_del,  rts:eks.sicepat_rts  },
+        { name:'Ninja',    del:eks.ninja_del,     rts:eks.ninja_rts    },
+        { name:'Lion',     del:eks.lion_del,      rts:eks.lion_rts     },
+        { name:'IDX',      del:eks.idx_del,       rts:eks.idx_rts      },
+        { name:'SAP',      del:eks.sap_del,       rts:eks.sap_rts      },
+        { name:'Anteraja', del:eks.anteraja_del,  rts:eks.anteraja_rts },
+      ].filter(e => e.del > 0 || e.rts > 0)
+       .sort((a,b) => b.del - a.del);
+
+      document.getElementById('cekKP-eks-table').innerHTML = `
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          <thead><tr>
+            <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Ekspedisi</th>
+            <th style="text-align:right;padding:8px 12px;font-size:11px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">% Delivered</th>
+            <th style="text-align:right;padding:8px 12px;font-size:11px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">% RTS</th>
+            <th style="padding:8px 12px;font-size:11px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Status</th>
+          </tr></thead>
+          <tbody>${eksList.map((e,i) => {
+            const color = e.del >= 90 ? 'var(--success)' : e.del >= 75 ? 'var(--warn)' : 'var(--danger)';
+            const badge = e.del >= 90 ? '<span class="badge badge-ok">BAGUS</span>' : e.del >= 75 ? '<span class="badge badge-rts">CUKUP</span>' : '<span class="badge badge-dup">KURANG</span>';
+            const bar = '<div style="display:inline-block;width:' + Math.round(e.del) + 'px;max-width:100px;height:6px;background:' + color + ';border-radius:3px;margin-left:8px;vertical-align:middle"></div>';
+            return '<tr style="border-bottom:0.5px solid var(--border)' + (i===0?' background:var(--success-light)':'') + '">' +
+              '<td style="padding:10px 12px;font-weight:' + (i===0?'700':'400') + '">' + (i===0?'⭐ ':'') + e.name + '</td>' +
+              '<td style="text-align:right;padding:10px 12px;font-family:monospace;color:' + color + ';font-weight:600">' + e.del + '%' + bar + '</td>' +
+              '<td style="text-align:right;padding:10px 12px;font-family:monospace;color:var(--danger)">' + e.rts + '%</td>' +
+              '<td style="padding:10px 12px">' + badge + '</td>' +
+              '</tr>';
+          }).join('')}</tbody>
+        </table>`;
+    } else {
+      document.getElementById('cekKP-eks-table').innerHTML = '<p style="color:var(--muted);font-size:13px">Tidak ada data rekomendasi ekspedisi untuk kode pos ini.</p>';
+    }
+
+    // Wilayah stats
+    if (wil) {
+      const statusColor = wil.pct >= 30 ? 'var(--danger)' : wil.pct >= 15 ? 'var(--warn)' : 'var(--success)';
+      const statusText  = wil.pct >= 30 ? 'RAWAN TINGGI' : wil.pct >= 15 ? 'PERLU DIPERHATIKAN' : wil.total < 5 ? 'DATA KURANG' : 'RELATIF AMAN';
+      document.getElementById('cekKP-wilayah').innerHTML = `
+        <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px">
+          <div><span style="color:var(--muted)">Total Orderan:</span> <strong>${wil.total}</strong></div>
+          <div><span style="color:var(--muted)">Total RTS:</span> <strong style="color:var(--danger)">${wil.retur}</strong></div>
+          <div><span style="color:var(--muted)">% RTS:</span> <strong style="color:${statusColor}">${wil.pct}%</strong></div>
+          <div><span style="color:var(--muted)">Status:</span> <span style="font-weight:700;color:${statusColor}">${statusText}</span></div>
+        </div>`;
+    } else {
+      document.getElementById('cekKP-wilayah').innerHTML = '<p style="color:var(--muted);font-size:13px">Tidak ada data statistik wilayah.</p>';
+    }
+
+    document.getElementById('cekKP-result').style.display = 'block';
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  badge.classList.remove('show');
 }
 
 function toggleUploadCard() {
