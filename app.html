@@ -359,6 +359,7 @@ async function saveOrderanMaster() {
   document.getElementById('btn-save-order').disabled = true;
 
   try {
+    // Semua baris disimpan — RESI boleh sama, tidak ada filter/dedup
     const rows = masterOrderParsed.map(r => ({
       no:r.no, tanggal:r.tanggal, nama:r.nama, hp:r.hp,
       alamat:r.alamat, kelurahan:r.kelurahan, kecamatan:r.kecamatan,
@@ -366,12 +367,12 @@ async function saveOrderanMaster() {
       jumlah:r.jumlah, pembayaran:r.pembayaran, instruksi:r.instruksi,
       resi:r.resi||null, team:r.team, update_crm:r.updateCRM,
       status_akhir:r.statusAkhir, retur:r.retur, csa:r.csa, dv:r.dv, adm:r.adm
-    })).filter(r => r.resi); // skip baris tanpa resi
+    }));
 
     let saved = 0;
     for (let i = 0; i < rows.length; i += 500) {
       const batch = rows.slice(i, i+500);
-      const { error } = await sb.from('all_orderan').upsert(batch, { onConflict:'resi' });
+      const { error } = await sb.from('all_orderan').insert(batch);
       if (error) throw error;
       saved += batch.length;
       badge.textContent = `menyimpan... ${saved}/${rows.length}`;
