@@ -388,7 +388,7 @@ async function saveOrderanMaster() {
       kabupaten:r.kabupaten, provinsi:r.provinsi, kodepos:r.kodepos,
       jumlah:r.jumlah, pembayaran:r.pembayaran, instruksi:r.instruksi,
       resi:r.resi||null, team:r.team, update_crm:r.updateCRM,
-      status_akhir:r.statusAkhir, retur:r.retur, csa:r.csa, dv:r.dv, adm:r.adm
+      status_akhir:r.statusAkhir, retur:r.retur, cs:r.csa, adv:r.dv, adm:r.adm
     }));
 
     let saved = 0;
@@ -508,7 +508,7 @@ async function doValidasiHarian() {
     for (let i = 0; i < hpList.length; i += batchSize) {
       const batch = hpList.slice(i, i + batchSize);
       const { data, error } = await sb.from('all_orderan')
-        .select('hp,resi,nama,tanggal,status_akhir,csa')
+        .select('hp,resi,nama,tanggal,status_akhir,cs,adv')
         .in('hp', batch);
       if (error) throw error;
       if (data) allOrderan.push(...data);
@@ -645,7 +645,7 @@ function renderTable() {
     // Kolom Duplikat All Team — isi nama+tanggal jika duplikat
     const dupAllTeam = row._isDup && row._matches.length
       ? row._matches.slice(0,3).map(m => {
-          const cs = m.csa ? `<span style="background:var(--c-accent-bg);color:var(--c-accent);padding:1px 6px;border-radius:99px;font-size:10px;margin-left:4px">CS: ${m.csa}</span>` : '';
+          const cs = m.cs ? `<span style="background:var(--c-accent-bg);color:var(--c-accent);padding:1px 6px;border-radius:99px;font-size:10px;margin-left:4px">CS: ${m.cs}</span>` : '';
           return `<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block">${m.nama||''}${m.tanggal?' ('+m.tanggal+')':''}${cs}</span>`;
         }).join('')
       : '';
