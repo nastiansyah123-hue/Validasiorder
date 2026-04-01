@@ -1589,6 +1589,19 @@ async function cekHP() {
   badge.classList.remove('show');
 }
 
+function setSsChat(chk, idx) {
+  if (!isNaN(idx) && filteredData[idx]) {
+    filteredData[idx]._ssChatDone = chk.checked;
+    filteredData[idx]._raw['Kirim SS Chat Customer'] = chk.checked ? 'TRUE' : 'FALSE';
+    const orig = validatedData.indexOf(filteredData[idx]);
+    if (orig >= 0) {
+      validatedData[orig]._ssChatDone = chk.checked;
+      validatedData[orig]._raw['Kirim SS Chat Customer'] = chk.checked ? 'TRUE' : 'FALSE';
+    }
+    saveState();
+  }
+}
+
 function setAccSPV(sel) {
   const val = sel.value;
   const idx = parseInt(sel.dataset.idx);
@@ -1808,7 +1821,12 @@ function renderTable() {
 }</td>
       ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
       ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'')}
-      ${td(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat'])}
+      <td style="text-align:center">
+        <input type="checkbox" class="ss-chk" title="SS Chat sudah ada?"
+          ${(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat']||'').toUpperCase()==='TRUE'||row._ssChatDone?'checked':''}
+          onchange="setSsChat(this,${filteredData.indexOf(row)})"
+          style="width:16px;height:16px;cursor:pointer;accent-color:var(--success)">
+      </td>
       <td style="background:${row._isDupTeam?'var(--c-dup-bg)':''}">${row._isDupTeam?'<span style="font-size:11px;color:var(--c-dup);font-family:monospace;font-weight:700">DUPLIKAT TEAM</span>':`<span class="badge badge-ok">AMAN</span>`}</td>
       <td class="td-wide" style="background:${row._isDup?'var(--c-dup-bg)':''};">${dupAllTeam}</td>
       <td>
