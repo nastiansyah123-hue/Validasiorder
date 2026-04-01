@@ -1921,6 +1921,17 @@ function parseEkspedisiFile(file) {
         });
       });
       
+      // Fix: rename _delivered to _del
+      const eksKeys = ['jne','jnt','ninja','lion','sicepat','idx','sap','anteraja'];
+      Object.values(result).forEach(r => {
+        eksKeys.forEach(eks => {
+          if (r[eks+'_delivered'] !== undefined) {
+            r[eks+'_del'] = r[eks+'_delivered'];
+            delete r[eks+'_delivered'];
+          }
+        });
+      });
+
       masterEkspedisiParsed = Object.values(result);
       document.getElementById('btn-save-ekspedisi').disabled = false;
       setStatus(statusEl, 'ok', `✓ ${masterEkspedisiParsed.length} wilayah berhasil dibaca dari ${file.name}`);
