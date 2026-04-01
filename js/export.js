@@ -9,7 +9,7 @@ function buildExportRows(filteredData) {
       : (row._isRetur ? 'Pernah RTS (no reason)' : '');
     // Kolom Duplikat All Team
     const dupAllTeam = row._isDup && row._matches && row._matches.length
-      ? row._matches.slice(0,3).map(m=>(m.nama||'')+(m.tanggal?' ('+m.tanggal+')':'')).join(' | ')
+      ? row._matches.slice(0,3).map(m=>(m.nama||'')+(m.tanggal?' ('+m.tanggal+')':'')+(m.cs?' · CS: '+m.cs:'')).join(' | ')
       : '';
 
     return {
