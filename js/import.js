@@ -135,8 +135,8 @@ function extractOrderFields(row) {
     updateCRM  : getCol(row, 'UpdateCRM', 'Update CRM', 'CRM'),
     statusAkhir: getCol(row, 'StatusAkhir', 'Status Akhir', 'Status', 'status'),
     retur   : getCol(row, 'RETUR', 'Retur', 'retur'),
-    csa     : getCol(row, 'CSA', 'csa'),
-    dv      : getCol(row, 'DV', 'dv'),
+    csa     : getCol(row, 'CS', 'CSA', 'csa', 'cs'),
+    dv      : getCol(row, 'ADV', 'DV', 'adv', 'dv'),
     adm     : getCol(row, 'ADM', 'adm'),
     _raw    : row,
   };
