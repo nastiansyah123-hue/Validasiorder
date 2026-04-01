@@ -74,20 +74,20 @@
   </div>
 
   <div class="summary-grid" id="summary-section" style="display:none">
-    <div class="sum-card ok">
+    <div class="sum-card ok" onclick="filterByCard('all')" style="cursor:pointer" title="Tampilkan semua">
       <div class="label">Orderan Baru</div>
       <div class="value" id="s-total">—</div>
     </div>
-    <div class="sum-card danger">
-      <div class="label">Duplikat HP</div>
+    <div class="sum-card danger" onclick="filterByCard('dupall')" style="cursor:pointer" title="Tampilkan duplikat all team">
+      <div class="label">Duplikat HP ↗</div>
       <div class="value" id="s-dup">—</div>
     </div>
-    <div class="sum-card warn">
-      <div class="label">Pernah RTS</div>
+    <div class="sum-card warn" onclick="filterByCard('rts')" style="cursor:pointer" title="Tampilkan pernah RTS">
+      <div class="label">Pernah RTS ↗</div>
       <div class="value" id="s-rts">—</div>
     </div>
-    <div class="sum-card ok">
-      <div class="label">Aman</div>
+    <div class="sum-card ok" onclick="filterByCard('ok')" style="cursor:pointer" title="Tampilkan hanya aman">
+      <div class="label">Aman ↗</div>
       <div class="value" id="s-aman">—</div>
     </div>
   </div>
@@ -725,6 +725,29 @@ function removeFile(fname) {
   delete loadedFiles[fname];
   updateFileList();
   if (!Object.keys(loadedFiles).length) clearFiles();
+}
+
+function filterByCard(val) {
+  // Set filter dropdown
+  const sel = document.getElementById('filter-status');
+  if (sel) sel.value = val;
+  // Clear search
+  const sb = document.getElementById('search-box');
+  if (sb) sb.value = '';
+  // Reset ekspedisi & pembayaran filter
+  const fe = document.getElementById('filter-ekspedisi');
+  const fp = document.getElementById('filter-pembayaran');
+  if (fe) fe.value = 'all';
+  if (fp) fp.value = 'all';
+  // Apply filter & scroll to table
+  doFilter();
+  setTimeout(() => {
+    const res = document.getElementById('result-section');
+    if (res) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+  // Highlight active card
+  document.querySelectorAll('.sum-card').forEach(c => c.style.outline = '');
+  event.currentTarget.style.outline = '2px solid var(--c-accent)';
 }
 
 function toggleUploadCard() {
