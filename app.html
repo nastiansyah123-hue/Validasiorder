@@ -626,12 +626,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="card" style="margin-bottom:1rem">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <div>
-          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">DARI TANGGAL</label>
-          <input type="date" id="db-date-from" class="search-input" style="width:160px" />
-        </div>
-        <div>
-          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">SAMPAI TANGGAL</label>
-          <input type="date" id="db-date-to" class="search-input" style="width:160px" />
+          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">TANGGAL</label>
+          <input type="date" id="db-date-from" class="search-input" style="width:160px" onchange="document.getElementById('db-date-to').value=this.value" />
+          <input type="date" id="db-date-to" style="display:none" />
         </div>
         <div>
           <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">VALIDATOR</label>
@@ -2421,6 +2418,7 @@ async function loadDashboard() {
             <td style="padding:9px 12px;text-align:right;color:var(--danger)">${s.cancel}</td>
             <td style="padding:9px 12px;display:flex;gap:6px">
               <button class="btn-secondary" style="font-size:11px" onclick="filterBySesi('${s.sesi_id}')">Detail</button>
+              <button class="btn-secondary" style="font-size:11px;color:var(--accent);border-color:var(--accent)" onclick="editSesi('${s.sesi_id}')">✏️ Edit</button>
               <button class="btn-secondary btn-danger" style="font-size:11px" onclick="hapusSesi('${s.sesi_id}')">Hapus</button>
             </td>
           </tr>`).join('')}
@@ -2504,6 +2502,85 @@ function renderDbTable() {
   const mb = (lbl,fn,dis,act=false)=>{ const b=document.createElement('button'); b.className='page-btn'+(act?' active':''); b.textContent=lbl; b.disabled=dis; b.onclick=fn; return b; };
   btns.appendChild(mb('‹',()=>{dbPage--;renderDbTable();},dbPage===1));
   btns.appendChild(mb('›',()=>{dbPage++;renderDbTable();},dbPage>=totalPages||totalPages===0));
+}
+
+async function editSesi(sesiId) {
+  if (!confirm('Buka sesi ini di Validasi Harian untuk diedit? Data sesi akan di-load ulang dari database.')) return;
+  const badge = document.getElementById('loading-dashboard');
+  badge.classList.add('show');
+  try {
+    // Load all rows for this sesi
+    const { data, error } = await sb.from('validasi_detail').select('*').eq('sesi_id', sesiId).order('id');
+    if (error) throw error;
+    if (!data||!data.length) { showToast('Data sesi tidak ditemukan','error'); return; }
+
+    // Rebuild validatedData from saved rows
+    validatedData = data.map(r => ({
+      hp        : r.hp||'',
+      nama      : r.nama||'',
+      resi      : r.resi||'',
+      kodepos   : r.kodepos||'',
+      _status   : r.status_validasi||'AMAN',
+      _isDup    : !!r.duplikat_all,
+      _isDupTeam: !!r.duplikat_team,
+      _isRetur  : !!r.pernah_rts,
+      _rtsInfo  : r.rts_reason ? { reason: r.rts_reason } : null,
+      _rtsCount : r.rts_count||0,
+      _wilayahRawan : r.wilayah_rawan||'',
+      _rekEkspedisi : r.rek_ekspedisi||'',
+      _accSPV   : r.acc_spv_cs||'',
+      _ssChatDone: !!r.ss_chat,
+      _grade    : r.grade||'',
+      _kpExists : true,
+      _kpLowSample: false,
+      _matches  : [],
+      _raw      : {
+        'Tanggal'            : r.tanggal||'',
+        'No'                 : r.no||'',
+        'Nama'               : r.nama||'',
+        'No telpon'          : r.hp||'',
+        'Alamat'             : r.alamat||'',
+        'Kode Pos'           : r.kodepos||'',
+        'Kabupaten'          : r.kabupaten||'',
+        'Provinsi'           : r.provinsi||'',
+        'Jumlah Pesanan'     : r.jumlah||'',
+        'Pembayaran'         : r.pembayaran||'',
+        'Keterangan'         : r.keterangan||'',
+        'Grade'              : r.grade||'',
+        'Ekspedisi'          : r.ekspedisi||'',
+        'ACC SPV CS'         : r.acc_spv_cs||'',
+      }
+    }));
+
+    filteredData = [...validatedData];
+
+    // Update summary
+    const dupCount     = validatedData.filter(r=>r._isDup).length;
+    const dupTeamCount = validatedData.filter(r=>r._isDupTeam).length;
+    const rtsCount     = validatedData.filter(r=>r._isRetur||r._rtsInfo).length;
+    document.getElementById('s-total').textContent   = validatedData.length.toLocaleString();
+    document.getElementById('s-dupteam').textContent = dupTeamCount.toLocaleString();
+    document.getElementById('s-dup').textContent     = dupCount.toLocaleString();
+    document.getElementById('s-rts').textContent     = rtsCount.toLocaleString();
+    document.getElementById('summary-section').style.display = 'grid';
+    document.getElementById('result-section').style.display  = 'block';
+    document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
+    updateAccSummary();
+    saveState();
+    renderTable();
+
+    // Switch to harian page
+    switchPage('harian');
+    showToast(`${data.length} baris sesi dimuat — edit lalu simpan ulang ke Dashboard`, 'success');
+
+    // Scroll to result
+    setTimeout(() => {
+      const res = document.getElementById('result-section');
+      if (res) res.scrollIntoView({ behavior:'smooth', block:'start' });
+    }, 300);
+
+  } catch(e) { showToast('Error: '+e.message,'error'); console.error(e); }
+  badge.classList.remove('show');
 }
 
 async function hapusSesi(sesiId) {
