@@ -511,7 +511,7 @@ async function doValidasiHarian() {
         .select('hp,resi,nama,tanggal,status_akhir,cs,adv')
         .in('hp', batch);
       if (error) throw error;
-      if (data) allOrderan.push(...data);
+      if (data) { allOrderan.push(...data); if(data[0]) console.log('sample row:', JSON.stringify(data[0])); }
       badge.textContent = `mengecek HP... ${Math.min(i+batchSize, hpList.length)}/${hpList.length}`;
     }
 
