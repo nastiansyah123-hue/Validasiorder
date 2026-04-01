@@ -2033,19 +2033,18 @@ async function loadEkspedisiCache() {
         const kp = String(r.kodepos||'').trim();
         if (!kp) return;
         // Calculate RTS % for each ekspedisi
-        // Values stored as % delivered (e.g. 84.83)
-        // RTS% = 100 - delivered%
+        // Sort by delivered% descending (higher delivered = better)
         const eks = [
-          { name:'JNE',   del:r.jne_del,   rts:r.jne_rts   },
-          { name:'JNT',   del:r.jnt_del,   rts:r.jnt_rts   },
-          { name:'Ninja', del:r.ninja_del, rts:r.ninja_rts },
-          { name:'Lion',  del:r.lion_del,  rts:r.lion_rts  },
+          { name:'JNE',   del:r.jne_del   },
+          { name:'JNT',   del:r.jnt_del   },
+          { name:'Ninja', del:r.ninja_del },
+          { name:'Lion',  del:r.lion_del  },
         ];
-        // Filter out zeros and sort by RTS% ascending (lower RTS = better)
-        const valid = eks.filter(e => e.rts > 0 || e.del > 0);
-        valid.sort((a,b) => a.rts - b.rts);
+        // Only include ekspedisi with actual data (del > 0)
+        const valid = eks.filter(e => e.del > 0);
+        valid.sort((a,b) => b.del - a.del);
         if (valid.length) {
-          const top = valid.slice(0,3).map(e => e.name + '(' + Math.round(e.rts) + '%)');
+          const top = valid.slice(0,3).map(e => e.name + '(' + Math.round(e.del) + '%)');
           ekspedisiCache[kp] = top.join(' > ');
         }
       });
