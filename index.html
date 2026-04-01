@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ValidasiOrder — Login</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/auth.js"></script>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">ValidasiOrder</div>
+    <div class="login-sub">sistem pengecekan orderan harian</div>
+
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="uname" placeholder="email@tim.com" autocomplete="username" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="upass" placeholder="password" autocomplete="current-password" />
+    </div>
+
+    <button class="btn-primary" id="btn-login">Masuk</button>
+    <div class="login-error" id="login-err"></div>
+    <div class="login-info" id="login-info" style="display:none">Mengecek sesi...</div>
+  </div>
+</div>
+
+<script>
+const btnLogin = document.getElementById('btn-login');
+const errEl    = document.getElementById('login-err');
+const infoEl   = document.getElementById('login-info');
+
+// Redirect kalau sudah login
+(async () => {
+  infoEl.style.display = 'block';
+  const session = await getSession();
+  if (session) { window.location.href = 'app.html'; return; }
+  infoEl.style.display = 'none';
+})();
+
+async function doLogin() {
+  const email = document.getElementById('uname').value.trim();
+  const pass  = document.getElementById('upass').value;
+  if (!email || !pass) { showErr('Email dan password wajib diisi.'); return; }
+
+  btnLogin.disabled    = true;
+  btnLogin.textContent = 'Masuk...';
+  errEl.style.display  = 'none';
+
+  try {
+    await signIn(email, pass);
+    window.location.href = 'app.html';
+  } catch(e) {
+    showErr(e.message === 'Invalid login credentials'
+      ? 'Email atau password salah.'
+      : e.message);
+    btnLogin.disabled    = false;
+    btnLogin.textContent = 'Masuk';
+  }
+}
+
+function showErr(msg) {
+  errEl.textContent   = msg;
+  errEl.style.display = 'block';
+}
+
+btnLogin.addEventListener('click', doLogin);
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
