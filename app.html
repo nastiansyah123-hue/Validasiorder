@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ValidasiOrder</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/import.js"></script>
+<script src="js/validation.js"></script>
+<script src="js/export.js"></script>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-title">ValidasiOrder</div>
+  <div class="topbar-user">
+    <span id="user-email"></span>
+    <span class="topbar-role" id="user-role">—</span>
+    <button class="btn-logout" onclick="signOut()">Keluar</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" id="tab-btn-validasi"  onclick="switchTab('validasi')">Validasi Orderan</div>
+  <div class="tab"        id="tab-btn-rts"        onclick="switchTab('rts')">Data RTS</div>
+  <div class="tab"        id="tab-btn-panduan"    onclick="switchTab('panduan')">Panduan</div>
+</div>
+
+<!-- ══ TAB: VALIDASI ══════════════════════════════════════════════════════════ -->
+<div id="tab-validasi" class="main">
+
+  <!-- Import -->
+  <div class="import-grid">
+    <div class="import-card">
+      <h3>Data All Orderan</h3>
+      <p>Export dari Google Sheets (CSV / XLSX). Kolom wajib ada: Nomor Hp dan RESI.</p>
+      <div class="drop-zone" id="dz-order">
+        <input type="file" id="file-order" accept=".csv,.xlsx,.xls" />
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">Drag & drop atau klik untuk pilih file<br><span>.csv / .xlsx</span></div>
+      </div>
+      <div class="range-row">
+        <input type="text" id="order-range" placeholder="Range opsional, misal: A1:T5000" />
+      </div>
+      <div class="range-label">Kosongkan jika ingin baca seluruh sheet</div>
+      <div id="status-order" class="drop-status"></div>
+    </div>
+
+    <div class="import-card">
+      <h3>Data All RTS</h3>
+      <p>Pencarian reason RTS berdasarkan RESI, scan semua kolom bulan Jan–Des.</p>
+      <div class="drop-zone" id="dz-rts">
+        <input type="file" id="file-rts" accept=".csv,.xlsx,.xls" />
+        <div class="drop-zone-icon">📋</div>
+        <div class="drop-zone-text">Drag & drop atau klik untuk pilih file<br><span>.csv / .xlsx</span></div>
+      </div>
+      <div class="range-row">
+        <input type="text" id="rts-range" placeholder="Range opsional, misal: A1:CZ2000" />
+      </div>
+      <div class="range-label">Kosongkan jika ingin baca seluruh sheet</div>
+      <div id="status-rts" class="drop-status"></div>
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary-grid">
+    <div class="sum-card ok">
+      <div class="label">Total Orderan</div>
+      <div class="value" id="s-total">—</div>
+    </div>
+    <div class="sum-card dup">
+      <div class="label">Duplikat HP</div>
+      <div class="value" id="s-dup">—</div>
+    </div>
+    <div class="sum-card warn">
+      <div class="label">Pernah RTS</div>
+      <div class="value" id="s-rts">—</div>
+    </div>
+    <div class="sum-card danger">
+      <div class="label">Bermasalah</div>
+      <div class="value" id="s-masalah">—</div>
+    </div>
+  </div>
+
+  <!-- Action bar -->
+  <div class="action-bar">
+    <button class="btn-run" id="btn-run" disabled onclick="doValidation()">Jalankan Validasi</button>
+    <select class="filter-select" id="filter-status" onchange="doFilter()">
+      <option value="all">Semua baris</option>
+      <option value="dup">Hanya Duplikat</option>
+      <option value="rts">Hanya RTS</option>
+      <option value="both">Duplikat + RTS</option>
+      <option value="ok">Hanya Aman</option>
+    </select>
+    <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi..." oninput="doFilter()" />
+    <span class="spacer"></span>
+    <span class="loading-badge" id="loading-badge">memproses...</span>
+    <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
+    <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>No</th><th>Tanggal</th><th>Nama</th><th>No HP</th>
+            <th>Kode Pos</th><th>RESI</th><th>Pembayaran</th><th>Status Akhir</th>
+            <th>Status Validasi</th><th>Duplikat</th><th>RTS Info</th>
+          </tr>
+        </thead>
+        <tbody id="main-tbody">
+          <tr><td colspan="11" class="empty-state">Import data orderan dan RTS, lalu klik "Jalankan Validasi"</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="page-info">—</span>
+      <div class="page-btns" id="page-btns"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: RTS ════════════════════════════════════════════════════════════════ -->
+<div id="tab-rts" class="main" style="display:none">
+  <div class="action-bar">
+    <input class="search-input" id="rts-search" type="text" placeholder="Cari resi / reason..." oninput="doRtsFilter()" style="width:280px" />
+    <span class="spacer"></span>
+    <span id="rts-count" style="font-size:12px;color:var(--c-muted);font-family:monospace"></span>
+  </div>
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table>
+        <thead id="rts-thead"></thead>
+        <tbody id="rts-tbody">
+          <tr><td class="empty-state">Belum ada data RTS diimport</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="rts-page-info">—</span>
+      <div class="page-btns" id="rts-page-btns"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB: PANDUAN ══════════════════════════════════════════════════════════ -->
+<div id="tab-panduan" class="main" style="display:none">
+  <div class="panduan-card">
+    <h2>Panduan Penggunaan</h2>
+
+    <h3>1. Login</h3>
+    <p>Gunakan akun email yang sudah didaftarkan oleh admin di Supabase Authentication.</p>
+
+    <h3>2. Import Data</h3>
+    <p>Export dari Google Sheets sebagai CSV atau XLSX, lalu upload ke kotak import masing-masing. Isi kolom range jika ingin membatasi baris yang diproses (opsional).</p>
+
+    <h3>3. Jalankan Validasi</h3>
+    <p>Klik "Jalankan Validasi". Sistem akan mendeteksi duplikat berdasarkan nomor HP yang sama, dan mencari riwayat RTS berdasarkan RESI di semua kolom bulan (Jan–Des).</p>
+
+    <h3>4. Warna Highlight</h3>
+    <div class="legend-row">
+      <div class="legend-box" style="background:var(--c-dup-bg);border:1px solid var(--c-dup)"></div>
+      <span>Merah muda — Duplikat (nomor HP sama dengan order lain)</span>
+    </div>
+    <div class="legend-row">
+      <div class="legend-box" style="background:var(--c-warn-bg);border:1px solid var(--c-warn)"></div>
+      <span>Kuning — Pernah RTS (resi ditemukan di data RTS)</span>
+    </div>
+
+    <h3>5. Export Hasil</h3>
+    <p>Klik Export CSV atau Export XLSX. File akan berisi kolom tambahan: Status_Validasi, Is_Duplikat, RTS_Bulan, RTS_Reason, RTS_Status, RTS_Pihak.</p>
+
+    <h3>6. Tambah Anggota Tim</h3>
+    <p>Masuk ke Supabase Dashboard → Authentication → Users → Invite User. Masukkan email anggota tim baru.</p>
+
+    <div class="info-box">
+      <p class="info-title">Nama Kolom yang Didukung (All Orderan)</p>
+      <p style="margin-top:4px">Tanggal · No · Nama · Nomor Hp · Alamat · Kelurahan · Kecamatan · Kabupaten · Provinsi · KODE POS · Jumlah Pesanan · Pembayaran · Instruksi Pengiriman · RESI · TEAM · Update CRM · Status Akhir · RETUR · CSA · DV · ADM</p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let orderRaw = [], rtsRaw = [];
+let validatedData = [], filteredData = [];
+let rtsAllData = [], rtsFiltered = [];
+let currentPage = 1, rtsPage = 1;
+const PAGE_SIZE = 50;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+(async () => {
+  const user = await requireAuth();
+  if (!user) return;
+  document.getElementById('user-email').textContent = user.email;
+  document.getElementById('user-role').textContent  = user.user_metadata?.role || 'member';
+
+  setupDropzone('dz-order', 'file-order', 'order', (data) => {
+    orderRaw = data.map(extractOrderFields);
+    checkRunnable();
+  });
+  setupDropzone('dz-rts', 'file-rts', 'rts', (data) => {
+    rtsRaw = data;
+    rtsAllData = data;
+    rtsFiltered = [...data];
+    renderRtsTable();
+  });
+})();
+
+function checkRunnable() {
+  document.getElementById('btn-run').disabled = orderRaw.length === 0;
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  ['validasi','rts','panduan'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+    document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+  });
+}
+
+// ── VALIDASI ──────────────────────────────────────────────────────────────────
+async function doValidation() {
+  const badge = document.getElementById('loading-badge');
+  badge.classList.add('show');
+  await new Promise(r => setTimeout(r, 10)); // yield UI
+
+  const { result, summary } = runValidation(orderRaw, rtsRaw);
+  validatedData = result;
+  filteredData  = [...result];
+
+  document.getElementById('s-total').textContent   = summary.total.toLocaleString();
+  document.getElementById('s-dup').textContent     = summary.duplikat.toLocaleString();
+  document.getElementById('s-rts').textContent     = summary.rts.toLocaleString();
+  document.getElementById('s-masalah').textContent = summary.masalah.toLocaleString();
+
+  currentPage = 1;
+  renderTable();
+  badge.classList.remove('show');
+  showToast(`Validasi selesai — ${summary.masalah} masalah ditemukan dari ${summary.total} orderan.`,
+    summary.masalah ? 'error' : 'success');
+}
+
+function doFilter() {
+  const f = document.getElementById('filter-status').value;
+  const q = document.getElementById('search-box').value;
+  filteredData = applyFilters(validatedData, f, q);
+  currentPage = 1;
+  renderTable();
+}
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────────
+function renderTable() {
+  const start    = (currentPage - 1) * PAGE_SIZE;
+  const pageData = filteredData.slice(start, start + PAGE_SIZE);
+  const tbody    = document.getElementById('main-tbody');
+
+  if (!pageData.length) {
+    tbody.innerHTML = `<tr><td colspan="11" class="empty-state">Tidak ada data yang cocok</td></tr>`;
+    renderPagination();
+    return;
+  }
+
+  tbody.innerHTML = pageData.map(row => {
+    const cls = row._isDup && row._rtsInfo ? 'row-both'
+              : row._isDup  ? 'row-dup'
+              : row._rtsInfo? 'row-rts' : '';
+
+    const badge = row._status === 'AMAN'
+      ? `<span class="badge badge-ok">AMAN</span>`
+      : [
+          row._isDup    ? `<span class="badge badge-dup">DUPLIKAT</span>` : '',
+          row._rtsInfo  ? `<span class="badge badge-rts">RTS</span>`      : '',
+        ].join('');
+
+    const dupInfo = row._isDup
+      ? `<span style="font-size:11px;color:var(--c-dup);font-family:monospace">${row._hp}</span>` : '—';
+
+    const rtsInfo = row._rtsInfo
+      ? `<span style="font-size:11px;color:var(--c-warn);font-family:monospace"
+             title="${row._rtsInfo.reason}">${row._rtsInfo.bulan}: ${row._rtsInfo.reason || row._rtsInfo.status || 'ditemukan'}</span>` : '—';
+
+    return `<tr class="${cls}">
+      <td>${row.no}</td>
+      <td>${row.tanggal}</td>
+      <td title="${row.nama}">${row.nama}</td>
+      <td>${row.hp}</td>
+      <td>${row.kodepos}</td>
+      <td style="font-family:monospace;font-size:11px" title="${row.resi}">${row.resi}</td>
+      <td>${row.pembayaran}</td>
+      <td>${row.statusAkhir}</td>
+      <td>${badge}</td>
+      <td>${dupInfo}</td>
+      <td>${rtsInfo}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination();
+}
+
+function renderPagination() {
+  const total      = filteredData.length;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const start      = (currentPage - 1) * PAGE_SIZE;
+
+  document.getElementById('page-info').textContent =
+    total ? `${Math.min(start+1,total)}–${Math.min(start+PAGE_SIZE,total)} dari ${total.toLocaleString()} baris` : '0 baris';
+
+  const btns = document.getElementById('page-btns');
+  btns.innerHTML = '';
+
+  const prev = document.createElement('button');
+  prev.className = 'page-btn'; prev.textContent = '‹';
+  prev.disabled = currentPage === 1;
+  prev.onclick = () => goPage(currentPage - 1);
+  btns.appendChild(prev);
+
+  pageRange(currentPage, totalPages).forEach(p => {
+    if (p === '…') {
+      const sp = document.createElement('span');
+      sp.textContent = '…'; sp.style.cssText = 'padding:4px 6px;font-size:12px;color:var(--c-muted)';
+      btns.appendChild(sp);
+    } else {
+      const b = document.createElement('button');
+      b.className = 'page-btn' + (p === currentPage ? ' active' : '');
+      b.textContent = p;
+      b.onclick = () => goPage(p);
+      btns.appendChild(b);
+    }
+  });
+
+  const next = document.createElement('button');
+  next.className = 'page-btn'; next.textContent = '›';
+  next.disabled = currentPage >= totalPages || totalPages === 0;
+  next.onclick = () => goPage(currentPage + 1);
+  btns.appendChild(next);
+}
+
+function goPage(p) {
+  const max = Math.ceil(filteredData.length / PAGE_SIZE);
+  if (p < 1 || p > max) return;
+  currentPage = p;
+  renderTable();
+}
+
+function pageRange(cur, total) {
+  if (total <= 7) return Array.from({length: total}, (_,i) => i+1);
+  if (cur <= 4)   return [1,2,3,4,5,'…',total];
+  if (cur >= total-3) return [1,'…',total-4,total-3,total-2,total-1,total];
+  return [1,'…',cur-1,cur,cur+1,'…',total];
+}
+
+// ── RTS TABLE ─────────────────────────────────────────────────────────────────
+function renderRtsTable() {
+  if (!rtsAllData.length) return;
+  const cols = Object.keys(rtsAllData[0]).slice(0, 14);
+  document.getElementById('rts-thead').innerHTML =
+    '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+  renderRtsPage(cols);
+}
+
+function doRtsFilter() {
+  const q = document.getElementById('rts-search').value.toLowerCase();
+  rtsFiltered = rtsAllData.filter(row =>
+    Object.values(row).some(v => String(v||'').toLowerCase().includes(q))
+  );
+  rtsPage = 1;
+  const cols = rtsAllData.length ? Object.keys(rtsAllData[0]).slice(0,14) : [];
+  renderRtsPage(cols);
+}
+
+function renderRtsPage(cols) {
+  const start    = (rtsPage - 1) * PAGE_SIZE;
+  const pageData = rtsFiltered.slice(start, start + PAGE_SIZE);
+  const tbody    = document.getElementById('rts-tbody');
+  const total    = rtsFiltered.length;
+
+  document.getElementById('rts-count').textContent = `${total.toLocaleString()} baris`;
+
+  if (!pageData.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols.length}" class="empty-state">Tidak ada data</td></tr>`;
+  } else {
+    tbody.innerHTML = pageData.map(row =>
+      '<tr>' + cols.map(c =>
+        `<td style="font-family:monospace;font-size:11px" title="${row[c]||''}">${String(row[c]||'').slice(0,40)}</td>`
+      ).join('') + '</tr>'
+    ).join('');
+  }
+
+  document.getElementById('rts-page-info').textContent =
+    total ? `${Math.min(start+1,total)}–${Math.min(start+PAGE_SIZE,total)} dari ${total.toLocaleString()} baris` : '0 baris';
+
+  const btns = document.getElementById('rts-page-btns');
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  btns.innerHTML = `
+    <button class="page-btn" ${rtsPage===1?'disabled':''} onclick="goRtsPage(${rtsPage-1}, ${JSON.stringify(cols).replace(/"/g,"'")})">‹</button>
+    <button class="page-btn" ${rtsPage>=totalPages||totalPages===0?'disabled':''} onclick="goRtsPage(${rtsPage+1}, ${JSON.stringify(cols).replace(/"/g,"'")})">›</button>`;
+}
+
+function goRtsPage(p, cols) {
+  const max = Math.ceil(rtsFiltered.length / PAGE_SIZE);
+  if (p < 1 || p > max) return;
+  rtsPage = p;
+  renderRtsPage(cols);
+}
+</script>
+</body>
+</html>
