@@ -986,11 +986,13 @@ async function doValidasiHarian() {
       const hp = normalizeHP(row.hp||'');
       if (hp && hpIndex[hp]) hpIndex[hp].forEach(m => { if(m.resi) resiToCheck.add(m.resi.trim().toLowerCase()); });
     });
-    // Juga kumpulkan resi dari yang pernah RETUR untuk hitung total RTS per HP
-    const hpRturCount = {}; // hp -> jumlah retur
-    Object.entries(hpIndex).forEach(([hp, matches]) => {
-      const rturCount = matches.filter(m => (m.status_akhir||'').toLowerCase().includes('retur')).length;
-      if (rturCount > 0) hpRturCount[hp] = rturCount;
+    // Hitung total RTS per HP dari allOrderan
+    const hpRturCount = {};
+    allOrderan.forEach(r => {
+      if ((r.status_akhir||'').toLowerCase().includes('retur')) {
+        const hp = normalizeHP(r.hp||'');
+        if (hp) hpRturCount[hp] = (hpRturCount[hp]||0) + 1;
+      }
     });
 
     // 5. Ambil RTS dari Supabase
