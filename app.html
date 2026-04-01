@@ -49,22 +49,25 @@
     </div>
   </div>
 
-  <div class="section-card">
+  <div class="section-card" id="upload-card">
     <div class="section-header">
       <div>
         <div class="section-title">Upload Orderan Baru Hari Ini</div>
         <div class="section-desc">File orderan baru yang akan divalidasi. Tidak disimpan ke database — hanya untuk pengecekan terhadap data master.</div>
       </div>
+      <button onclick="toggleUploadCard()" id="btn-toggle-upload" class="btn-secondary" style="font-size:12px;padding:5px 12px;flex-shrink:0">▲ Sembunyikan</button>
     </div>
-    <div class="drop-zone" id="dz-baru">
-      <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" />
-      <div class="drop-zone-icon">📥</div>
-      <div class="drop-zone-text">Drag & drop atau klik — orderan baru hari ini<br><span>.csv / .xlsx</span></div>
-    </div>
-    <div id="status-baru" class="drop-status"></div>
-    <div style="margin-top:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <button class="btn-run" id="btn-validasi" disabled onclick="doValidasiHarian()">Jalankan Validasi</button>
-      <span class="loading-badge" id="loading-validasi">memproses...</span>
+    <div id="upload-body">
+      <div class="drop-zone" id="dz-baru">
+        <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" />
+        <div class="drop-zone-icon">📥</div>
+        <div class="drop-zone-text">Drag & drop atau klik — orderan baru hari ini<br><span>.csv / .xlsx</span></div>
+      </div>
+      <div id="status-baru" class="drop-status"></div>
+      <div style="margin-top:1rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn-run" id="btn-validasi" disabled onclick="doValidasiHarian()">Jalankan Validasi</button>
+        <span class="loading-badge" id="loading-validasi">memproses...</span>
+      </div>
     </div>
   </div>
 
@@ -615,6 +618,11 @@ async function doValidasiHarian() {
     document.getElementById('step3-sub').textContent = dupCount+' duplikat, '+rtsCount+' RTS';
 
     currentPage = 1; renderTable();
+    // Auto collapse upload card setelah validasi selesai
+    const uploadBody = document.getElementById('upload-body');
+    const toggleBtn  = document.getElementById('btn-toggle-upload');
+    if (uploadBody) { uploadBody.style.display='none'; toggleBtn.textContent='▼ Tampilkan'; }
+    setTimeout(()=>{ const res=document.getElementById('result-section'); if(res) res.scrollIntoView({behavior:'smooth',block:'start'}); },200);
     showToast(`Selesai — ${dupCount} duplikat, ${rtsCount} pernah RTS dari ${validatedData.length} orderan.`, dupCount>0?'error':'success');
 
   } catch(e) {
@@ -662,6 +670,21 @@ function doFilter() {
 }
 
 // RENDER TABLE
+function toggleUploadCard() {
+  const body = document.getElementById('upload-body');
+  const btn  = document.getElementById('btn-toggle-upload');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? 'block' : 'none';
+  btn.textContent = hidden ? '▲ Sembunyikan' : '▼ Tampilkan';
+  // Auto scroll to result if hiding
+  if (!hidden) {
+    setTimeout(() => {
+      const res = document.getElementById('result-section');
+      if (res) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+}
+
 function sortBy(col) {
   if (sortCol === col) sortDir *= -1;
   else { sortCol = col; sortDir = 1; }
