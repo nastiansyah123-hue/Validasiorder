@@ -2317,7 +2317,10 @@ function renderTable() {
   row._kpLowSample ? '<span style="font-size:10px">data kurang</span>' : '—'
 }</td>
       ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
-      ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'')}
+      <td style="font-family:monospace;font-size:12px;font-weight:500">${
+  extractEkspedisi(row._raw['Pembayaran']||row._raw['pembayaran']) ||
+  row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||''
+}</td>
       <td style="text-align:center">
         <input type="checkbox" class="ss-chk" title="SS Chat sudah ada?"
           ${(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat']||'').toUpperCase()==='TRUE'||row._ssChatDone?'checked':''}
@@ -2387,6 +2390,24 @@ function initCheckboxes() {
     const idx = parseInt(chk.dataset.idx);
     if (!isNaN(idx) && filteredData[idx]) chk.checked = !!filteredData[idx]._selected;
   });
+}
+
+function extractEkspedisi(pembayaran) {
+  if (!pembayaran) return '';
+  const p = String(pembayaran).toUpperCase();
+  const eksOptions = ['SICEPAT','ANTERAJA','NINJA','LION','TIKI','SAP','IDX','JNE','JNT','SCP'];
+  for (const eks of eksOptions) {
+    if (p.includes(eks)) {
+      // Normalize
+      if (eks === 'SCP') return 'SiCepat';
+      if (eks === 'SICEPAT') return 'SiCepat';
+      if (eks === 'ANTERAJA') return 'Anteraja';
+      if (eks === 'NINJA') return 'Ninja';
+      if (eks === 'LION') return 'Lion';
+      return eks; // JNE, JNT, TIKI, SAP, IDX
+    }
+  }
+  return '';
 }
 
 function filterSelected() {
