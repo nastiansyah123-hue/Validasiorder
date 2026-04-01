@@ -269,6 +269,9 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
     <div class="nav-item" id="nav-statistik" onclick="switchPage('statistik')">
       <span class="nav-icon">📊</span> Statistik Wilayah
     </div>
+    <div class="nav-item" id="nav-cekHP" onclick="switchPage('cekHP')">
+      <span class="nav-icon">🔍</span> Cek Nomor HP
+    </div>
     <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
       <span class="nav-icon">📖</span> Panduan
     </div>
@@ -556,6 +559,41 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
     </div>
   </div>
 
+  <!-- PAGE: CEK HP -->
+  <div class="page" id="page-cekHP">
+    <div class="page-header">
+      <div class="page-title">Cek Nomor HP</div>
+      <div class="page-sub">Lihat riwayat orderan dan RTS berdasarkan nomor HP</div>
+    </div>
+
+    <div class="card" style="max-width:600px;margin-bottom:1.25rem">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="hp-input" type="text" class="search-input" placeholder="Masukkan nomor HP..." style="flex:1;width:auto"
+          onkeydown="if(event.key==='Enter') cekHP()" />
+        <button class="btn-primary" onclick="cekHP()">Cek</button>
+        <span class="loading-badge" id="loading-cekHP">mencari...</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-family:monospace;margin-top:6px">
+        Format bebas: 08xxx / 628xxx / 8xxx — otomatis dinormalisasi
+      </div>
+    </div>
+
+    <div id="cekHP-result" style="display:none">
+      <!-- Summary -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem" id="cekHP-summary"></div>
+
+      <!-- Timeline -->
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;margin-bottom:1rem" id="cekHP-title"></div>
+        <div id="cekHP-timeline"></div>
+      </div>
+    </div>
+
+    <div id="cekHP-empty" style="display:none;text-align:center;padding:3rem;color:var(--muted);font-size:14px">
+      Nomor HP tidak ditemukan di data master.
+    </div>
+  </div>
+
   <!-- PAGE: PANDUAN -->
   <div class="page" id="page-panduan">
     <div class="page-header">
@@ -695,14 +733,14 @@ function updateStep1() {
 
 // TABS
 function switchPage(name) {
-  ['harian','master','statistik','panduan'].forEach(t => {
+  ['harian','master','statistik','cekHP','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
     if (nav) nav.classList.toggle('active', t===name);
   });
   if (name === 'statistik') loadStatistik();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', panduan:'Panduan'};
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -1360,6 +1398,62 @@ async function calcKodeposStats(statusEl) {
     showToast('Gagal hitung statistik: '+e.message, 'error');
     console.error(e);
   }
+}
+
+
+// CEK NOMOR HP
+async function cekHP() {
+  const raw = document.getElementById('hp-input').value.trim();
+  if (!raw) return;
+  const badge = document.getElementById('loading-cekHP');
+  badge.classList.add('show');
+  document.getElementById('cekHP-result').style.display = 'none';
+  document.getElementById('cekHP-empty').style.display  = 'none';
+  try {
+    const hp      = normalizeHP(raw);
+    const hpStrip = hp.replace(/^0+/, '');
+    const { data, error } = await sb.from('all_orderan')
+      .select('tanggal,nama,resi,status_akhir,kodepos,kabupaten,provinsi,cs,adv')
+      .or('hp.eq.' + hp + ',hp.eq.' + hpStrip)
+      .order('tanggal', { ascending: false });
+    if (error) throw error;
+    if (!data || !data.length) {
+      document.getElementById('cekHP-empty').style.display = 'block';
+      badge.classList.remove('show'); return;
+    }
+    const total   = data.length;
+    const retur   = data.filter(r => (r.status_akhir||'').toLowerCase().includes('retur')).length;
+    const deliver = data.filter(r => (r.status_akhir||'').toLowerCase().includes('deliver')).length;
+    const pct     = Math.round((retur/total)*100);
+    document.getElementById('cekHP-summary').innerHTML =
+      '<div class="sum-card c-total"><div class="s-label">Total Orderan</div><div class="s-value">' + total + '</div></div>' +
+      '<div class="sum-card c-aman"><div class="s-label">Delivered</div><div class="s-value">' + deliver + '</div></div>' +
+      '<div class="sum-card c-dupall"><div class="s-label">RTS</div><div class="s-value" style="color:var(--danger)">' + retur + '</div></div>' +
+      '<div class="sum-card c-rts"><div class="s-label">% RTS</div><div class="s-value" style="color:' + (pct>=30?'var(--danger)':pct>=15?'var(--warn)':'var(--success)') + '">' + pct + '%</div></div>';
+    document.getElementById('cekHP-title').textContent = 'Riwayat HP: ' + hp + ' — ' + (data[0].nama||'');
+    document.getElementById('cekHP-timeline').innerHTML = data.map(function(r) {
+      const isRetur = (r.status_akhir||'').toLowerCase().includes('retur');
+      const dotColor = isRetur ? 'var(--danger)' : 'var(--success)';
+      const bg = isRetur ? 'background:var(--danger-light);' : '';
+      return '<div style="display:flex;gap:14px;' + bg + 'padding:12px 1.25rem;border-bottom:0.5px solid var(--border);align-items:flex-start">' +
+        '<div style="width:10px;height:10px;border-radius:50%;background:' + dotColor + ';margin-top:5px;flex-shrink:0"></div>' +
+        '<div style="flex:1">' +
+          '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">' +
+            '<div><span style="font-size:13px;font-weight:600">' + (r.nama||'—') + '</span>' +
+            '<span style="font-size:11px;color:var(--muted);font-family:monospace;margin-left:8px">' + (r.tanggal||'') + '</span></div>' +
+            '<span style="font-size:11px;font-family:monospace;font-weight:600;color:' + dotColor + '">' + (r.status_akhir||'—') + '</span>' +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:16px;flex-wrap:wrap">' +
+            '<span>RESI: ' + (r.resi||'—') + '</span>' +
+            '<span>' + ([r.kabupaten,r.provinsi].filter(Boolean).join(', ')||'—') + '</span>' +
+            '<span>KP: ' + (r.kodepos||'—') + '</span>' +
+            (r.cs ? '<span>CS: ' + r.cs + '</span>' : '') +
+          '</div>' +
+        '</div></div>';
+    }).join('');
+    document.getElementById('cekHP-result').style.display = 'block';
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  badge.classList.remove('show');
 }
 
 function toggleUploadCard() {
