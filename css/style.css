@@ -105,6 +105,7 @@ thead th { position:sticky; top:0; background:var(--c-bg); padding:10px 12px; te
 tbody tr { border-bottom:0.5px solid var(--c-border); transition:background 0.1s; }
 tbody tr:hover { filter:brightness(0.97); }
 tbody td { padding:9px 12px; vertical-align:middle; white-space:nowrap; max-width:200px; overflow:hidden; text-overflow:ellipsis; }
+tbody td.td-wide { max-width:360px; white-space:normal; word-break:break-word; line-height:1.5; }
 tr.row-dup  { background:var(--c-dup-bg) !important; }
 tr.row-rts  { background:var(--c-warn-bg) !important; }
 tr.row-both { background: linear-gradient(90deg, var(--c-dup-bg) 50%, var(--c-warn-bg) 50%) !important; }
