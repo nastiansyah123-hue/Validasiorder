@@ -566,14 +566,14 @@ async function doValidasiHarian() {
         if (rtsMap[rn]) { rtsInfo = { ...rtsMap[rn], resiLama: m.resi }; break; }
       }
 
-      const _status = isDup && rtsInfo ? 'DUPLIKAT+RTS' : isDup ? 'DUPLIKAT' : 'AMAN';
+      const _status = isDup && (rtsInfo||isRetur) ? 'DUPLIKAT+RTS' : isDup ? 'DUPLIKAT' : isRetur ? 'RTS' : 'AMAN';
       return { ...row, _isDup:isDup, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status };
     });
 
     filteredData = [...validatedData];
     const dupCount  = validatedData.filter(r=>r._isDup).length;
-    const rtsCount  = validatedData.filter(r=>r._rtsInfo).length;
-    const amanCount = validatedData.filter(r=>!r._isDup).length;
+    const rtsCount  = validatedData.filter(r=>r._isRetur||r._rtsInfo).length;
+    const amanCount = validatedData.filter(r=>!r._isDup&&!r._isRetur&&!r._rtsInfo).length;
 
     document.getElementById('s-total').textContent = validatedData.length.toLocaleString();
     document.getElementById('s-dup').textContent   = dupCount.toLocaleString();
