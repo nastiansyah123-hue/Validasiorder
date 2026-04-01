@@ -1875,29 +1875,31 @@ function parseEkspedisiFile(file) {
       // Row 1: [, , DELIVERED, RTS, DELIVERED, RTS, ...]
       // Row 2+: data
       
+      // 3-row header: row0=section, row1=ekspedisi names, row2=DELIVERED/RTS
       const headerRow0 = raw[0] || [];
       const headerRow1 = raw[1] || [];
+      const headerRow2 = raw[2] || [];
       
-      // Build column map: col index -> {ekspedisi, type}
+      // Find kodepos and kecamatan columns from row0
+      const kpCol = headerRow0.findIndex(v => String(v||'').toLowerCase().replace(/\s/g,'').includes('kodepos') || String(v||'').toLowerCase().includes('kode pos'));
+      const kcCol = headerRow0.findIndex(v => String(v||'').toLowerCase().includes('kecamatan'));
+
+      // Build column map from row1 (ekspedisi) + row2 (DELIVERED/RTS)
       const colMap = {};
       let currentEks = '';
-      headerRow0.forEach((val, i) => {
+      headerRow1.forEach((val, i) => {
         if (val && String(val).trim()) currentEks = String(val).trim().toUpperCase();
-        const type = String(headerRow1[i]||'').trim().toUpperCase();
+        const type = String(headerRow2[i]||'').trim().toUpperCase();
         if (currentEks && (type === 'DELIVERED' || type === 'RTS')) {
           colMap[i] = { eks: currentEks, type: type.toLowerCase() };
         }
       });
       
-      // Find kodepos and kecamatan columns
-      const kpCol  = headerRow0.findIndex(v => String(v||'').toLowerCase().replace(/\s/g,'').includes('kodepos') || String(v||'').toLowerCase().includes('kode pos'));
-      const kcCol  = headerRow0.findIndex(v => String(v||'').toLowerCase().includes('kecamatan'));
+      console.log('kpCol:', kpCol, 'kcCol:', kcCol, 'colMap keys:', Object.keys(colMap).length);
       
-      console.log('kpCol:', kpCol, 'kcCol:', kcCol, 'colMap:', colMap);
-      
-      // Build result rows from data rows (skip first 2 header rows)
+      // Build result rows from data rows (skip first 3 header rows)
       const result = {};
-      raw.slice(2).forEach(row => {
+      raw.slice(3).forEach(row => {
         const kp = String(row[kpCol]||'').trim().replace(/\.0$/,'');
         const kc = String(row[kcCol]||'').trim();
         if (!kp) return;
