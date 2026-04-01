@@ -106,15 +106,21 @@
         <table>
           <thead>
             <tr>
-              <th>No</th><th>Nama</th><th>No HP</th><th>Kode Pos</th>
-              <th>RESI Baru</th><th>Pembayaran</th>
-              <th>Status Validasi</th>
-              <th>Pernah Order? (nama &amp; tanggal)</th>
-              <th>RESI Lama</th><th>Reason RTS</th>
+              <th>Tanggal</th><th>No</th><th>Nama</th><th>No Telpon</th>
+              <th>Alamat</th><th>Kelurahan</th><th>Kecamatan</th><th>Kabupaten</th><th>Provinsi</th><th>Kode Pos</th>
+              <th>Jml Pesanan</th><th>Qty</th><th>Pembayaran</th><th>Total</th>
+              <th>Instruksi</th><th>Keterangan</th><th>Rincian</th><th>Keluhan</th>
+              <th>Real Ongkir</th><th>Cek Ongkir</th>
+              <th style="background:#fbeaf0;color:#993556">Retur ADSY</th>
+              <th>Wil. Rawan</th><th>Grade</th><th>Ekspedisi</th>
+              <th>SS Chat</th>
+              <th>Duplikat Team</th>
+              <th style="background:#fbeaf0;color:#993556">Duplikat All Team</th>
+              <th>ACC SPV CS</th><th>ACC SPV OP</th>
             </tr>
           </thead>
           <tbody id="main-tbody">
-            <tr><td colspan="10" class="empty-state">Belum ada hasil validasi</td></tr>
+            <tr><td colspan="29" class="empty-state">Belum ada hasil validasi</td></tr>
           </tbody>
         </table>
       </div>
@@ -486,7 +492,7 @@ async function doValidasiHarian() {
     for (let i = 0; i < hpList.length; i += batchSize) {
       const batch = hpList.slice(i, i + batchSize);
       const { data, error } = await sb.from('all_orderan')
-        .select('hp,resi,nama,tanggal')
+        .select('hp,resi,nama,tanggal,status_akhir')
         .in('hp', batch);
       if (error) throw error;
       if (data) allOrderan.push(...data);
@@ -525,13 +531,21 @@ async function doValidasiHarian() {
       const hp = normalizeHP(row.hp||'');
       const matches = hp && hpIndex[hp] ? hpIndex[hp] : [];
       const isDup = matches.length > 0;
+
+      // Cek apakah ada match yang pernah RETUR (dari status_akhir)
+      const returMatches = matches.filter(m => (m.status_akhir||'').toLowerCase().includes('retur'));
+      const isRetur = returMatches.length > 0;
+
+      // Cari reason RTS dari resi yang berstatus RETUR
       let rtsInfo = null;
-      for (const m of matches) {
+      const checkMatches = isRetur ? returMatches : matches;
+      for (const m of checkMatches) {
         const rn = (m.resi||'').trim().toLowerCase();
         if (rtsMap[rn]) { rtsInfo = { ...rtsMap[rn], resiLama: m.resi }; break; }
       }
+
       const _status = isDup && rtsInfo ? 'DUPLIKAT+RTS' : isDup ? 'DUPLIKAT' : 'AMAN';
-      return { ...row, _isDup:isDup, _matches:matches, _rtsInfo:rtsInfo, _status };
+      return { ...row, _isDup:isDup, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status };
     });
 
     filteredData = [...validatedData];
@@ -578,34 +592,53 @@ function renderTable() {
   const pageData = filteredData.slice(start, start+PAGE_SIZE);
   const tbody = document.getElementById('main-tbody');
 
-  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="10" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
+  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="29" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
 
   tbody.innerHTML = pageData.map(row => {
     const cls = row._isDup&&row._rtsInfo?'row-both':row._isDup?'row-dup':row._rtsInfo?'row-rts':'';
-    const badge = row._status==='AMAN'
-      ? `<span class="badge badge-ok">AMAN</span>`
-      : [row._isDup?`<span class="badge badge-dup">DUPLIKAT</span>`:'',row._rtsInfo?`<span class="badge badge-rts">RTS</span>`:''].join('');
 
-    const dupInfo = row._isDup && row._matches.length
-      ? row._matches.slice(0,2).map(m=>`<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block">${m.nama||''} · ${m.tanggal||''}</span>`).join('')
-      : '—';
+    // Kolom Duplikat All Team — isi nama+tanggal jika duplikat
+    const dupAllTeam = row._isDup && row._matches.length
+      ? `<span style="font-size:11px;color:var(--c-dup);font-family:monospace">${row._matches.slice(0,2).map(m=>(m.nama||'')+(m.tanggal?' ('+m.tanggal+')':'')).join(' | ')}</span>`
+      : '';
 
-    const resiLama  = row._rtsInfo ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)">${row._rtsInfo.resiLama||''}</span>` : '—';
-    const rtsReason = row._rtsInfo
-      ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="${row._rtsInfo.reason||''}">${(row._rtsInfo.reason||row._rtsInfo.status||'ditemukan di RTS').slice(0,50)}</span>`
-      : '—';
+    // Kolom Retur ADSY — isi reason RTS jika pernah RTS
+    const returADSY = row._rtsInfo
+      ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="${row._rtsInfo.reason||''}">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}</span>`
+      : (row._isRetur ? '<span style="font-size:11px;color:var(--c-warn);font-family:monospace">Pernah RTS (no reason)</span>' : '');
+
+    const td = (v,style='') => `<td${style?' style="'+style+'"':''}>${v||''}</td>`;
 
     return `<tr class="${cls}">
-      <td>${row.no}</td>
-      <td title="${row.nama}">${row.nama}</td>
-      <td style="font-family:monospace">${row.hp}</td>
-      <td>${row.kodepos}</td>
-      <td style="font-family:monospace;font-size:11px">${row.resi}</td>
-      <td>${row.pembayaran}</td>
-      <td>${badge}</td>
-      <td>${dupInfo}</td>
-      <td>${resiLama}</td>
-      <td>${rtsReason}</td>
+      ${td(row._raw['Tanggal']||row._raw['tanggal'])}
+      ${td(row._raw['No']||row._raw['no'])}
+      ${td(row._raw['Nama']||row._raw['nama'])}
+      ${td(row._raw['No telpon']||row._raw['No Telpon']||row._raw['Nomor Hp']||row.hp,'font-family:monospace')}
+      ${td(row._raw['Alamat']||row._raw['alamat'])}
+      ${td(row._raw['Kelurahan']||row._raw['kelurahan'])}
+      ${td(row._raw['Kecamatan']||row._raw['kecamatan'])}
+      ${td(row._raw['Kabupaten']||row._raw['kabupaten'])}
+      ${td(row._raw['Provinsi']||row._raw['provinsi'])}
+      ${td(row._raw['Kode Pos']||row._raw['kodepos']||row._raw['KODE POS'])}
+      ${td(row._raw['Jumlah Pesanan']||row._raw['jumlah'])}
+      ${td(row._raw['Quantity']||row._raw['qty']||row._raw['Qty'])}
+      ${td(row._raw['Pembayaran']||row._raw['pembayaran'])}
+      ${td(row._raw['Total Pembayaran']||row._raw['total'])}
+      ${td(row._raw['Instruksi Pengiriman']||row._raw['instruksi'])}
+      ${td(row._raw['Keterangan']||row._raw['keterangan'])}
+      ${td(row._raw['Rincian Pembayaran']||row._raw['rincian'])}
+      ${td(row._raw['Keluhan']||row._raw['keluhan'])}
+      ${td(row._raw['Real Ongkir']||row._raw['real ongkir'])}
+      ${td(row._raw['Pengecekkan Ongkir']||row._raw['cek ongkir'])}
+      <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
+      ${td(row._raw['Wilayah Rawan']||row._raw['wilayah rawan'])}
+      ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
+      ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||' Ekspedisi')}
+      ${td(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat'])}
+      ${td(row._raw['Duplikat Team']||row._raw['duplikat team'])}
+      <td style="background:${row._isDup?'var(--c-dup-bg)':''};">${dupAllTeam}</td>
+      ${td(row._raw['ACC SPV CS']||row._raw['acc spv cs'])}
+      ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
     </tr>`;
   }).join('');
   renderPag();
