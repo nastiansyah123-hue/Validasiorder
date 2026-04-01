@@ -23,9 +23,10 @@
   </div>
 </div>
 
-<div id="greeting-bar" style="background:var(--c-surface);border-bottom:0.5px solid var(--c-border);padding:10px 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:12px">
+<!-- Greeting bar (muncul setelah pilih mood) -->
+<div id="greeting-bar" style="display:none;background:var(--c-surface);border-bottom:0.5px solid var(--c-border);padding:10px 1.5rem;align-items:center;justify-content:space-between;gap:12px">
   <div style="display:flex;align-items:center;gap:12px;flex:1">
-    <span id="greeting-emoji" style="font-size:28px;cursor:pointer;user-select:none" title="Pilih mood kamu hari ini" onclick="showMoodPicker()">😊</span>
+    <span id="greeting-emoji" style="font-size:24px"></span>
     <div style="flex:1">
       <div id="greeting-text" style="font-size:13px;font-weight:500;color:var(--c-text)"></div>
       <div id="greeting-date" style="font-size:11px;color:var(--c-muted);font-family:monospace;margin-top:2px"></div>
@@ -34,13 +35,15 @@
   <button onclick="document.getElementById('greeting-bar').style.display='none'" style="font-size:11px;color:var(--c-muted);background:none;border:none;cursor:pointer;flex-shrink:0">✕</button>
 </div>
 
-<!-- Mood Picker Modal -->
-<div id="mood-picker" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:999;align-items:center;justify-content:center">
-  <div style="background:var(--c-surface);border-radius:16px;padding:1.5rem;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
-    <div style="font-size:14px;font-weight:700;margin-bottom:4px">Mood kamu hari ini? 🙂</div>
-    <div style="font-size:12px;color:var(--c-muted);margin-bottom:1rem">Pilih emot yang paling cocok</div>
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:1rem" id="mood-grid"></div>
-    <button onclick="closeMoodPicker()" style="width:100%;padding:8px;border:0.5px solid var(--c-border-strong);border-radius:8px;background:none;cursor:pointer;font-size:13px;color:var(--c-muted)">Batal</button>
+<!-- Welcome Modal -->
+<div id="welcome-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--c-surface);border-radius:24px;padding:2rem 1.5rem;max-width:400px;width:92%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.2)">
+    <div id="welcome-time-emoji" style="font-size:48px;margin-bottom:1rem"></div>
+    <div id="welcome-title" style="font-size:22px;font-weight:700;margin-bottom:6px;line-height:1.3"></div>
+    <div style="font-size:13px;color:var(--c-muted);margin-bottom:1.5rem">Bagaimana perasaan kamu hari ini?</div>
+    <div id="welcome-mood-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem"></div>
+    <button id="btn-mulai" onclick="confirmMood()" disabled style="width:100%;padding:12px;background:var(--c-accent);color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;opacity:0.45;transition:opacity 0.2s">Mulai Kerja →</button>
+    <div onclick="confirmMood()" style="margin-top:10px;font-size:12px;color:var(--c-muted);cursor:pointer">Lewati</div>
   </div>
 </div>
 
@@ -756,47 +759,53 @@ function removeFile(fname) {
 }
 
 const MOODS = [
-  {e:'😊',l:'Senang'},{e:'😄',l:'Semangat'},{e:'🥰',l:'Bahagia'},{e:'😎',l:'Keren'},
-  {e:'🤩',l:'Excited'},{e:'😌',l:'Tenang'},{e:'🙂',l:'Oke'},{e:'😐',l:'Biasa'},
-  {e:'😴',l:'Ngantuk'},{e:'😪',l:'Lelah'},{e:'😤',l:'Fokus'},{e:'💪',l:'Kuat'},
-  {e:'🔥',l:'On Fire'},{e:'⚡',l:'Energik'},{e:'🌟',l:'Bersinar'},{e:'🎯',l:'Siap'},
-  {e:'☕',l:'Butuh kopi'},{e:'😅',l:'Hectic'},{e:'🥱',l:'Ngantuk bgt'},{e:'😩',l:'Capek'},
-  {e:'🤔',l:'Mikir'},{e:'😬',l:'Deg-degan'},{e:'🫡',l:'Siap tugas'},{e:'🤓',l:'Teliti'},
+  {e:'😄',l:'Bahagia'},{e:'🤩',l:'Semangat'},{e:'😌',l:'Biasa Aja'},
+  {e:'😪',l:'Lelah'},{e:'😢',l:'Sedih'},{e:'😤',l:'Stres'},
+  {e:'🔥',l:'On Fire!'},{e:'🤒',l:'Kurang Sehat'},{e:'💪',l:'Siap Tempur'},
 ];
 
-function showMoodPicker() {
-  const grid = document.getElementById('mood-grid');
-  grid.innerHTML = MOODS.map(m =>
-    `<div onclick="selectMood('${m.e}','${m.l}')" style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:8px;cursor:pointer;transition:background 0.1s" onmouseover="this.style.background='var(--c-bg)'" onmouseout="this.style.background=''">
-      <span style="font-size:22px">${m.e}</span>
-      <span style="font-size:9px;color:var(--c-muted);font-family:monospace">${m.l}</span>
+let selectedMood = null;
+
+function showWelcomeModal(name, period, timeEmoji) {
+  const modal = document.getElementById('welcome-modal');
+  const hour = new Date().getHours();
+  const greetWord = period==='pagi'?'Pagi':period==='siang'?'Siang':period==='sore'?'Sore':'Malam';
+
+  document.getElementById('welcome-time-emoji').textContent = timeEmoji;
+  document.getElementById('welcome-title').innerHTML = `Selamat ${greetWord},<br>${name}! 👋`;
+
+  const grid = document.getElementById('welcome-mood-grid');
+  grid.innerHTML = MOODS.map((m,i) =>
+    `<div id="mood-opt-${i}" onclick="selectWelcomeMood(${i},'${m.e}','${m.l}')"
+      style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border-radius:12px;cursor:pointer;border:1.5px solid var(--c-border);transition:all 0.15s;background:var(--c-bg)">
+      <span style="font-size:32px">${m.e}</span>
+      <span style="font-size:11px;color:var(--c-muted);font-family:monospace">${m.l}</span>
     </div>`
   ).join('');
-  document.getElementById('mood-picker').style.display = 'flex';
+
+  modal.style.display = 'flex';
 }
 
-function selectMood(emoji, label) {
-  document.getElementById('greeting-emoji').textContent = emoji;
-  // Update greeting text with mood
-  const cur = document.getElementById('greeting-text').textContent;
-  const moodNote = ` (Mood: ${label} ${emoji})`;
-  if (!cur.includes('Mood:')) {
-    document.getElementById('greeting-text').textContent = cur + moodNote;
-  } else {
-    document.getElementById('greeting-text').textContent = cur.replace(/\s\(Mood:.*?\)/, '') + moodNote;
+function selectWelcomeMood(idx, emoji, label) {
+  selectedMood = {emoji, label};
+  document.querySelectorAll('[id^="mood-opt-"]').forEach((el,i) => {
+    el.style.border = i===idx ? '2px solid var(--c-accent)' : '1.5px solid var(--c-border)';
+    el.style.background = i===idx ? 'var(--c-accent-bg)' : 'var(--c-bg)';
+  });
+  const btn = document.getElementById('btn-mulai');
+  btn.disabled = false; btn.style.opacity = '1';
+}
+
+function confirmMood() {
+  document.getElementById('welcome-modal').style.display = 'none';
+  const bar = document.getElementById('greeting-bar');
+  bar.style.display = 'flex';
+  if (selectedMood) {
+    document.getElementById('greeting-emoji').textContent = selectedMood.emoji;
+    const cur = document.getElementById('greeting-text').textContent;
+    document.getElementById('greeting-text').textContent = cur + ` — Mood: ${selectedMood.label} ${selectedMood.emoji}`;
   }
-  closeMoodPicker();
 }
-
-function closeMoodPicker() {
-  document.getElementById('mood-picker').style.display = 'none';
-}
-
-// Close mood picker on backdrop click
-document.addEventListener('click', e => {
-  const picker = document.getElementById('mood-picker');
-  if (picker && e.target === picker) closeMoodPicker();
-});
 
 function initGreeting(email) {
   const name = email.split('@')[0].split('.')[0];
@@ -804,37 +813,41 @@ function initGreeting(email) {
   const now = new Date();
   const hour = now.getHours();
   const day = now.toLocaleDateString('id-ID', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  const period = hour < 11 ? 'pagi' : hour < 15 ? 'siang' : hour < 19 ? 'sore' : 'malam';
+
+  const timeEmojis = { pagi:'☀️', siang:'🌤️', sore:'🌇', malam:'🌙' };
 
   const greetings = {
     pagi: [
-      { e:'🌅', t:`Selamat pagi, ${capName}! Mulai hari ini dengan semangat — setiap orderan yang kamu validasi membuat tim makin solid!` },
-      { e:'☀️', t:`Pagi, ${capName}! Kopi sudah siap? Saatnya pastikan semua orderan hari ini berjalan mulus!` },
-      { e:'🌤️', t:`Halo ${capName}, pagi yang bagus! Teliti satu per satu — kamu adalah benteng pertama kualitas tim!` },
+      `Mulai hari ini dengan semangat — setiap orderan yang kamu validasi membuat tim makin solid!`,
+      `Kopi sudah siap? Saatnya pastikan semua orderan hari ini berjalan mulus!`,
+      `Teliti satu per satu — kamu adalah benteng pertama kualitas tim!`,
     ],
     siang: [
-      { e:'💪', t:`Siang, ${capName}! Tetap fokus ya — separuh hari sudah terlewati, finish strong!` },
-      { e:'🔥', t:`Halo ${capName}! Siang-siang begini semangat jangan kendur, validasi orderan dengan teliti!` },
-      { e:'⚡', t:`${capName}, kamu luar biasa! Terus jaga kualitas — satu kesalahan yang dicegah lebih baik dari seribu yang diperbaiki.` },
+      `Tetap fokus ya — separuh hari sudah terlewati, finish strong!`,
+      `Siang-siang begini semangat jangan kendur, validasi orderan dengan teliti!`,
+      `Satu kesalahan yang dicegah lebih baik dari seribu yang diperbaiki.`,
     ],
     sore: [
-      { e:'🌇', t:`Sore, ${capName}! Sudah sejauh ini — tinggal sedikit lagi, selesaikan dengan baik!` },
-      { e:'🍵', t:`Halo ${capName}, sore yang produktif! Periksa sekali lagi sebelum kirim — detail kecil membuat perbedaan besar.` },
-      { e:'✨', t:`${capName}, kerja kerasmu hari ini tidak sia-sia! Pastikan semua orderan tervalidasi dengan benar.` },
+      `Sudah sejauh ini — tinggal sedikit lagi, selesaikan dengan baik!`,
+      `Periksa sekali lagi sebelum kirim — detail kecil membuat perbedaan besar.`,
+      `Kerja kerasmu hari ini tidak sia-sia! Pastikan semua orderan tervalidasi.`,
     ],
     malam: [
-      { e:'🌙', t:`Malam, ${capName}! Masih semangat — dedikasi kamu patut diacungi jempol!` },
-      { e:'⭐', t:`Halo ${capName}, malam ini kamu hebat! Jaga kesehatan ya sambil tetap kerja dengan teliti.` },
-      { e:'🦉', t:`${capName} si night owl! Tetap fokus dan jangan lupa istirahat setelah selesai.` },
+      `Masih semangat — dedikasi kamu patut diacungi jempol!`,
+      `Jaga kesehatan ya sambil tetap kerja dengan teliti.`,
+      `Tetap fokus dan jangan lupa istirahat setelah selesai.`,
     ]
   };
 
-  const period = hour < 11 ? 'pagi' : hour < 15 ? 'siang' : hour < 19 ? 'sore' : 'malam';
-  const list = greetings[period];
-  const pick = list[Math.floor(Math.random() * list.length)];
+  const msgList = greetings[period];
+  const msg = msgList[Math.floor(Math.random() * msgList.length)];
 
-  document.getElementById('greeting-emoji').textContent = pick.e;
-  document.getElementById('greeting-text').textContent  = pick.t;
-  document.getElementById('greeting-date').textContent  = day;
+  document.getElementById('greeting-text').textContent = msg;
+  document.getElementById('greeting-date').textContent = day;
+
+  // Show welcome modal
+  showWelcomeModal(capName, period, timeEmojis[period]);
 }
 
 function filterByCard(val) {
