@@ -34,7 +34,7 @@ function buildExportRows(filteredData) {
       'Real Ongkir'            : r['Real Ongkir']||'',
       'Pengecekkan Ongkir'     : r['Pengecekkan Ongkir']||'',
       'Retur ADSY'             : returADSY,
-      'Wilayah Rawan'          : r['Wilayah Rawan']||'',
+      'Wilayah Rawan'          : row._wilayahRawan || r['Wilayah Rawan'] || '',
       GradeRekomendasi         : r['GradeRekomendasi']||r['Grade']||'',
       Ekspedisi                : r['Ekspedisi']||r[' Ekspedisi']||'',
       'Kirim SS Chat Customer' : r['Kirim SS Chat Customer']||'',
