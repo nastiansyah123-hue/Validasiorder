@@ -275,6 +275,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item active" id="nav-harian" onclick="switchPage('harian')">
       <span class="nav-icon">✅</span> Validasi Harian
     </div>
+    <div class="nav-item" id="nav-dashboard" onclick="switchPage('dashboard')">
+      <span class="nav-icon">📈</span> Dashboard
+    </div>
     <div class="nav-item" id="nav-master" onclick="switchPage('master')">
       <span class="nav-icon">🗄️</span> Data Master
     </div>
@@ -610,6 +613,88 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   </div>
 
 </div>
+
+  <!-- PAGE: DASHBOARD -->
+  <div class="page" id="page-dashboard">
+    <div class="page-header">
+      <div class="page-title">Dashboard Validasi</div>
+      <div class="page-sub">Riwayat dan ringkasan hasil validasi harian</div>
+    </div>
+
+    <!-- Filter tanggal -->
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">DARI TANGGAL</label>
+          <input type="date" id="db-date-from" class="search-input" style="width:160px" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">SAMPAI TANGGAL</label>
+          <input type="date" id="db-date-to" class="search-input" style="width:160px" />
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">VALIDATOR</label>
+          <select id="db-user-filter" class="filter-select">
+            <option value="all">Semua</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="loadDashboard()" style="margin-top:18px">Tampilkan</button>
+        <button class="btn-secondary" onclick="setTodayFilter()" style="margin-top:18px;font-size:12px">Hari Ini</button>
+        <span class="loading-badge" id="loading-dashboard">memuat...</span>
+      </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div id="db-summary" style="display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:10px;margin-bottom:1rem;display:none"></div>
+
+    <!-- Sesi list -->
+    <div class="card" style="margin-bottom:1rem;display:none" id="db-sesi-card">
+      <div style="font-size:13px;font-weight:700;margin-bottom:0.75rem">Sesi Validasi</div>
+      <div id="db-sesi-list"></div>
+    </div>
+
+    <!-- Detail table -->
+    <div id="db-detail-section" style="display:none">
+      <div class="action-bar">
+        <select class="filter-select" id="db-status-filter" onchange="filterDbDetail()">
+          <option value="all">Semua baris</option>
+          <option value="DUPLIKAT">Duplikat All Team</option>
+          <option value="RTS">Pernah RTS</option>
+          <option value="AMAN">Aman</option>
+          <option value="KIRIM">Kirim</option>
+          <option value="HOLD">Hold</option>
+          <option value="CANCEL">Cancel</option>
+        </select>
+        <input class="search-input" id="db-search" type="text" placeholder="Cari nama / HP / resi..." oninput="filterDbDetail()" />
+        <span class="spacer"></span>
+        <button class="btn-secondary" onclick="exportDbCSV()">Export CSV</button>
+        <span id="db-detail-count" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
+      </div>
+      <div class="table-wrap">
+        <div class="table-scroll" style="max-height:500px">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th><th>Sesi</th><th>Validator</th>
+                <th>No</th><th>Nama</th><th>HP</th><th>Kode Pos</th><th>Kabupaten</th>
+                <th>Jumlah</th><th>Pembayaran</th><th>Ekspedisi</th><th>Resi</th>
+                <th>Grade</th><th>Status Validasi</th><th>RTS Reason</th><th>RTS Count</th>
+                <th>Wilayah Rawan</th><th>Rek. Ekspedisi</th>
+                <th>ACC SPV CS</th><th>SS Chat</th>
+              </tr>
+            </thead>
+            <tbody id="db-detail-tbody">
+              <tr><td colspan="20" class="empty-state">Pilih tanggal dan klik Tampilkan</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span id="db-page-info">—</span>
+          <div id="db-page-btns"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- PAGE: STATISTIK WILAYAH -->
   <div class="page" id="page-statistik">
@@ -948,14 +1033,15 @@ function switchPage(name) {
     showToast('Akses ditolak — hanya admin yang bisa akses Data Master.', 'error');
     return;
   }
-  ['harian','master','statistik','cekHP','cekKodepos','panduan'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
     if (nav) nav.classList.toggle('active', t===name);
   });
   if (name === 'statistik') loadStatistik();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', panduan:'Panduan'};
+  if (name === 'dashboard') initDashboard();
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -1239,6 +1325,7 @@ async function doValidasiHarian() {
     setTimeout(()=>{ const res=document.getElementById('result-section'); if(res) res.scrollIntoView({behavior:'smooth',block:'start'}); },200);
     showToast(`Selesai — ${dupCount} duplikat, ${rtsCount} pernah RTS dari ${validatedData.length} orderan.`, dupCount>0?'error':'success');
     saveState();
+    document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
 
   } catch(e) {
     showToast('Error: '+e.message,'error'); console.error(e);
@@ -2221,6 +2308,261 @@ async function cekKodepos() {
     document.getElementById('cekKP-result').style.display = 'block';
   } catch(e) { showToast('Error: '+e.message,'error'); }
   badge.classList.remove('show');
+}
+
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+let dbAllDetail = [], dbFilteredDetail = [], dbPage = 1;
+const DB_PAGE_SIZE = 100;
+
+function setTodayFilter() {
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('db-date-from').value = today;
+  document.getElementById('db-date-to').value   = today;
+  loadDashboard();
+}
+
+async function initDashboard() {
+  const today = new Date().toISOString().slice(0,10);
+  const fromEl = document.getElementById('db-date-from');
+  const toEl   = document.getElementById('db-date-to');
+  if (!fromEl.value) fromEl.value = today;
+  if (!toEl.value)   toEl.value   = today;
+  // Load user list
+  try {
+    const { data } = await sb.from('validasi_detail').select('user_email').limit(1000);
+    const users = [...new Set((data||[]).map(r=>r.user_email))];
+    const sel = document.getElementById('db-user-filter');
+    sel.innerHTML = '<option value="all">Semua</option>' + users.map(u=>`<option value="${u}">${u}</option>`).join('');
+  } catch(e) {}
+  await loadDashboard();
+}
+
+async function loadDashboard() {
+  const badge  = document.getElementById('loading-dashboard');
+  badge.classList.add('show');
+  try {
+    const from  = document.getElementById('db-date-from').value;
+    const to    = document.getElementById('db-date-to').value;
+    const uFilter = document.getElementById('db-user-filter').value;
+
+    let query = sb.from('validasi_detail').select('*').gte('tanggal', from).lte('tanggal', to).order('created_at', { ascending:false });
+    if (uFilter !== 'all') query = query.eq('user_email', uFilter);
+
+    // Paginate all
+    const allData = [];
+    let qFrom = 0;
+    while (true) {
+      const { data, error } = await query.range(qFrom, qFrom+999);
+      if (error) throw error;
+      if (!data||!data.length) break;
+      allData.push(...data);
+      if (data.length < 1000) break;
+      qFrom += 1000;
+    }
+
+    dbAllDetail = allData;
+    dbFilteredDetail = [...allData];
+
+    // Summary
+    const total    = allData.length;
+    const dupAll   = allData.filter(r=>r.duplikat_all).length;
+    const dupTeam  = allData.filter(r=>r.duplikat_team).length;
+    const rts      = allData.filter(r=>r.pernah_rts).length;
+    const kirim    = allData.filter(r=>(r.acc_spv_cs||'').toUpperCase()==='KIRIM').length;
+    const hold     = allData.filter(r=>(r.acc_spv_cs||'').toUpperCase()==='HOLD').length;
+    const cancel   = allData.filter(r=>(r.acc_spv_cs||'').toUpperCase()==='CANCEL').length;
+
+    const summaryEl = document.getElementById('db-summary');
+    summaryEl.style.display = 'grid';
+    summaryEl.innerHTML = `
+      <div class="sum-card c-total"><div class="s-label">Total Orderan</div><div class="s-value">${total.toLocaleString()}</div></div>
+      <div class="sum-card c-dupteam"><div class="s-label">Duplikat Team</div><div class="s-value">${dupTeam.toLocaleString()}</div></div>
+      <div class="sum-card c-dupall"><div class="s-label">Duplikat All</div><div class="s-value">${dupAll.toLocaleString()}</div></div>
+      <div class="sum-card c-rts"><div class="s-label">Pernah RTS</div><div class="s-value">${rts.toLocaleString()}</div></div>
+      <div class="sum-card c-aman"><div class="s-label">Kirim</div><div class="s-value" style="color:var(--success)">${kirim.toLocaleString()}</div></div>
+      <div class="sum-card" style="border:1px solid var(--border)"><div class="s-label">Hold</div><div class="s-value" style="color:var(--warn)">${hold.toLocaleString()}</div></div>
+      <div class="sum-card" style="border:1px solid var(--border)"><div class="s-label">Cancel</div><div class="s-value" style="color:var(--danger)">${cancel.toLocaleString()}</div></div>
+    `;
+
+    // Sesi list
+    const sesiMap = {};
+    allData.forEach(r => {
+      const key = r.sesi_id || r.tanggal;
+      if (!sesiMap[key]) sesiMap[key] = { sesi_id:key, tanggal:r.tanggal, user:r.user_email, count:0, kirim:0, hold:0, cancel:0 };
+      sesiMap[key].count++;
+      if ((r.acc_spv_cs||'').toUpperCase()==='KIRIM')  sesiMap[key].kirim++;
+      if ((r.acc_spv_cs||'').toUpperCase()==='HOLD')   sesiMap[key].hold++;
+      if ((r.acc_spv_cs||'').toUpperCase()==='CANCEL') sesiMap[key].cancel++;
+    });
+    const sesiList = Object.values(sesiMap).sort((a,b)=>b.sesi_id.localeCompare(a.sesi_id));
+
+    const sesiCard = document.getElementById('db-sesi-card');
+    sesiCard.style.display = 'block';
+    document.getElementById('db-sesi-list').innerHTML = sesiList.length ? `
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Tanggal</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Validator</th>
+          <th style="text-align:right;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Total</th>
+          <th style="text-align:right;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Kirim</th>
+          <th style="text-align:right;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Hold</th>
+          <th style="text-align:right;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Cancel</th>
+          <th style="padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border)"></th>
+        </tr></thead>
+        <tbody>${sesiList.map(s=>`
+          <tr style="border-bottom:0.5px solid var(--border)">
+            <td style="padding:9px 12px">${s.tanggal}</td>
+            <td style="padding:9px 12px;font-family:monospace;font-size:11px">${s.user}</td>
+            <td style="padding:9px 12px;text-align:right;font-weight:600">${s.count}</td>
+            <td style="padding:9px 12px;text-align:right;color:var(--success)">${s.kirim}</td>
+            <td style="padding:9px 12px;text-align:right;color:var(--warn)">${s.hold}</td>
+            <td style="padding:9px 12px;text-align:right;color:var(--danger)">${s.cancel}</td>
+            <td style="padding:9px 12px"><button class="btn-secondary" style="font-size:11px" onclick="filterBySesi('${s.sesi_id}')">Detail</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : '<p style="color:var(--muted);font-size:13px">Tidak ada data sesi.</p>';
+
+    document.getElementById('db-detail-section').style.display = 'block';
+    dbPage = 1;
+    renderDbTable();
+
+  } catch(e) { showToast('Error: '+e.message,'error'); console.error(e); }
+  badge.classList.remove('show');
+}
+
+function filterBySesi(sesiId) {
+  dbFilteredDetail = dbAllDetail.filter(r => r.sesi_id === sesiId);
+  dbPage = 1; renderDbTable();
+}
+
+function filterDbDetail() {
+  const f = document.getElementById('db-status-filter').value;
+  const q = document.getElementById('db-search').value.toLowerCase();
+  dbFilteredDetail = dbAllDetail.filter(r => {
+    const mf = f==='all'?true
+      :f==='DUPLIKAT'?r.duplikat_all
+      :f==='RTS'?r.pernah_rts
+      :f==='AMAN'?r.status_validasi==='AMAN'
+      :f==='KIRIM'?(r.acc_spv_cs||'').toUpperCase()==='KIRIM'
+      :f==='HOLD'?(r.acc_spv_cs||'').toUpperCase()==='HOLD'
+      :f==='CANCEL'?(r.acc_spv_cs||'').toUpperCase()==='CANCEL'
+      :true;
+    if (!mf) return false;
+    if (!q) return true;
+    return String(r.hp||'').includes(q)||String(r.nama||'').toLowerCase().includes(q)||String(r.resi||'').toLowerCase().includes(q);
+  });
+  dbPage = 1; renderDbTable();
+}
+
+function renderDbTable() {
+  const start = (dbPage-1)*DB_PAGE_SIZE;
+  const pageData = dbFilteredDetail.slice(start, start+DB_PAGE_SIZE);
+  const tbody = document.getElementById('db-detail-tbody');
+  document.getElementById('db-detail-count').textContent = dbFilteredDetail.length.toLocaleString() + ' baris';
+
+  if (!pageData.length) {
+    tbody.innerHTML = '<tr><td colspan="20" class="empty-state">Tidak ada data</td></tr>';
+  } else {
+    const statusColor = s => s==='DUPLIKAT'||s==='DUPLIKAT+RTS'?'var(--danger)':s==='RTS'?'var(--warn)':'var(--success)';
+    tbody.innerHTML = pageData.map(r => {
+      const rowBg = r.duplikat_all?'background:#fee2e2':r.pernah_rts?'background:#fef3c7':r.duplikat_team?'background:#dbeafe':'';
+      return `<tr style="${rowBg}">
+        <td style="font-family:monospace;font-size:11px">${r.tanggal||''}</td>
+        <td style="font-family:monospace;font-size:10px">${(r.sesi_id||'').slice(0,16)}</td>
+        <td style="font-size:11px">${(r.user_email||'').split('@')[0]}</td>
+        <td style="font-family:monospace;font-size:11px">${r.no||''}</td>
+        <td>${r.nama||''}</td>
+        <td style="font-family:monospace">${r.hp||''}</td>
+        <td style="font-family:monospace">${r.kodepos||''}</td>
+        <td>${r.kabupaten||''}</td>
+        <td style="font-size:11px">${r.jumlah||''}</td>
+        <td style="font-size:11px">${r.pembayaran||''}</td>
+        <td style="font-family:monospace;font-size:12px;font-weight:600">${r.ekspedisi||''}</td>
+        <td style="font-family:monospace;font-size:11px">${r.resi||''}</td>
+        <td style="font-family:monospace;font-size:12px">${r.grade||''}</td>
+        <td style="font-weight:600;font-size:11px;color:${statusColor(r.status_validasi)}">${r.status_validasi||''}</td>
+        <td style="font-size:11px;color:var(--warn)">${r.rts_reason||''}</td>
+        <td style="text-align:center;font-family:monospace">${r.rts_count||0}</td>
+        <td style="font-size:11px">${r.wilayah_rawan||''}</td>
+        <td style="font-size:11px">${r.rek_ekspedisi||''}</td>
+        <td style="font-family:monospace;font-size:11px;color:${(r.acc_spv_cs||'').toUpperCase()==='KIRIM'?'var(--success)':(r.acc_spv_cs||'').toUpperCase()==='HOLD'?'var(--warn)':'var(--danger)'}">${r.acc_spv_cs||''}</td>
+        <td style="text-align:center">${r.ss_chat?'✓':''}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const total = dbFilteredDetail.length;
+  const totalPages = Math.ceil(total/DB_PAGE_SIZE);
+  document.getElementById('db-page-info').textContent = total ? `${Math.min(start+1,total)}–${Math.min(start+DB_PAGE_SIZE,total)} dari ${total.toLocaleString()}` : '0';
+  const btns = document.getElementById('db-page-btns');
+  btns.innerHTML = '';
+  const mb = (lbl,fn,dis,act=false)=>{ const b=document.createElement('button'); b.className='page-btn'+(act?' active':''); b.textContent=lbl; b.disabled=dis; b.onclick=fn; return b; };
+  btns.appendChild(mb('‹',()=>{dbPage--;renderDbTable();},dbPage===1));
+  btns.appendChild(mb('›',()=>{dbPage++;renderDbTable();},dbPage>=totalPages||totalPages===0));
+}
+
+function exportDbCSV() {
+  if (!dbFilteredDetail.length) return showToast('Tidak ada data','error');
+  const headers = ['Tanggal','Sesi','Validator','No','Nama','HP','Kode Pos','Kabupaten','Provinsi','Jumlah','Pembayaran','Ekspedisi','Resi','Grade','Status Validasi','RTS Reason','RTS Count','Wilayah Rawan','Rek. Ekspedisi','ACC SPV CS','SS Chat'];
+  const rows = dbFilteredDetail.map(r=>[r.tanggal,r.sesi_id,r.user_email,r.no,r.nama,r.hp,r.kodepos,r.kabupaten,r.provinsi,r.jumlah,r.pembayaran,r.ekspedisi,r.resi,r.grade,r.status_validasi,r.rts_reason,r.rts_count,r.wilayah_rawan,r.rek_ekspedisi,r.acc_spv_cs,r.ss_chat?'Ya':''].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','));
+  const csv = [headers.join(','),...rows].join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='dashboard_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── SAVE VALIDASI DETAIL ──────────────────────────────────────────────────────
+async function saveValidasiDetail() {
+  if (!validatedData.length) return;
+  const badge = document.getElementById('loading-validasi');
+  badge.textContent = 'menyimpan sesi...'; badge.classList.add('show');
+
+  const sesiId = new Date().toISOString();
+  const tanggal = new Date().toISOString().slice(0,10);
+  const userEmail = document.getElementById('user-email').textContent;
+
+  const rows = validatedData.map(row => ({
+    user_email    : userEmail,
+    tanggal       : tanggal,
+    sesi_id       : sesiId,
+    no            : String(row._raw['No']||row._raw['no']||'').slice(0,100),
+    nama          : String(row.nama||'').slice(0,200),
+    hp            : String(row.hp||''),
+    alamat        : String(row._raw['Alamat']||'').slice(0,300),
+    kodepos       : String(row._raw['Kode Pos']||row.kodepos||'').slice(0,20),
+    kabupaten     : String(row._raw['Kabupaten']||'').slice(0,100),
+    provinsi      : String(row._raw['Provinsi']||'').slice(0,100),
+    jumlah        : String(row._raw['Jumlah Pesanan']||'').slice(0,200),
+    pembayaran    : String(row._raw['Pembayaran']||'').slice(0,100),
+    resi          : String(row.resi||'').slice(0,100),
+    keterangan    : String(row._raw['Keterangan']||'').slice(0,200),
+    grade         : String(row._grade||row._raw['Grade']||'').slice(0,20),
+    ekspedisi     : extractEkspedisi(row._raw['Pembayaran']||''),
+    status_validasi: row._status||'AMAN',
+    duplikat_team : !!row._isDupTeam,
+    duplikat_all  : !!row._isDup,
+    pernah_rts    : !!(row._isRetur||row._rtsInfo),
+    rts_reason    : row._rtsInfo ? String(row._rtsInfo.reason||row._rtsInfo.status||'').slice(0,200) : '',
+    rts_count     : row._rtsCount||0,
+    wilayah_rawan : row._wilayahRawan||'',
+    rek_ekspedisi : row._rekEkspedisi||'',
+    acc_spv_cs    : row._accSPV||row._raw['ACC SPV CS']||'',
+    ss_chat       : !!row._ssChatDone,
+  }));
+
+  try {
+    for (let i=0; i<rows.length; i+=500) {
+      const { error } = await sb.from('validasi_detail').insert(rows.slice(i,i+500));
+      if (error) throw error;
+      badge.textContent = `menyimpan sesi... ${Math.min(i+500,rows.length)}/${rows.length}`;
+    }
+    showToast(`✓ ${rows.length} baris tersimpan ke Dashboard!`, 'success');
+  } catch(e) {
+    showToast('Gagal simpan: '+e.message, 'error');
+  }
+  badge.classList.remove('show'); badge.textContent='memproses...';
 }
 
 function toggleUploadCard() {
