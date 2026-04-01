@@ -1908,11 +1908,13 @@ function parseEkspedisiFile(file) {
         
         Object.entries(colMap).forEach(([ci, {eks, type}]) => {
           const val = parseFloat(String(row[ci]||'0').replace('%','')) || 0;
-          const eksLower = eks.toLowerCase().replace(/\s/g,'').replace('parcel','').replace('sicepat','sicepat').replace('anteraja','anteraja');
+          const eksLower = eks.toLowerCase().replace(/\s/g,'').replace('parcel','');
           const fieldMap = {jne:'jne', jnt:'jnt', ninja:'ninja', lion:'lion', sicepat:'sicepat', idx:'idx', sap:'sap', anteraja:'anteraja'};
+          // type is 'delivered' or 'rts' — map 'delivered' to 'del'
+          const fieldType = type === 'delivered' ? 'del' : 'rts';
           for (const [k,v] of Object.entries(fieldMap)) {
             if (eksLower.includes(k)) {
-              result[key][v+'_'+type] = val;
+              result[key][v+'_'+fieldType] = val;
               break;
             }
           }
@@ -1947,38 +1949,27 @@ async function saveEkspedisiMaster() {
 
   try {
     const EKS = ['jne','jnt','ninja','lion','sicepat','idx','sap','anteraja'];
-    const rows = masterEkspedisiParsed.map(r => {
-      const keys = Object.keys(r);
-      const getVal = (...candidates) => {
-        for (const c of candidates) {
-          const k = keys.find(k => k.toLowerCase().replace(/[\s_-]/g,'').includes(c.toLowerCase().replace(/[\s_-]/g,'')));
-          if (k && r[k] !== undefined && r[k] !== '') return parseInt(r[k])||0;
-        }
-        return 0;
-      };
-      const kpKey = keys.find(k => k.toLowerCase().replace(/\s/g,'').includes('kodepos') || k.toLowerCase().includes('kode pos') || k === 'A' || k === 'KODE POS');
-      const kcKey = keys.find(k => k.toLowerCase().includes('kecamatan'));
-      return {
-        kodepos     : String(r[kpKey]||'').trim(),
-        kecamatan   : String(r[kcKey]||'').trim(),
-        jne_del     : getVal('jnedel','jnedelivered','jne_del'),
-        jne_rts     : getVal('jnerts','jne_rts'),
-        jnt_del     : getVal('jntdel','jntdelivered','jnt_del'),
-        jnt_rts     : getVal('jntrts','jnt_rts'),
-        ninja_del   : getVal('ninjadel','ninjadelivered','ninja_del'),
-        ninja_rts   : getVal('ninjarts','ninja_rts'),
-        lion_del    : getVal('liondel','liondelivered','lionparcel_del','lion_del'),
-        lion_rts    : getVal('lionrts','lionparcel_rts','lion_rts'),
-        sicepat_del : getVal('sicepatdel','sicepat_del'),
-        sicepat_rts : getVal('sicepatrts','sicepat_rts'),
-        idx_del     : getVal('idxdel','idx_del'),
-        idx_rts     : getVal('idxrts','idx_rts'),
-        sap_del     : getVal('sapdel','sap_del'),
-        sap_rts     : getVal('saprts','sap_rts'),
-        anteraja_del: getVal('anterajadel','anteraja_del'),
-        anteraja_rts: getVal('anterajarts','anteraja_rts'),
-      };
-    }).filter(r => r.kodepos);
+    // masterEkspedisiParsed already has correct field names from parseEkspedisiFile
+    const rows = masterEkspedisiParsed.map(r => ({
+      kodepos     : String(r.kodepos||'').trim(),
+      kecamatan   : String(r.kecamatan||'').trim(),
+      jne_del     : r.jne_del||0,
+      jne_rts     : r.jne_rts||0,
+      jnt_del     : r.jnt_del||0,
+      jnt_rts     : r.jnt_rts||0,
+      ninja_del   : r.ninja_del||0,
+      ninja_rts   : r.ninja_rts||0,
+      lion_del    : r.lion_del||0,
+      lion_rts    : r.lion_rts||0,
+      sicepat_del : r.sicepat_del||0,
+      sicepat_rts : r.sicepat_rts||0,
+      idx_del     : r.idx_del||0,
+      idx_rts     : r.idx_rts||0,
+      sap_del     : r.sap_del||0,
+      sap_rts     : r.sap_rts||0,
+      anteraja_del: r.anteraja_del||0,
+      anteraja_rts: r.anteraja_rts||0,
+    })).filter(r => r.kodepos);
 
     // Deduplicate by kodepos+kecamatan
     const seen = new Map();
