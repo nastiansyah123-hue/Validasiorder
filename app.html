@@ -379,7 +379,6 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <div id="status-baru" class="drop-status"></div>
         <div style="margin-top:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button class="btn-primary" id="btn-validasi" disabled onclick="doValidasiHarian()">Jalankan Validasi</button>
-          <button class="btn-secondary" id="btn-save-dashboard" onclick="saveValidasiDetail()" style="display:none">💾 Simpan ke Dashboard</button>
           <button class="btn-secondary btn-danger" id="btn-clear-files" onclick="clearFiles()" style="display:none;font-size:12px">Hapus File</button>
           <span class="loading-badge" id="loading-validasi">memproses...</span>
         </div>
@@ -484,6 +483,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         </select>
         <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi / alamat..." oninput="doFilter()" />
         <span class="spacer"></span>
+        <button class="btn-secondary" id="btn-save-dashboard" onclick="saveValidasiDetail()" style="display:none">💾 Simpan ke Dashboard</button>
         <button class="btn-secondary" id="btn-fullscreen" onclick="toggleFullscreen()" title="Layar Penuh">⛶ Layar Penuh</button>
         <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
         <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
