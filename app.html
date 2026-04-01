@@ -507,10 +507,11 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
                 <th data-col="dupall" data-label="Duplikat All Team" onclick="sortBy('dupall')" style="color:#dc2626;cursor:pointer">Duplikat All Team ↕</th>
                 <th data-label="ACC SPV CS">ACC SPV CS</th>
                 <th data-label="ACC SPV OP">ACC SPV OP</th>
+              <th data-label="Rek. Ekspedisi" style="color:var(--accent)">Rek. Ekspedisi</th>
               </tr>
             </thead>
             <tbody id="main-tbody">
-              <tr><td colspan="30" class="empty-state">Belum ada hasil validasi</td></tr>
+              <tr><td colspan="31" class="empty-state">Belum ada hasil validasi</td></tr>
             </tbody>
           </table>
         </div>
@@ -785,7 +786,14 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
     document.getElementById('btn-save-rts').disabled = false;
   });
 
+  setupDropzone('dz-ekspedisi', 'file-ekspedisi', 'ekspedisi', (data) => {
+    masterEkspedisiParsed = data;
+    document.getElementById('btn-save-ekspedisi').disabled = false;
+  });
+
   await loadMasterCounts();
+  await loadEkspedisiCount();
+  await loadEkspedisiCache();
 
   // Grade dropzone
   setupDropzone('dz-grade', 'file-grade', 'grade', (data, fname) => {
@@ -1101,7 +1109,9 @@ async function doValidasiHarian() {
 
       const _hpStat = hpRturCount[normalizeHP(row.hp||'')];
       const _rtsCount = _hpStat ? _hpStat.retur : 0;
-      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _rtsCount, _status, _wilayahRawan:wilayahRawan, _kpExists, _kpLowSample };
+      // Rekomendasi ekspedisi dari cache
+      const _rekEkspedisi = ekspedisiCache[kp] || '';
+      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _rtsCount, _status, _wilayahRawan:wilayahRawan, _kpExists, _kpLowSample, _rekEkspedisi };
     });
 
     filteredData = [...validatedData];
@@ -1817,6 +1827,134 @@ function applyGradeToTable() {
   saveState();
 }
 
+
+// ── EKSPEDISI REKOMENDASI ────────────────────────────────────────────────────
+let masterEkspedisiParsed = [];
+let ekspedisiCache = {}; // kodepos -> rekomendasi string
+
+async function loadEkspedisiCount() {
+  try {
+    const { count } = await sb.from('ekspedisi_rekomendasi').select('*', { count:'exact', head:true });
+    document.getElementById('ekspedisi-db-count').textContent = (count||0).toLocaleString() + ' wilayah';
+    return count||0;
+  } catch(e) { document.getElementById('ekspedisi-db-count').textContent = 'error'; return 0; }
+}
+
+async function saveEkspedisiMaster() {
+  if (!masterEkspedisiParsed.length) return;
+  const badge = document.getElementById('loading-ekspedisi');
+  const saveEl = document.getElementById('status-ekspedisi-save');
+  badge.classList.add('show');
+  document.getElementById('btn-save-ekspedisi').disabled = true;
+
+  try {
+    const EKS = ['jne','jnt','ninja','lion','sicepat','idx','sap','anteraja'];
+    const rows = masterEkspedisiParsed.map(r => {
+      const keys = Object.keys(r);
+      const getVal = (...candidates) => {
+        for (const c of candidates) {
+          const k = keys.find(k => k.toLowerCase().replace(/[\s_-]/g,'').includes(c.toLowerCase().replace(/[\s_-]/g,'')));
+          if (k && r[k] !== undefined && r[k] !== '') return parseInt(r[k])||0;
+        }
+        return 0;
+      };
+      const kpKey = keys.find(k => k.toLowerCase().replace(/\s/g,'').includes('kodepos') || k.toLowerCase().includes('kode pos') || k === 'A' || k === 'KODE POS');
+      const kcKey = keys.find(k => k.toLowerCase().includes('kecamatan'));
+      return {
+        kodepos     : String(r[kpKey]||'').trim(),
+        kecamatan   : String(r[kcKey]||'').trim(),
+        jne_del     : getVal('jnedel','jnedelivered','jne_del'),
+        jne_rts     : getVal('jnerts','jne_rts'),
+        jnt_del     : getVal('jntdel','jntdelivered','jnt_del'),
+        jnt_rts     : getVal('jntrts','jnt_rts'),
+        ninja_del   : getVal('ninjadel','ninjadelivered','ninja_del'),
+        ninja_rts   : getVal('ninjarts','ninja_rts'),
+        lion_del    : getVal('liondel','liondelivered','lionparcel_del','lion_del'),
+        lion_rts    : getVal('lionrts','lionparcel_rts','lion_rts'),
+        sicepat_del : getVal('sicepatdel','sicepat_del'),
+        sicepat_rts : getVal('sicepatrts','sicepat_rts'),
+        idx_del     : getVal('idxdel','idx_del'),
+        idx_rts     : getVal('idxrts','idx_rts'),
+        sap_del     : getVal('sapdel','sap_del'),
+        sap_rts     : getVal('saprts','sap_rts'),
+        anteraja_del: getVal('anterajadel','anteraja_del'),
+        anteraja_rts: getVal('anterajarts','anteraja_rts'),
+      };
+    }).filter(r => r.kodepos);
+
+    // Deduplicate by kodepos+kecamatan
+    const seen = new Map();
+    rows.forEach(r => seen.set(r.kodepos+'|'+r.kecamatan, r));
+    const uniqueRows = [...seen.values()];
+
+    let saved = 0;
+    for (let i = 0; i < uniqueRows.length; i += 500) {
+      const { error } = await sb.from('ekspedisi_rekomendasi').upsert(uniqueRows.slice(i,i+500), { onConflict:'kodepos,kecamatan' });
+      if (error) throw error;
+      saved += Math.min(500, uniqueRows.length-i);
+      badge.textContent = `menyimpan... ${saved}/${uniqueRows.length}`;
+    }
+
+    setStatus(saveEl, 'ok', `✓ ${uniqueRows.length.toLocaleString()} wilayah tersimpan.`);
+    showToast(`Data ekspedisi ${uniqueRows.length.toLocaleString()} wilayah tersimpan!`, 'success');
+    await loadEkspedisiCount();
+    // Reload cache
+    await loadEkspedisiCache();
+  } catch(e) {
+    setStatus(saveEl, 'err', `✗ ${e.message}`);
+    showToast('Gagal: '+e.message, 'error');
+  }
+  badge.classList.remove('show'); badge.textContent='menyimpan...';
+  document.getElementById('btn-save-ekspedisi').disabled = false;
+}
+
+function confirmClearEkspedisi() {
+  if (!confirm('Hapus SEMUA data rekomendasi ekspedisi?')) return;
+  clearTable('ekspedisi_rekomendasi', loadEkspedisiCount);
+}
+
+// Load ekspedisi cache for validation
+async function loadEkspedisiCache() {
+  ekspedisiCache = {};
+  try {
+    let from = 0;
+    while (true) {
+      const { data, error } = await sb.from('ekspedisi_rekomendasi')
+        .select('kodepos,jne_del,jne_rts,jnt_del,jnt_rts,ninja_del,ninja_rts,lion_del,lion_rts')
+        .range(from, from+999);
+      if (error) throw error;
+      if (!data||!data.length) break;
+      data.forEach(r => {
+        const kp = String(r.kodepos||'').trim();
+        if (!kp) return;
+        // Calculate RTS % for each ekspedisi
+        const eks = [
+          { name:'JNE',   del:r.jne_del,   rts:r.jne_rts   },
+          { name:'JNT',   del:r.jnt_del,   rts:r.jnt_rts   },
+          { name:'Ninja', del:r.ninja_del, rts:r.ninja_rts },
+          { name:'Lion',  del:r.lion_del,  rts:r.lion_rts  },
+        ];
+        const valid = eks.filter(e => (e.del+e.rts) >= 3);
+        valid.sort((a,b) => {
+          const pctA = a.rts/(a.del+a.rts);
+          const pctB = b.rts/(b.del+b.rts);
+          return pctA - pctB;
+        });
+        if (valid.length) {
+          const top = valid.slice(0,3).map(e => {
+            const total = e.del+e.rts;
+            const pct = Math.round((e.rts/total)*100);
+            return e.name + '(' + pct + '%)';
+          });
+          ekspedisiCache[kp] = top.join(' > ');
+        }
+      });
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+  } catch(e) { console.warn('loadEkspedisiCache error:', e); }
+}
+
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
   const btn  = document.getElementById('btn-toggle-upload');
@@ -1873,7 +2011,7 @@ function renderTable() {
   const pageData = filteredData.slice(start, start+PAGE_SIZE);
   const tbody = document.getElementById('main-tbody');
 
-  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="30" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
+  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="31" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
 
   tbody.innerHTML = pageData.map(row => {
     // Row color priority: RTS > DupAll > DupTeam
@@ -1958,6 +2096,7 @@ function renderTable() {
         </select>
       </td>
       ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
+      <td style="font-size:11px;font-family:monospace">${row._rekEkspedisi||''}</td>
     </tr>`;
   }).join('');
   renderPag();
