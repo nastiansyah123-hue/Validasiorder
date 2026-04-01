@@ -548,6 +548,13 @@ async function doValidasiHarian() {
       (data||[]).forEach(r => { if(!rtsMap[r.resi]) rtsMap[r.resi]=r; });
     }
 
+    // 5. Hitung duplikat internal (HP sama dalam file baru itu sendiri)
+    const hpCountBaru = {};
+    orderBaruRaw.forEach(r => {
+      const hp = normalizeHP(r.hp);
+      if (hp) hpCountBaru[hp] = (hpCountBaru[hp]||0) + 1;
+    });
+
     // 5. Gabungkan
     validatedData = orderBaruRaw.map(row => {
       const hp = normalizeHP(row.hp||'');
@@ -566,8 +573,10 @@ async function doValidasiHarian() {
         if (rtsMap[rn]) { rtsInfo = { ...rtsMap[rn], resiLama: m.resi }; break; }
       }
 
+      const hpNorm = normalizeHP(row.hp);
+      const isDupTeam = hpNorm && hpCountBaru[hpNorm] > 1;
       const _status = isDup && (rtsInfo||isRetur) ? 'DUPLIKAT+RTS' : isDup ? 'DUPLIKAT' : isRetur ? 'RTS' : 'AMAN';
-      return { ...row, _isDup:isDup, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status };
+      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _status };
     });
 
     filteredData = [...validatedData];
@@ -689,7 +698,7 @@ function renderTable() {
       ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
       ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'')}
       ${td(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat'])}
-      ${td(row._raw['Duplikat Team']||row._raw['duplikat team'])}
+      <td style="background:${row._isDupTeam?'var(--c-dup-bg)':''}">${row._isDupTeam?'<span style="font-size:11px;color:var(--c-dup);font-family:monospace;font-weight:700">DUPLIKAT TEAM</span>':''}</td>
       <td class="td-wide" style="background:${row._isDup?'var(--c-dup-bg)':''};">${dupAllTeam}</td>
       ${td(row._raw['ACC SPV CS']||row._raw['acc spv cs'])}
       ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
