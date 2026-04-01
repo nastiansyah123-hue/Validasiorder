@@ -738,9 +738,24 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <div class="flow-step"><div class="flow-num">3</div><div><strong>Baca Hasil</strong> — Sistem cek HP vs data master. Duplikat & RTS otomatis terdeteksi.</div></div>
         <div class="flow-step"><div class="flow-num">4</div><div><strong>Update Master</strong> — Upload ulang All Orderan berkala agar data selalu terkini.</div></div>
       </div>
-      <h3 style="font-size:14px;margin:1.5rem 0 8px;font-family:var(--mono)">Warna Highlight</h3>
-      <div class="legend-row"><div class="legend-box" style="background:var(--dup-light);border:1px solid var(--dup)"></div><span>Ungu — Duplikat HP</span></div>
-      <div class="legend-row"><div class="legend-box" style="background:var(--warn-light);border:1px solid var(--warn)"></div><span>Kuning — Pernah RTS</span></div>
+      <h3 style="font-size:14px;margin:1.5rem 0 8px;font-family:var(--mono)">Warna Highlight Baris</h3>
+      <div class="legend-row"><div class="legend-box" style="background:#dbeafe;border:1px solid #3b82f6"></div><span>Biru — Duplikat Team (HP sama di file hari ini)</span></div>
+      <div class="legend-row"><div class="legend-box" style="background:#fee2e2;border:1px solid #dc2626"></div><span>Merah — Duplikat All Team (HP pernah order di data master)</span></div>
+      <div class="legend-row"><div class="legend-box" style="background:#fef3c7;border:1px solid #d97706"></div><span>Kuning — Pernah RTS (termasuk yang duplikat + RTS)</span></div>
+
+      <h3 style="font-size:14px;margin:1.5rem 0 8px;font-family:var(--mono)">Warna Kolom Ekspedisi</h3>
+      <div class="legend-row"><div class="legend-box" style="background:transparent;border:1px solid #ccc"></div><span>Normal — ekspedisi sesuai rekomendasi ✓</span></div>
+      <div class="legend-row"><div class="legend-box" style="background:#fee2e2;border:1px solid #dc2626"></div><span>Merah — ekspedisi tidak ada di daftar rekomendasi ⚠</span></div>
+
+      <h3 style="font-size:14px;margin:1.5rem 0 8px;font-family:var(--mono)">Warna Kolom ACC SPV CS</h3>
+      <div class="legend-row"><div class="legend-box" style="background:#dcfce7;border:1px solid #16a34a"></div><span>Hijau — KIRIM</span></div>
+      <div class="legend-row"><div class="legend-box" style="background:#fef3c7;border:1px solid #d97706"></div><span>Kuning — HOLD</span></div>
+      <div class="legend-row"><div class="legend-box" style="background:#fee2e2;border:1px solid #dc2626"></div><span>Merah — CANCEL</span></div>
+
+      <h3 style="font-size:14px;margin:1.5rem 0 8px;font-family:var(--mono)">Warna Kolom Wilayah Rawan</h3>
+      <div class="legend-row"><div style="width:14px;height:14px;border-radius:3px;flex-shrink:0;background:#dc2626"></div><span>Merah — ≥30% RTS (rawan tinggi)</span></div>
+      <div class="legend-row"><div style="width:14px;height:14px;border-radius:3px;flex-shrink:0;background:#d97706"></div><span>Oranye — 15–29% RTS (perlu diperhatikan)</span></div>
+      <div class="legend-row"><div style="width:14px;height:14px;border-radius:3px;flex-shrink:0;background:#16a34a"></div><span>Hijau — &lt;15% RTS (relatif aman)</span></div>
       <div class="info-box">
         <p style="font-size:12px;font-family:var(--mono);font-weight:700;color:var(--accent)">SQL Setup Supabase</p>
         <p style="font-size:11px;color:var(--muted);margin-top:4px">Jalankan SQL di README.md sebelum pertama kali digunakan.</p>
