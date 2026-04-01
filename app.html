@@ -142,18 +142,7 @@
       </div>
       <div class="pagination">
         <span id="page-info">—</span>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:11px;color:var(--c-muted)">Tampilkan:</span>
-          <select id="page-size-select" onchange="changePageSize(this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid var(--c-border-strong);border-radius:6px;background:var(--c-bg);color:var(--c-text);font-family:var(--mono)">
-            <option value="50">50</option>
-            <option value="100">100</option>
-            <option value="150">150</option>
-            <option value="200">200</option>
-            <option value="500">500</option>
-            <option value="99999">Semua</option>
-          </select>
-          <div class="page-btns" id="page-btns"></div>
-        </div>
+        <div id="page-btns" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"></div>
       </div>
     </div>
   </div>
@@ -704,9 +693,26 @@ function renderPag() {
   const total=filteredData.length, tp=Math.ceil(total/PAGE_SIZE), start=(currentPage-1)*PAGE_SIZE;
   document.getElementById('page-info').textContent=total?`${Math.min(start+1,total)}–${Math.min(start+PAGE_SIZE,total)} dari ${total.toLocaleString()} baris`:'0 baris';
   const btns=document.getElementById('page-btns'); btns.innerHTML='';
+
+  // Page size selector
+  const szWrap = document.createElement('div');
+  szWrap.style.cssText='display:flex;align-items:center;gap:6px;margin-right:8px;border-right:0.5px solid var(--c-border-strong);padding-right:10px';
+  const szLbl = document.createElement('span');
+  szLbl.textContent='Tampilkan:'; szLbl.style.cssText='font-size:11px;color:var(--c-muted);font-family:monospace';
+  const szSel = document.createElement('select');
+  szSel.style.cssText='font-size:12px;padding:3px 8px;border:0.5px solid var(--c-border-strong);border-radius:6px;background:var(--c-bg);color:var(--c-text);font-family:monospace';
+  [['50','50'],['100','100'],['150','150'],['200','200'],['500','500'],['99999','Semua']].forEach(([val,lbl])=>{
+    const o=document.createElement('option'); o.value=val; o.textContent=lbl;
+    if(parseInt(val)===PAGE_SIZE || (val==='99999'&&PAGE_SIZE>=99999)) o.selected=true;
+    szSel.appendChild(o);
+  });
+  szSel.onchange=()=>changePageSize(szSel.value);
+  szWrap.appendChild(szLbl); szWrap.appendChild(szSel); btns.appendChild(szWrap);
+
+  // Page buttons
   const mb=(lbl,fn,dis,act=false)=>{ const b=document.createElement('button'); b.className='page-btn'+(act?' active':''); b.textContent=lbl; b.disabled=dis; b.onclick=fn; return b; };
   btns.appendChild(mb('‹',()=>gp(currentPage-1),currentPage===1));
-  (total<=0?[]:(currentPage<=4?[1,2,3,4,5,'…',tp]:currentPage>=tp-3?[1,'…',tp-4,tp-3,tp-2,tp-1,tp]:[1,'…',currentPage-1,currentPage,currentPage+1,'…',tp])).forEach(p=>{
+  (total<=0?[]:(tp<=7?Array.from({length:tp},(_,i)=>i+1):currentPage<=4?[1,2,3,4,5,'…',tp]:currentPage>=tp-3?[1,'…',tp-4,tp-3,tp-2,tp-1,tp]:[1,'…',currentPage-1,currentPage,currentPage+1,'…',tp])).forEach(p=>{
     if(p==='…'){const s=document.createElement('span');s.textContent='…';s.style.cssText='padding:4px 6px;font-size:12px;color:var(--c-muted)';btns.appendChild(s);}
     else btns.appendChild(mb(p,()=>gp(p),false,p===currentPage));
   });
