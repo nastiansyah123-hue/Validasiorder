@@ -88,15 +88,31 @@
   </div>
 
   <div id="result-section" style="display:none">
-    <div class="action-bar">
+    <div class="action-bar" style="flex-wrap:wrap;gap:6px">
       <select class="filter-select" id="filter-status" onchange="doFilter()">
         <option value="all">Semua baris</option>
         <option value="dup">Hanya Duplikat</option>
-        <option value="rts">Hanya RTS</option>
+        <option value="rts">Hanya Pernah RTS</option>
         <option value="both">Duplikat + RTS</option>
         <option value="ok">Hanya Aman</option>
       </select>
-      <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi..." oninput="doFilter()" />
+      <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
+        <option value="all">Semua Ekspedisi</option>
+        <option value="JNE">JNE</option>
+        <option value="JNT">JNT</option>
+        <option value="LION">Lion Parcel</option>
+        <option value="SICEPAT">SiCepat</option>
+        <option value="ANTERAJA">Anteraja</option>
+        <option value="NINJA">Ninja</option>
+        <option value="SAP">SAP</option>
+        <option value="TIKI">TIKI</option>
+      </select>
+      <select class="filter-select" id="filter-pembayaran" onchange="doFilter()">
+        <option value="all">Semua Pembayaran</option>
+        <option value="COD">COD</option>
+        <option value="TRANSFER">Transfer</option>
+      </select>
+      <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi / alamat..." oninput="doFilter()" style="width:240px" />
       <span class="spacer"></span>
       <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
       <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
@@ -126,7 +142,18 @@
       </div>
       <div class="pagination">
         <span id="page-info">—</span>
-        <div class="page-btns" id="page-btns"></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--c-muted)">Tampilkan:</span>
+          <select id="page-size-select" onchange="changePageSize(this.value)" style="font-size:12px;padding:3px 8px;border:0.5px solid var(--c-border-strong);border-radius:6px;background:var(--c-bg);color:var(--c-text);font-family:var(--mono)">
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="150">150</option>
+            <option value="200">200</option>
+            <option value="500">500</option>
+            <option value="99999">Semua</option>
+          </select>
+          <div class="page-btns" id="page-btns"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -289,7 +316,7 @@ let masterOrderParsed = [];
 let masterRTSParsed = [];
 let validatedData = [], filteredData = [];
 let currentPage = 1;
-const PAGE_SIZE = 50;
+let PAGE_SIZE = 50;
 
 // INIT
 (async () => {
@@ -575,18 +602,47 @@ async function doValidasiHarian() {
 
 // FILTER
 function doFilter() {
-  const f = document.getElementById('filter-status').value;
-  const q = document.getElementById('search-box').value.toLowerCase();
+  const f  = document.getElementById('filter-status').value;
+  const fe = document.getElementById('filter-ekspedisi').value;
+  const fp = document.getElementById('filter-pembayaran').value;
+  const q  = document.getElementById('search-box').value.toLowerCase();
+
   filteredData = validatedData.filter(row => {
-    const mf = f==='all'?true:f==='dup'?row._isDup:f==='rts'?!!row._rtsInfo:f==='both'?(row._isDup&&!!row._rtsInfo):f==='ok'?(!row._isDup&&!row._rtsInfo):true;
+    // Status filter
+    const mf = f==='all'?true:f==='dup'?row._isDup:f==='rts'?!!row._rtsInfo||row._isRetur:f==='both'?(row._isDup&&(!!row._rtsInfo||row._isRetur)):f==='ok'?(!row._isDup&&!row._rtsInfo&&!row._isRetur):true;
     if (!mf) return false;
+
+    // Ekspedisi filter
+    if (fe !== 'all') {
+      const eks = String(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'').toUpperCase();
+      if (!eks.includes(fe)) return false;
+    }
+
+    // Pembayaran filter
+    if (fp !== 'all') {
+      const pay = String(row._raw['Pembayaran']||row._raw['pembayaran']||'').toUpperCase();
+      if (!pay.includes(fp)) return false;
+    }
+
+    // Search
     if (!q) return true;
-    return String(row.hp||'').includes(q)||String(row.nama||'').toLowerCase().includes(q)||String(row.resi||'').toLowerCase().includes(q);
+    const hp    = String(row.hp||'');
+    const nama  = String(row.nama||'').toLowerCase();
+    const resi  = String(row.resi||'').toLowerCase();
+    const alamat= String(row._raw['Alamat']||row._raw['alamat']||'').toLowerCase();
+    const kota  = String(row._raw['Kabupaten']||row._raw['kabupaten']||'').toLowerCase();
+    return hp.includes(q)||nama.includes(q)||resi.includes(q)||alamat.includes(q)||kota.includes(q);
   });
   currentPage=1; renderTable();
 }
 
 // RENDER TABLE
+function changePageSize(val) {
+  PAGE_SIZE = parseInt(val);
+  currentPage = 1;
+  renderTable();
+}
+
 function renderTable() {
   const start = (currentPage-1)*PAGE_SIZE;
   const pageData = filteredData.slice(start, start+PAGE_SIZE);
@@ -607,7 +663,7 @@ function renderTable() {
       ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="${row._rtsInfo.reason||''}">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}</span>`
       : (row._isRetur ? '<span style="font-size:11px;color:var(--c-warn);font-family:monospace">Pernah RTS (no reason)</span>' : '');
 
-    const td = (v,style='') => `<td${style?' style="'+style+'"':''}>${v||''}</td>`;
+    const td = (v,style='') => { const val = String(v||'').trim(); const clean = val.startsWith('#')?'':val; return `<td${style?' style="'+style+'"':''}>${clean}</td>`; };
 
     return `<tr class="${cls}">
       ${td(row._raw['Tanggal']||row._raw['tanggal'])}
@@ -633,7 +689,7 @@ function renderTable() {
       <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
       ${td(row._raw['Wilayah Rawan']||row._raw['wilayah rawan'])}
       ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
-      ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||' Ekspedisi')}
+      ${td(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'')}
       ${td(row._raw['Kirim SS Chat Customer']||row._raw['SS Chat'])}
       ${td(row._raw['Duplikat Team']||row._raw['duplikat team'])}
       <td style="background:${row._isDup?'var(--c-dup-bg)':''};">${dupAllTeam}</td>
