@@ -1331,9 +1331,10 @@ async function calcKodeposStats(statusEl) {
     }));
 
     // Clear old data and upsert new
-    await sb.from('kodepos_stats').delete().gte('id', 0);
+    const { error: delErr } = await sb.from('kodepos_stats').delete().gte('id', 0);
+    if (delErr) { console.warn('Delete error (ignored):', delErr.message); }
     for (let i = 0; i < upsertRows.length; i += 500) {
-      const { error } = await sb.from('kodepos_stats').insert(upsertRows.slice(i, i+500));
+      const { error } = await sb.from('kodepos_stats').upsert(upsertRows.slice(i, i+500), { onConflict: 'kodepos' });
       if (error) throw error;
     }
 
