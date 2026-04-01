@@ -738,6 +738,8 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   });
 
   await loadMasterCounts();
+  // Restore previous session data
+  restoreState();
 })();
 
 async function loadMasterCounts() {
@@ -1043,6 +1045,7 @@ async function doValidasiHarian() {
     if (uploadBody) { uploadBody.style.display='none'; toggleBtn.textContent='▼'; }
     setTimeout(()=>{ const res=document.getElementById('result-section'); if(res) res.scrollIntoView({behavior:'smooth',block:'start'}); },200);
     showToast(`Selesai — ${dupCount} duplikat, ${rtsCount} pernah RTS dari ${validatedData.length} orderan.`, dupCount>0?'error':'success');
+    saveState();
 
   } catch(e) {
     showToast('Error: '+e.message,'error'); console.error(e);
@@ -1547,8 +1550,74 @@ function setAccSPV(sel) {
     const origIdx = validatedData.indexOf(filteredData[idx]);
     if (origIdx >= 0) { validatedData[origIdx]._accSPV = val; validatedData[origIdx]._raw['ACC SPV CS'] = val; }
   }
-  updateAccSummary();
+  updateAccSummary(); saveState();
   if (val) showToast(val==='KIRIM'?'✅ Kirim':val==='HOLD'?'⏸ Hold':'❌ Cancel', val==='KIRIM'?'success':val==='CANCEL'?'error':'info');
+}
+
+// ── SESSION STATE ────────────────────────────────────────────────────────────
+function saveState() {
+  try {
+    sessionStorage.setItem('vo_validated', JSON.stringify(validatedData));
+    sessionStorage.setItem('vo_files', JSON.stringify(Object.keys(loadedFiles)));
+    sessionStorage.setItem('vo_page', currentPage);
+    sessionStorage.setItem('vo_pagesize', PAGE_SIZE);
+    sessionStorage.setItem('vo_filter', document.getElementById('filter-status')?.value||'all');
+    sessionStorage.setItem('vo_search', document.getElementById('search-box')?.value||'');
+  } catch(e) { console.warn('saveState error:', e); }
+}
+
+function restoreState() {
+  try {
+    const saved = sessionStorage.getItem('vo_validated');
+    if (!saved) return false;
+    validatedData = JSON.parse(saved);
+    if (!validatedData.length) return false;
+
+    filteredData = [...validatedData];
+    currentPage  = parseInt(sessionStorage.getItem('vo_page')||'1');
+    PAGE_SIZE    = parseInt(sessionStorage.getItem('vo_pagesize')||'50');
+
+    // Restore filter
+    const f = sessionStorage.getItem('vo_filter')||'all';
+    const q = sessionStorage.getItem('vo_search')||'';
+    const selF = document.getElementById('filter-status');
+    const selS = document.getElementById('search-box');
+    if (selF) selF.value = f;
+    if (selS) selS.value = q;
+    if (f !== 'all' || q) doFilter();
+
+    // Update summary
+    const dupCount     = validatedData.filter(r=>r._isDup).length;
+    const dupTeamCount = validatedData.filter(r=>r._isDupTeam).length;
+    const rtsCount     = validatedData.filter(r=>r._isRetur||r._rtsInfo).length;
+    document.getElementById('s-total').textContent    = validatedData.length.toLocaleString();
+    document.getElementById('s-dupteam').textContent  = dupTeamCount.toLocaleString();
+    document.getElementById('s-dup').textContent      = dupCount.toLocaleString();
+    document.getElementById('s-rts').textContent      = rtsCount.toLocaleString();
+    document.getElementById('s-kirim').textContent    = '—';
+    document.getElementById('s-hold').textContent     = '—';
+    document.getElementById('s-cancel').textContent   = '—';
+    document.getElementById('summary-section').style.display = 'grid';
+    document.getElementById('result-section').style.display  = 'block';
+    document.getElementById('step3-ind').className = 'step done';
+    document.getElementById('step3-sub').textContent = dupCount+' duplikat, '+rtsCount+' RTS';
+    document.getElementById('step2-ind').className = 'step done';
+    document.getElementById('step2-sub').textContent = validatedData.length.toLocaleString() + ' baris (sesi sebelumnya)';
+
+    updateAccSummary();
+    renderTable();
+    showToast('Data sesi sebelumnya dipulihkan.', 'info');
+    return true;
+  } catch(e) { console.warn('restoreState error:', e); return false; }
+}
+
+function clearState() {
+  sessionStorage.removeItem('vo_validated');
+  sessionStorage.removeItem('vo_files');
+  sessionStorage.removeItem('vo_page');
+  sessionStorage.removeItem('vo_pagesize');
+  sessionStorage.removeItem('vo_filter');
+  sessionStorage.removeItem('vo_search');
 }
 
 function toggleFullscreen() {
@@ -1788,7 +1857,7 @@ function bulkSetAcc(val) {
     if (orig) { orig._accSPV = val; orig._raw['ACC SPV CS'] = val; }
   });
   showToast(selected.length + ' orderan → ' + val, val==='KIRIM'?'success':val==='CANCEL'?'error':'info');
-  updateAccSummary(); renderTable(); updateBulkBar();
+  updateAccSummary(); saveState(); renderTable(); updateBulkBar();
 }
 
 function renderPag() {
