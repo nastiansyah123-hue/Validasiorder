@@ -1323,7 +1323,7 @@ async function calcKodeposStats(statusEl) {
       if (data.length < 1000) break;
       from += 1000;
       if (statusEl) setStatus(statusEl, 'ok', `Menghitung statistik wilayah... ${from.toLocaleString()} baris`);
-      badge && (badge.textContent = `menghitung statistik wilayah... ${from.toLocaleString()} baris`);
+
     }
 
     // Build upsert rows
