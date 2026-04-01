@@ -1471,31 +1471,19 @@ async function cekHP() {
   badge.classList.remove('show');
 }
 
-function setAccSPV(sel, no, hp) {
+function setAccSPV(sel) {
   const val = sel.value;
-  // Update color
-  sel.style.background = val==='KIRIM'  ? '#dcfce7' : val==='HOLD' ? '#fef3c7' : val==='CANCEL' ? '#fee2e2' : 'var(--bg)';
-  sel.style.color      = val==='KIRIM'  ? '#16a34a' : val==='HOLD' ? '#d97706' : val==='CANCEL' ? '#dc2626' : 'var(--text)';
-  sel.style.borderColor= val==='KIRIM'  ? '#16a34a' : val==='HOLD' ? '#d97706' : val==='CANCEL' ? '#dc2626' : 'var(--border-strong)';
-
-  // Update in filteredData and validatedData
-  const updateRow = r => {
-    if ((r._raw['No']||r._raw['no']||r.no) == no || normalizeHP(r.hp) === normalizeHP(hp)) {
-      r._raw['ACC SPV CS'] = val;
-      r._accSPV = val;
-    }
-  };
-  filteredData.forEach(updateRow);
-  validatedData.forEach(updateRow);
-
-  // Update summary AMAN count based on KIRIM
-  const kirimCount = validatedData.filter(r => (r._raw['ACC SPV CS']||r._accSPV||'').toUpperCase()==='KIRIM').length;
-  const amanEl = document.getElementById('s-aman');
-  if (amanEl && kirimCount > 0) {
-    amanEl.textContent = kirimCount.toLocaleString();
+  const idx = parseInt(sel.dataset.idx);
+  sel.style.background  = val==='KIRIM'?'#dcfce7':val==='HOLD'?'#fef3c7':val==='CANCEL'?'#fee2e2':'var(--bg)';
+  sel.style.color       = val==='KIRIM'?'#16a34a':val==='HOLD'?'#d97706':val==='CANCEL'?'#dc2626':'var(--text)';
+  sel.style.borderColor = val==='KIRIM'?'#16a34a':val==='HOLD'?'#d97706':val==='CANCEL'?'#dc2626':'var(--border-strong)';
+  if (!isNaN(idx) && filteredData[idx]) {
+    filteredData[idx]._accSPV = val;
+    filteredData[idx]._raw['ACC SPV CS'] = val;
+    const origIdx = validatedData.indexOf(filteredData[idx]);
+    if (origIdx >= 0) { validatedData[origIdx]._accSPV = val; validatedData[origIdx]._raw['ACC SPV CS'] = val; }
   }
-
-  if (val) showToast(`${no} → ${val}`, val==='KIRIM'?'success':val==='CANCEL'?'error':'info');
+  if (val) showToast(val==='KIRIM'?'✅ Kirim':val==='HOLD'?'⏸ Hold':'❌ Cancel', val==='KIRIM'?'success':val==='CANCEL'?'error':'info');
 }
 
 function toggleUploadCard() {
@@ -1618,16 +1606,13 @@ function renderTable() {
       <td style="background:${row._isDupTeam?'var(--c-dup-bg)':''}">${row._isDupTeam?'<span style="font-size:11px;color:var(--c-dup);font-family:monospace;font-weight:700">DUPLIKAT TEAM</span>':`<span class="badge badge-ok">AMAN</span>`}</td>
       <td class="td-wide" style="background:${row._isDup?'var(--c-dup-bg)':''};">${dupAllTeam}</td>
       <td>
-        <select onchange="setAccSPV(this, ${JSON.stringify(row.no||row._raw['No']||'').replace(/"/g,'&quot;')}, '${(row._raw['No telpon']||row._raw['No Telpon']||row.hp||'').replace(/'/g,'\\'')}' )"
-          style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:monospace;cursor:pointer;${
-            (row._raw['ACC SPV CS']||'').toLowerCase().includes('kirim') ? 'background:#dcfce7;color:#16a34a;border-color:#16a34a' :
-            (row._raw['ACC SPV CS']||'').toLowerCase().includes('hold')  ? 'background:#fef3c7;color:#d97706;border-color:#d97706' :
-            (row._raw['ACC SPV CS']||'').toLowerCase().includes('cancel')? 'background:#fee2e2;color:#dc2626;border-color:#dc2626' : ''
-          }">
-          <option value="" ${!(row._raw['ACC SPV CS']) ? 'selected':''}>— pilih —</option>
-          <option value="KIRIM"  ${(row._raw['ACC SPV CS']||'').toUpperCase()==='KIRIM'  ?'selected':''}>✅ Kirim</option>
-          <option value="HOLD"   ${(row._raw['ACC SPV CS']||'').toUpperCase()==='HOLD'   ?'selected':''}>⏸ Hold</option>
-          <option value="CANCEL" ${(row._raw['ACC SPV CS']||'').toUpperCase()==='CANCEL' ?'selected':''}>❌ Cancel</option>
+        <select class="acc-spv-sel" data-idx="${filteredData.indexOf(row)}"
+          onchange="setAccSPV(this)"
+          style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:monospace;cursor:pointer">
+          <option value="">— pilih —</option>
+          <option value="KIRIM"  ${(row._raw['ACC SPV CS']||row._accSPV||'').toUpperCase()==='KIRIM'  ?'selected':''}>✅ Kirim</option>
+          <option value="HOLD"   ${(row._raw['ACC SPV CS']||row._accSPV||'').toUpperCase()==='HOLD'   ?'selected':''}>⏸ Hold</option>
+          <option value="CANCEL" ${(row._raw['ACC SPV CS']||row._accSPV||'').toUpperCase()==='CANCEL' ?'selected':''}>❌ Cancel</option>
         </select>
       </td>
       ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
