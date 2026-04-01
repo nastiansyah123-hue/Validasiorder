@@ -392,7 +392,17 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
 
     <!-- Result -->
     <div id="result-section" style="display:none">
-      <div class="action-bar">
+      <!-- Bulk action bar -->
+    <div id="bulk-bar" style="display:none;background:var(--accent-light);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:none;align-items:center;gap:10px;flex-wrap:wrap">
+      <span id="bulk-count" style="font-size:13px;font-weight:600;color:var(--accent);font-family:monospace"></span>
+      <span style="font-size:13px;color:var(--muted)">baris dipilih —</span>
+      <button class="btn-primary" onclick="bulkSetAcc('KIRIM')" style="background:#16a34a;padding:7px 14px;font-size:12px">✅ Kirim Semua</button>
+      <button class="btn-primary" onclick="bulkSetAcc('HOLD')"  style="background:#d97706;padding:7px 14px;font-size:12px">⏸ Hold Semua</button>
+      <button class="btn-primary" onclick="bulkSetAcc('CANCEL')" style="background:#dc2626;padding:7px 14px;font-size:12px">❌ Cancel Semua</button>
+      <button class="btn-secondary" onclick="clearSelection()" style="font-size:12px">Batal Pilih</button>
+    </div>
+
+    <div class="action-bar">
         <select class="filter-select" id="filter-status" onchange="doFilter()">
           <option value="all">Semua baris</option>
           <option value="dupteam">Duplikat Team</option>
@@ -422,6 +432,7 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
           <table>
             <thead>
               <tr>
+                <th style="width:36px;text-align:center"><input type="checkbox" id="chk-all" onclick="toggleSelectAll(this)" style="cursor:pointer;width:14px;height:14px"></th>
                 <th data-col="tanggal" data-label="Tanggal" onclick="sortBy('tanggal')">Tanggal</th>
                 <th data-label="No">No</th>
                 <th data-col="nama" data-label="Nama" onclick="sortBy('nama')">Nama</th>
@@ -447,7 +458,7 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
               </tr>
             </thead>
             <tbody id="main-tbody">
-              <tr><td colspan="29" class="empty-state">Belum ada hasil validasi</td></tr>
+              <tr><td colspan="30" class="empty-state">Belum ada hasil validasi</td></tr>
             </tbody>
           </table>
         </div>
@@ -1541,7 +1552,7 @@ function renderTable() {
   const pageData = filteredData.slice(start, start+PAGE_SIZE);
   const tbody = document.getElementById('main-tbody');
 
-  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="29" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
+  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="30" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
 
   tbody.innerHTML = pageData.map(row => {
     // Row color priority: RTS > DupAll > DupTeam
@@ -1578,6 +1589,7 @@ function renderTable() {
     };
 
     return `<tr class="${cls}">
+      <td style="text-align:center"><input type="checkbox" class="row-chk" data-idx="${filteredData.indexOf(row)}" style="cursor:pointer;width:14px;height:14px" ${row._selected?'checked':''}></td>
       ${td(excelDateToStr(row._raw['Tanggal']||row._raw['tanggal']))}
       ${td(row._raw['No']||row._raw['no'])}
       ${td(row._raw['Nama']||row._raw['nama'])}
@@ -1620,6 +1632,7 @@ function renderTable() {
   }).join('');
   renderPag();
   addResizeHandles();
+  setTimeout(initCheckboxes, 20);
 }
 
 function addResizeHandles() {
@@ -1648,6 +1661,56 @@ function startColResize(e, th) {
   };
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
+}
+
+function initCheckboxes() {
+  document.querySelectorAll('.row-chk').forEach(chk => {
+    chk.addEventListener('change', function() {
+      const idx = parseInt(this.dataset.idx);
+      if (!isNaN(idx) && filteredData[idx]) filteredData[idx]._selected = this.checked;
+      updateBulkBar();
+    });
+  });
+  document.querySelectorAll('.row-chk').forEach(chk => {
+    const idx = parseInt(chk.dataset.idx);
+    if (!isNaN(idx) && filteredData[idx]) chk.checked = !!filteredData[idx]._selected;
+  });
+}
+
+function updateBulkBar() {
+  const selected = filteredData.filter(r => r._selected);
+  const bar = document.getElementById('bulk-bar');
+  const countEl = document.getElementById('bulk-count');
+  if (selected.length > 0) { bar.style.display='flex'; countEl.textContent=selected.length.toLocaleString(); }
+  else { bar.style.display='none'; }
+  const chkAll = document.getElementById('chk-all');
+  if (chkAll) {
+    chkAll.checked = filteredData.length > 0 && filteredData.every(r=>r._selected);
+    chkAll.indeterminate = filteredData.some(r=>r._selected) && !filteredData.every(r=>r._selected);
+  }
+}
+
+function toggleSelectAll(chk) {
+  filteredData.forEach(r => r._selected = chk.checked);
+  renderTable(); updateBulkBar();
+}
+
+function clearSelection() {
+  filteredData.forEach(r => r._selected = false);
+  validatedData.forEach(r => r._selected = false);
+  renderTable(); updateBulkBar();
+}
+
+function bulkSetAcc(val) {
+  const selected = filteredData.filter(r => r._selected);
+  if (!selected.length) return;
+  selected.forEach(r => {
+    r._accSPV = val; r._raw['ACC SPV CS'] = val;
+    const orig = validatedData.find(v => v === r);
+    if (orig) { orig._accSPV = val; orig._raw['ACC SPV CS'] = val; }
+  });
+  showToast(selected.length + ' orderan → ' + val, val==='KIRIM'?'success':val==='CANCEL'?'error':'info');
+  renderTable(); updateBulkBar();
 }
 
 function renderPag() {
