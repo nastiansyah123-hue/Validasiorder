@@ -413,7 +413,27 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
 
     <!-- Result -->
     <div id="result-section" style="display:none">
-      <!-- Bulk action bar -->
+      <!-- Grade Upload Card -->
+    <div class="card" id="grade-card" style="margin-bottom:1rem">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Upload Data Grade (Pihak Ketiga)</div>
+          <div class="card-desc">File berisi kolom Nomor HP dan Grade. Akan otomatis dicocokkan ke tabel validasi berdasarkan nomor HP.</div>
+        </div>
+        <button onclick="toggleGradeCard()" id="btn-toggle-grade" title="Sembunyikan/Tampilkan" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:6px">▲</button>
+      </div>
+      <div id="grade-body">
+        <div class="drop-zone" id="dz-grade">
+          <input type="file" id="file-grade" accept=".csv,.xlsx,.xls" />
+          <div class="drop-zone-icon">🎯</div>
+          <div class="drop-zone-text">Upload file Grade dari pihak ketiga<br><span>.csv / .xlsx — kolom: Nomor HP, Grade</span></div>
+        </div>
+        <div id="status-grade" class="drop-status"></div>
+        <div id="grade-match-info" style="font-size:12px;color:var(--muted);font-family:monospace;margin-top:6px;display:none"></div>
+      </div>
+    </div>
+
+    <!-- Bulk action bar -->
     <div id="bulk-bar" style="display:none;background:var(--accent-light);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap">
       <span id="bulk-count" style="font-size:13px;font-weight:600;color:var(--accent);font-family:monospace"></span>
       <span style="font-size:13px;color:var(--muted)">baris dipilih —</span>
@@ -760,6 +780,24 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   });
 
   await loadMasterCounts();
+
+  // Grade dropzone
+  setupDropzone('dz-grade', 'file-grade', 'grade', (data, fname) => {
+    gradeMap = {};
+    let loaded = 0;
+    data.forEach(row => {
+      // Find HP and Grade columns flexibly
+      const keys = Object.keys(row);
+      const hpKey = keys.find(k => k.toLowerCase().replace(/\s/g,'').includes('hp') || k.toLowerCase().includes('telp') || k.toLowerCase().includes('nomer') || k.toLowerCase().includes('nomor') || k.toLowerCase().includes('phone'));
+      const gradeKey = keys.find(k => k.toLowerCase().includes('grade'));
+      if (!hpKey || !gradeKey) return;
+      const hp = normalizeHP(row[hpKey]||'');
+      const grade = String(row[gradeKey]||'').trim();
+      if (hp && grade) { gradeMap[hp] = grade; loaded++; }
+    });
+    setStatus(document.getElementById('status-grade'), 'ok', `✓ ${loaded} data grade dimuat dari ${fname}`);
+    applyGradeToTable();
+  });
   // Restore previous session data
   restoreState();
 })();
@@ -1698,6 +1736,42 @@ document.addEventListener('keydown', e => {
     toggleFullscreen();
   }
 });
+
+// ── GRADE UPLOAD ─────────────────────────────────────────────────────────────
+let gradeMap = {}; // hp normalized -> grade value
+
+function toggleGradeCard() {
+  const body = document.getElementById('grade-body');
+  const btn  = document.getElementById('btn-toggle-grade');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? 'block' : 'none';
+  btn.textContent = hidden ? '▲' : '▼';
+}
+
+function applyGradeToTable() {
+  if (!Object.keys(gradeMap).length || !validatedData.length) return;
+  let matched = 0;
+  validatedData.forEach(row => {
+    const hp = normalizeHP(row.hp||'');
+    const hpStrip = hp.replace(/^0+/,'');
+    const grade = gradeMap[hp] || gradeMap[hpStrip] || gradeMap['0'+hpStrip] || '';
+    if (grade) {
+      row._grade = grade;
+      row._raw['Grade'] = grade;
+      matched++;
+    }
+  });
+  filteredData = [...validatedData];
+  doFilter();
+  const info = document.getElementById('grade-match-info');
+  if (info) {
+    info.style.display = 'block';
+    info.textContent = `✓ ${matched} dari ${validatedData.length} orderan berhasil dicocokkan grade-nya.`;
+    info.style.color = matched > 0 ? 'var(--success)' : 'var(--warn)';
+  }
+  if (matched > 0) showToast(`${matched} grade berhasil dicocokkan!`, 'success');
+  saveState();
+}
 
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
