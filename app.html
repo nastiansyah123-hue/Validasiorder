@@ -2195,7 +2195,9 @@ function renderTable() {
         </select>
       </td>
       ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
-      <td style="font-size:11px;font-family:monospace">${row._rekEkspedisi||''}</td>
+      <td style="font-size:11px;font-family:monospace;color:${row._rekEkspedisi?'var(--text)':'var(--muted)'}">
+        ${row._rekEkspedisi||'<i>tidak ada data</i>'}
+      </td>
     </tr>`;
   }).join('');
   renderPag();
