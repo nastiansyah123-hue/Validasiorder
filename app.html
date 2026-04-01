@@ -186,6 +186,8 @@ tbody td.td-wide{max-width:280px;white-space:nowrap;overflow:hidden;text-overflo
 tr.row-dup{background:var(--dup-light)!important}
 tr.row-rts{background:var(--warn-light)!important}
 tr.row-both{background:linear-gradient(90deg,var(--dup-light) 50%,var(--warn-light) 50%)!important}
+tr.row-dupteam{background:#f3e8ff!important}
+[data-theme="dark"] tr.row-dupteam{background:#2d1b4e!important}
 .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-family:var(--mono);font-weight:600;white-space:nowrap;margin-right:3px}
 .badge-dup{background:var(--dup-light);color:var(--dup)}
 .badge-rts{background:var(--warn-light);color:var(--warn)}
@@ -1196,7 +1198,12 @@ function renderTable() {
   if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="29" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
 
   tbody.innerHTML = pageData.map(row => {
-    const cls = row._isDup&&row._rtsInfo?'row-both':row._isDup?'row-dup':row._rtsInfo?'row-rts':'';
+    // Row color priority: RTS > DupAll > DupTeam
+    const cls = (row._isRetur||row._rtsInfo) && row._isDup ? 'row-both'
+              : (row._isRetur||row._rtsInfo) ? 'row-rts'
+              : row._isDup ? 'row-dup'
+              : row._isDupTeam ? 'row-dupteam'
+              : '';
 
     // Kolom Duplikat All Team — isi nama+tanggal jika duplikat
     const dupAllTeam = row._isDup && row._matches.length
