@@ -2314,14 +2314,14 @@ let dbAllDetail = [], dbFilteredDetail = [], dbPage = 1;
 const DB_PAGE_SIZE = 100;
 
 function setTodayFilter() {
-  const today = new Date().toISOString().slice(0,10);
+  const d = new Date(); const today = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   document.getElementById('db-date-from').value = today;
   document.getElementById('db-date-to').value   = today;
   loadDashboard();
 }
 
 async function initDashboard() {
-  const today = new Date().toISOString().slice(0,10);
+  const d = new Date(); const today = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   const fromEl = document.getElementById('db-date-from');
   const toEl   = document.getElementById('db-date-to');
   if (!fromEl.value) fromEl.value = today;
@@ -2613,7 +2613,7 @@ async function saveValidasiDetail() {
   badge.textContent = 'menyimpan sesi...'; badge.classList.add('show');
 
   const sesiId = new Date().toISOString();
-  const tanggal = new Date().toISOString().slice(0,10);
+  const d2 = new Date(); const tanggal = d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
   const userEmail = document.getElementById('user-email').textContent;
 
   const rows = validatedData.map(row => ({
