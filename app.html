@@ -1011,6 +1011,12 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   await loadEkspedisiCount();
   await loadEkspedisiCache();
 
+  // Restore last visited page (after all init done and role set)
+  const lastPage = sessionStorage.getItem('vo_current_page');
+  if (lastPage && lastPage !== 'harian') {
+    setTimeout(() => switchPage(lastPage), 100);
+  }
+
   // Grade dropzone
   setupDropzone('dz-grade', 'file-grade', 'grade', (data, fname) => {
     gradeMap = {};
@@ -1036,9 +1042,6 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   });
   // Restore previous session data
   restoreState();
-  // Restore last page
-  const lastPage = sessionStorage.getItem('vo_current_page');
-  if (lastPage && lastPage !== 'harian') switchPage(lastPage);
 })();
 
 async function loadMasterCounts() {
