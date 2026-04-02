@@ -2693,28 +2693,14 @@ async function saveValidasiDetail() {
 }
 
 // ── CEK ONGKIR MENGANTAR ─────────────────────────────────────────────────────
-const MENGANTAR_BASE = ''; // use proxy
 const MENGANTAR_PROXY = '/api/ongkir';
-const ORIGIN_KECAMATAN = 'KRANGGAN'; // Galur, Kulon Progo, Yogyakarta
-let originId = null;
+const ORIGIN_ID = '5fc63315f8f44b34aa4c44ca'; // Kranggan, Galur, Kulon Progo
+let originId = ORIGIN_ID; // fixed, no need to search
 const addressCache = {}; // kecamatan -> destination_id
 const ongkirCache  = {}; // kecamatan -> {JNE: price, JNT: price, ...}
 
 async function getOriginId() {
-  if (originId) return originId;
-  try {
-    const res = await fetch(`${MENGANTAR_PROXY}?path=address/search&search=${encodeURIComponent(ORIGIN_KECAMATAN)}`);
-    const json = await res.json();
-    const data = json.data || json;
-    const match = Array.isArray(data) ? data.find(d =>
-      String(d.district||d.kecamatan||d.name||'').toLowerCase().includes('kranggan') ||
-      String(d.sub_district||'').toLowerCase().includes('kranggan')
-    ) : null;
-    if (match) { originId = match._id || match.id; return originId; }
-    // fallback: take first result
-    if (Array.isArray(data) && data.length) { originId = data[0]._id || data[0].id; return originId; }
-  } catch(e) { console.warn('getOriginId error:', e); }
-  return null;
+  return ORIGIN_ID; // fixed origin: Kranggan, Galur, Kulon Progo
 }
 
 async function getAddressId(kecamatan) {
@@ -2722,7 +2708,7 @@ async function getAddressId(kecamatan) {
   const key = kecamatan.toLowerCase();
   if (addressCache[key]) return addressCache[key];
   try {
-    const res = await fetch(`${MENGANTAR_PROXY}?path=address/search&search=${encodeURIComponent(kecamatan)}`);
+    const res = await fetch(`${MENGANTAR_PROXY}?path=address/autofill&keyword=${encodeURIComponent(kecamatan)}`);
     const json = await res.json();
     const data = json.data || json;
     if (Array.isArray(data) && data.length) {
@@ -2742,7 +2728,7 @@ async function cekOngkirRow(kecamatan, totalPembayaran) {
     const dId = await getAddressId(kecamatan);
     if (!oId || !dId) return null;
     const cod = parseInt(totalPembayaran)||0;
-    const url = `${MENGANTAR_PROXY}?path=order/allEstimatePublic&origin_id=${oId}&destination_id=${dId}&weight=1&COD_AMOUNT=${cod}`;
+    const url = `${MENGANTAR_PROXY}?path=order/allEstimatePublic&origin_id=${oId}&destination_id=${dId}&weight=1`;
     const res  = await fetch(url);
     const json = await res.json();
     if (!json.success) return null;
