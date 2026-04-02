@@ -484,6 +484,12 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi / alamat..." oninput="doFilter()" />
         <span class="spacer"></span>
         <button class="btn-secondary" id="btn-cek-ongkir" onclick="cekOngkirBatch()" style="display:none">🚚 Cek Ongkir</button>
+        <div id="ongkir-progress" style="display:none;align-items:center;gap:8px;font-size:11px;font-family:monospace">
+          <div style="width:120px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div id="ongkir-bar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.3s"></div>
+          </div>
+          <span id="ongkir-text" style="color:var(--muted)">0/0</span>
+        </div>
         <button class="btn-secondary" id="btn-save-dashboard" onclick="saveValidasiDetail()" style="display:none">💾 Simpan ke Dashboard</button>
         <button class="btn-secondary" id="btn-fullscreen" onclick="toggleFullscreen()" title="Layar Penuh">⛶ Layar Penuh</button>
         <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
@@ -2751,21 +2757,30 @@ async function cekOngkirRow(kecamatan, totalPembayaran) {
 
 async function cekOngkirBatch() {
   if (!validatedData.length) return showToast('Jalankan validasi dulu','error');
-  showToast('Mengecek ongkir...', 'info');
-  const badge = document.querySelector('.loading-badge#loading-validasi');
-  if (badge) { badge.textContent='cek ongkir...'; badge.classList.add('show'); }
+  // Show progress UI
+  const progressEl = document.getElementById('ongkir-progress');
+  const barEl      = document.getElementById('ongkir-bar');
+  const textEl     = document.getElementById('ongkir-text');
+  const btnEl      = document.getElementById('btn-cek-ongkir');
+  progressEl.style.display = 'flex';
+  btnEl.disabled = true;
+  btnEl.textContent = '⏳ Mengecek...';
 
-  // Get unique kecamatan - fetch all in parallel (batch of 20)
   const kecamatanList = [...new Set(validatedData.map(r => r._raw['Kecamatan']||r._raw['kecamatan']||'').filter(Boolean))];
-  let done = 0;
+  let done = 0, errors = 0;
+  textEl.textContent = `0/${kecamatanList.length}`;
+
   const BATCH = 20;
   for (let i = 0; i < kecamatanList.length; i += BATCH) {
     const batch = kecamatanList.slice(i, i + BATCH);
     await Promise.all(batch.map(async kec => {
-      await cekOngkirRow(kec, 0);
+      const result = await cekOngkirRow(kec, 0);
+      if (!result) errors++;
       done++;
+      const pct = Math.round((done/kecamatanList.length)*100);
+      barEl.style.width = pct + '%';
+      textEl.textContent = `${done}/${kecamatanList.length}${errors?' ('+errors+' gagal)':''}`;
     }));
-    if (badge) badge.textContent = `cek ongkir ${done}/${kecamatanList.length}`;
   }
 
   // Apply to validatedData
@@ -2784,8 +2799,10 @@ async function cekOngkirBatch() {
 
   filteredData = [...validatedData];
   renderTable();
-  if (badge) { badge.classList.remove('show'); badge.textContent='memproses...'; }
-  showToast(`Ongkir ${kecamatanList.length} kecamatan selesai dicek!`, 'success');
+  progressEl.style.display = 'none';
+  btnEl.disabled = false;
+  btnEl.textContent = '🚚 Cek Ongkir';
+  showToast(`✓ Ongkir ${done-errors}/${kecamatanList.length} kecamatan berhasil${errors?' ('+errors+' gagal)':''}`, errors?'error':'success');
   saveState();
 }
 
