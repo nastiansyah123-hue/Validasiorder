@@ -472,6 +472,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <option value="grade-ada">Grade Ada</option>
           <option value="grade-kosong">Grade Kosong</option>
         </select>
+        <select class="filter-select" id="filter-grade" onchange="doFilter()">
+          <option value="all">Semua Grade</option>
+        </select>
         <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
           <option value="all">Semua Ekspedisi</option>
           <option value="JNE">JNE</option><option value="JNT">JNT</option>
@@ -2063,6 +2066,8 @@ function applyGradeToTable() {
     const gradeBody = document.getElementById('grade-body');
     const gradeBtn  = document.getElementById('btn-toggle-grade');
     if (gradeBody) { gradeBody.style.display='none'; gradeBtn.textContent='▼'; }
+    // Update grade filter options
+    updateGradeFilterOptions();
   }
   saveState();
 }
@@ -2878,6 +2883,15 @@ async function cekOngkirManual() {
     document.getElementById('cekOngkir-result').style.display = 'block';
   } catch(e) { showToast('Error: '+e.message,'error'); }
   badge.classList.remove('show');
+}
+
+function updateGradeFilterOptions() {
+  const sel = document.getElementById('filter-grade');
+  if (!sel) return;
+  const grades = [...new Set(validatedData.map(r => (r._grade||r._raw['Grade']||'').trim()).filter(g => g && g !== '-' && !g.startsWith('#')))].sort();
+  sel.innerHTML = '<option value="all">Semua Grade</option>' +
+    '<option value="">— Kosong —</option>' +
+    grades.map(g => `<option value="${g}">${g}</option>`).join('');
 }
 
 function toggleUploadCard() {
