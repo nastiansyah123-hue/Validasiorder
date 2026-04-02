@@ -483,6 +483,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         </select>
         <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi / alamat..." oninput="doFilter()" />
         <span class="spacer"></span>
+        <button class="btn-secondary" id="btn-cek-ongkir" onclick="cekOngkirBatch()" style="display:none">🚚 Cek Ongkir</button>
         <button class="btn-secondary" id="btn-save-dashboard" onclick="saveValidasiDetail()" style="display:none">💾 Simpan ke Dashboard</button>
         <button class="btn-secondary" id="btn-fullscreen" onclick="toggleFullscreen()" title="Layar Penuh">⛶ Layar Penuh</button>
         <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
@@ -1333,6 +1334,7 @@ async function doValidasiHarian() {
     showToast(`Selesai — ${dupCount} duplikat, ${rtsCount} pernah RTS dari ${validatedData.length} orderan.`, dupCount>0?'error':'success');
     saveState();
     document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
+    document.getElementById('btn-cek-ongkir').style.display = 'inline-flex';
 
   } catch(e) {
     showToast('Error: '+e.message,'error'); console.error(e);
@@ -2590,6 +2592,7 @@ async function editSesi(sesiId) {
     document.getElementById('summary-section').style.display = 'grid';
     document.getElementById('result-section').style.display  = 'block';
     document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
+    document.getElementById('btn-cek-ongkir').style.display = 'inline-flex';
     updateAccSummary();
     saveState();
     renderTable();
@@ -2681,6 +2684,104 @@ async function saveValidasiDetail() {
     showToast('Gagal simpan: '+e.message, 'error');
   }
   badge.classList.remove('show'); badge.textContent='memproses...';
+}
+
+// ── CEK ONGKIR MENGANTAR ─────────────────────────────────────────────────────
+const MENGANTAR_BASE = 'https://api-public.mengantar.com';
+const ORIGIN_KECAMATAN = 'KRANGGAN'; // Galur, Kulon Progo, Yogyakarta
+let originId = null;
+const addressCache = {}; // kecamatan -> destination_id
+const ongkirCache  = {}; // kecamatan -> {JNE: price, JNT: price, ...}
+
+async function getOriginId() {
+  if (originId) return originId;
+  try {
+    const res = await fetch(`${MENGANTAR_BASE}/api/address/search?search=${encodeURIComponent(ORIGIN_KECAMATAN)}`);
+    const json = await res.json();
+    const data = json.data || json;
+    const match = Array.isArray(data) ? data.find(d =>
+      String(d.district||d.kecamatan||d.name||'').toLowerCase().includes('kranggan') ||
+      String(d.sub_district||'').toLowerCase().includes('kranggan')
+    ) : null;
+    if (match) { originId = match._id || match.id; return originId; }
+    // fallback: take first result
+    if (Array.isArray(data) && data.length) { originId = data[0]._id || data[0].id; return originId; }
+  } catch(e) { console.warn('getOriginId error:', e); }
+  return null;
+}
+
+async function getAddressId(kecamatan) {
+  if (!kecamatan) return null;
+  const key = kecamatan.toLowerCase();
+  if (addressCache[key]) return addressCache[key];
+  try {
+    const res = await fetch(`${MENGANTAR_BASE}/api/address/search?search=${encodeURIComponent(kecamatan)}`);
+    const json = await res.json();
+    const data = json.data || json;
+    if (Array.isArray(data) && data.length) {
+      const id = data[0]._id || data[0].id;
+      addressCache[key] = id;
+      return id;
+    }
+  } catch(e) { console.warn('getAddressId error:', e); }
+  return null;
+}
+
+async function cekOngkirRow(kecamatan, totalPembayaran) {
+  const key = kecamatan.toLowerCase();
+  if (ongkirCache[key]) return ongkirCache[key];
+  try {
+    const oId = await getOriginId();
+    const dId = await getAddressId(kecamatan);
+    if (!oId || !dId) return null;
+    const cod = parseInt(totalPembayaran)||0;
+    const url = `${MENGANTAR_BASE}/api/order/allEstimatePublic?origin_id=${oId}&destination_id=${dId}&weight=1&COD_AMOUNT=${cod}`;
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (!json.success) return null;
+    const result = {};
+    Object.entries(json.data||{}).forEach(([eks, v]) => {
+      if (!v.unsupported) result[eks] = { price: v.estimatedSpecialPrice||v.price, date: v.estimatedDate||v.estimate_delivery };
+    });
+    ongkirCache[key] = result;
+    return result;
+  } catch(e) { console.warn('cekOngkirRow error:', e); return null; }
+}
+
+async function cekOngkirBatch() {
+  if (!validatedData.length) return showToast('Jalankan validasi dulu','error');
+  showToast('Mengecek ongkir...', 'info');
+  const badge = document.querySelector('.loading-badge#loading-validasi');
+  if (badge) { badge.textContent='cek ongkir...'; badge.classList.add('show'); }
+
+  // Get unique kecamatan
+  const kecamatanList = [...new Set(validatedData.map(r => r._raw['Kecamatan']||r._raw['kecamatan']||'').filter(Boolean))];
+  let done = 0;
+  for (const kec of kecamatanList) {
+    await cekOngkirRow(kec, 0);
+    done++;
+    if (badge) badge.textContent = `cek ongkir ${done}/${kecamatanList.length}`;
+  }
+
+  // Apply to validatedData
+  validatedData.forEach(row => {
+    const kec = (row._raw['Kecamatan']||row._raw['kecamatan']||'').toLowerCase();
+    if (ongkirCache[kec]) {
+      const eks = extractEkspedisi(row._raw['Pembayaran']||'');
+      const eksKey = Object.keys(ongkirCache[kec]).find(k => k.toLowerCase().includes(eks.toLowerCase()));
+      if (eksKey) {
+        row._realOngkir = ongkirCache[kec][eksKey].price;
+        row._ongkirDate = ongkirCache[kec][eksKey].date;
+      }
+      row._ongkirData = ongkirCache[kec];
+    }
+  });
+
+  filteredData = [...validatedData];
+  renderTable();
+  if (badge) { badge.classList.remove('show'); badge.textContent='memproses...'; }
+  showToast(`Ongkir ${kecamatanList.length} kecamatan selesai dicek!`, 'success');
+  saveState();
 }
 
 function toggleUploadCard() {
