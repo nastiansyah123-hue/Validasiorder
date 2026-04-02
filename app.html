@@ -3013,7 +3013,7 @@ function renderTable() {
   const diff = ongkirRincian - real;
   const sign = diff > 0 ? '+' : '';
   const label = diff > 0 ? 'lebih' : diff < 0 ? 'kurang' : 'pas';
-  return 'Rp'+ongkirRincian.toLocaleString('id-ID')+' → '+sign+'Rp'+Math.abs(diff).toLocaleString('id-ID')+' ('+label+')';
+  return (diff>=0?'+':'-')+'Rp'+Math.abs(diff).toLocaleString('id-ID');
 })()}</td>
       <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
       <td title="${row._wilayahRawan||''}" style="font-family:monospace;font-size:12px;${
