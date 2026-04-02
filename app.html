@@ -240,12 +240,6 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
 .mood-opt .mood-e{font-size:30px}
 .mood-opt .mood-l{font-size:10px;color:var(--muted);font-family:var(--mono)}
 
-/* INIT LOADING OVERLAY */
-#init-overlay { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px; }
-#init-overlay .init-spinner { width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite; }
-#init-overlay .init-text { font-size:13px;color:var(--muted);font-family:monospace; }
-@keyframes spin { to { transform:rotate(360deg); } }
-
 /* FULLSCREEN MODE */
 body.fullscreen-mode .sidebar,
 body.fullscreen-mode .topbar,
@@ -278,7 +272,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section">Menu</div>
-    <div class="nav-item" id="nav-harian" onclick="switchPage('harian')">
+    <div class="nav-item active" id="nav-harian" onclick="switchPage('harian')">
       <span class="nav-icon">✅</span> Validasi Harian
     </div>
     <div class="nav-item" id="nav-dashboard" onclick="switchPage('dashboard')">
@@ -345,7 +339,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   </div>
 
   <!-- PAGE: VALIDASI HARIAN -->
-  <div class="page" id="page-harian">
+  <div class="page active" id="page-harian">
     <div class="page-header">
       <div class="page-title">Validasi Harian</div>
       <div class="page-sub">Upload orderan baru dan validasi terhadap data master</div>
@@ -1020,9 +1014,7 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   // Restore last visited page - must be AFTER all async init
   const lastPage = sessionStorage.getItem('vo_current_page') || 'harian';
   switchPage(lastPage);
-  // Hide loading overlay
-  const overlay = document.getElementById('init-overlay');
-  if (overlay) overlay.style.display = 'none';
+
 
   // Grade dropzone
   setupDropzone('dz-grade', 'file-grade', 'grade', (data, fname) => {
