@@ -2989,7 +2989,7 @@ function renderTable() {
       ${td(row._raw['Rincian Pembayaran']||row._raw['rincian'])}
       ${td(row._raw['Keluhan']||row._raw['keluhan'])}
       <td style="font-family:monospace;font-size:11px;${row._realOngkir?'color:var(--success)':''}" title="${row._ongkirDate?'Estimasi: '+row._ongkirDate:''}">
-        ${row._realOngkir ? 'Rp'+Number(row._realOngkir).toLocaleString('id-ID')+(row._ongkirDiscount?'<span style="font-size:10px;color:var(--muted)"> (-'+row._ongkirDiscount+'%)</span>':'') : (row._raw['Real Ongkir']||'')}
+        ${row._realOngkir ? 'Rp'+Number(row._realOngkir).toLocaleString('id-ID') : (row._raw['Real Ongkir']||'')}
       </td>
       ${td(row._raw['Pengecekkan Ongkir']||row._raw['cek ongkir'])}
       <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
