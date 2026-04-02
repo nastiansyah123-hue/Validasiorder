@@ -3011,6 +3011,84 @@ function updateGradeFilterOptions() {
     grades.map(g => `<option value="${g}">${g}</option>`).join('');
 }
 
+
+// ── RTS DETAIL MODAL ─────────────────────────────────────────────────────────
+async function showRTSDetail(hp, nama, rowIdx) {
+  const modal = document.getElementById('rts-modal');
+  const title = document.getElementById('rts-modal-title');
+  const hpEl  = document.getElementById('rts-modal-hp');
+  const body  = document.getElementById('rts-modal-body');
+
+  title.textContent = 'Riwayat RTS — ' + nama;
+  hpEl.textContent  = 'HP: ' + hp;
+  body.innerHTML    = '<div style="text-align:center;padding:2rem;color:var(--muted)">Memuat...</div>';
+  modal.style.display = 'flex';
+
+  try {
+    // Fetch all orders for this HP
+    const hpStrip = hp.replace(/^0+/,'');
+    const { data: orders } = await sb.from('all_orderan')
+      .select('tanggal,nama,resi,instruksi,pembayaran,jumlah,status_akhir,cs,kodepos,kabupaten,provinsi')
+      .or('hp.eq.'+hp+',hp.eq.'+hpStrip)
+      .order('tanggal', { ascending: false });
+
+    if (!orders||!orders.length) {
+      body.innerHTML = '<p style="color:var(--muted);text-align:center;padding:1rem">Tidak ada riwayat ditemukan.</p>';
+      return;
+    }
+
+    // Fetch RTS reasons
+    const resiList = orders.filter(r=>(r.status_akhir||'').toLowerCase().includes('retur')).map(r=>(r.resi||'').toLowerCase()).filter(Boolean);
+    const rtsReasonMap = {};
+    if (resiList.length) {
+      const { data: rtsData } = await sb.from('all_rts').select('resi,reason,status,bulan').in('resi', resiList);
+      if (rtsData) rtsData.forEach(r => { if (!rtsReasonMap[r.resi]) rtsReasonMap[r.resi] = r; });
+    }
+
+    const total  = orders.length;
+    const retur  = orders.filter(r=>(r.status_akhir||'').toLowerCase().includes('retur')).length;
+    const pct    = Math.round((retur/total)*100);
+
+    body.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem">
+        <div class="sum-card c-total" style="padding:12px"><div class="s-label">Total Orderan</div><div class="s-value" style="font-size:20px">${total}</div></div>
+        <div class="sum-card c-dupall" style="padding:12px"><div class="s-label">RTS</div><div class="s-value" style="font-size:20px;color:var(--danger)">${retur}</div></div>
+        <div class="sum-card c-rts" style="padding:12px"><div class="s-label">% RTS</div><div class="s-value" style="font-size:20px;color:${pct>=30?'var(--danger)':pct>=15?'var(--warn)':'var(--success)'}">${pct}%</div></div>
+      </div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr>
+          <th style="text-align:left;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Tanggal</th>
+          <th style="text-align:left;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Produk</th>
+          <th style="text-align:left;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Ekspedisi</th>
+          <th style="text-align:left;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Resi</th>
+          <th style="text-align:left;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Status</th>
+          <th style="text-align:left;padding:8px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Alasan RTS</th>
+        </tr></thead>
+        <tbody>${orders.map(r => {
+          const isRetur = (r.status_akhir||'').toLowerCase().includes('retur');
+          const resiNorm = (r.resi||'').toLowerCase();
+          const reason = rtsReasonMap[resiNorm];
+          const eks = (function(p){const m=((p||'')+' ').toUpperCase().match(/SICEPAT|ANTERAJA|NINJA|LION|SAP|IDX|JNE|JNT|POS/);return m?m[0]:'—';})(r.pembayaran);
+          return '<tr style="border-bottom:0.5px solid var(--border)'+(isRetur?' background:var(--danger-light)':'')+'">' +
+            '<td style="padding:7px 8px;font-family:monospace;font-size:11px;color:var(--muted)">'+(r.tanggal||'')+'</td>' +
+            '<td style="padding:7px 8px;font-size:11px">'+(r.jumlah||'—').slice(0,25)+'</td>' +
+            '<td style="padding:7px 8px;font-family:monospace;font-size:11px;font-weight:600">'+eks+'</td>' +
+            '<td style="padding:7px 8px;font-family:monospace;font-size:11px">'+(r.resi||'—')+'</td>' +
+            '<td style="padding:7px 8px;font-size:11px;font-weight:600;color:'+(isRetur?'var(--danger)':'var(--success)')+'"><b>'+(r.status_akhir||'—')+'</b></td>' +
+            '<td style="padding:7px 8px;font-size:11px;color:var(--warn)">'+(reason?reason.reason||reason.status||'—':'')+'</td>' +
+          '</tr>';
+        }).join('')}</tbody>
+      </table>`;
+  } catch(e) {
+    body.innerHTML = '<p style="color:var(--danger)">Error: '+e.message+'</p>';
+  }
+}
+
+// Close modal on background click
+document.addEventListener('click', function(e) {
+  if (e.target && e.target.id === 'rts-modal') e.target.style.display = 'none';
+});
+
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
   const btn  = document.getElementById('btn-toggle-upload');
@@ -3085,13 +3163,14 @@ function renderTable() {
         }).join('')
       : '';
 
-    // Kolom Retur ADSY — isi reason RTS + jumlah RTS
+    // Kolom Retur ADSY — isi reason RTS + jumlah RTS (clickable)
     const rtsCountBadge = row._rtsCount > 0
       ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;font-family:monospace;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">${row._rtsCount}x RTS</span>`
       : '';
+    const rtsClickAttr = (row._isRetur || row._rtsInfo) ? `onclick="showRTSDetail('${(row.hp||'').replace(/'/g,"\\'")}','${(row.nama||'').replace(/'/g,"\\'")}',${filteredData.indexOf(row)})" style="cursor:pointer;font-size:11px;font-family:monospace;color:var(--c-warn)"` : '';
     const returADSY = row._rtsInfo
-      ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="${row._rtsInfo.reason||''}">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}${rtsCountBadge}</span>`
-      : (row._isRetur ? `<span style="font-size:11px;color:var(--c-warn);font-family:monospace">Pernah RTS${rtsCountBadge}</span>` : '');
+      ? `<span ${rtsClickAttr} title="Klik untuk lihat detail RTS">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}${rtsCountBadge} 🔍</span>`
+      : (row._isRetur ? `<span ${rtsClickAttr} title="Klik untuk lihat detail RTS">Pernah RTS${rtsCountBadge} 🔍</span>` : '');
 
     const td = (v,style='') => {
       let val = String(v||'').trim();
@@ -3421,5 +3500,19 @@ function updateThemeToggle(theme) {
   updateThemeToggle(saved);
 })();
 </script>
+  <!-- RTS Detail Modal -->
+  <div id="rts-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:680px;width:90%;max-height:80vh;overflow-y:auto;position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div>
+          <div style="font-size:15px;font-weight:700" id="rts-modal-title">Riwayat RTS</div>
+          <div style="font-size:12px;color:var(--muted);font-family:monospace" id="rts-modal-hp"></div>
+        </div>
+        <button onclick="document.getElementById('rts-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
+      </div>
+      <div id="rts-modal-body"></div>
+    </div>
+  </div>
+
 </body>
 </html>
