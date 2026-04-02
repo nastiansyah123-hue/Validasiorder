@@ -2290,6 +2290,13 @@ async function cekKodepos() {
     const { data: wilData } = await sb.from('kodepos_stats')
       .select('*').eq('kodepos', kp).limit(1);
 
+    // Fetch riwayat orderan ke kodepos ini dari all_orderan
+    const { data: riwayatData } = await sb.from('all_orderan')
+      .select('tanggal,nama,hp,resi,instruksi,status_akhir,cs')
+      .eq('kodepos', kp)
+      .order('tanggal', { ascending: false })
+      .limit(100);
+
     if ((!eksData||!eksData.length) && (!wilData||!wilData.length)) {
       document.getElementById('cekKP-empty').style.display = 'block';
       badge.classList.remove('show'); return;
@@ -2364,6 +2371,88 @@ async function cekKodepos() {
         </div>`;
     } else {
       document.getElementById('cekKP-wilayah').innerHTML = '<p style="color:var(--muted);font-size:13px">Tidak ada data statistik wilayah.</p>';
+    }
+
+    // Riwayat orderan
+    if (riwayatData && riwayatData.length) {
+      const rts    = riwayatData.filter(r=>(r.status_akhir||'').toLowerCase().includes('retur'));
+      const del    = riwayatData.filter(r=>(r.status_akhir||'').toLowerCase().includes('deliver'));
+
+      // Ekspedisi breakdown
+      const eksCount = {};
+      const eksRTS   = {};
+      riwayatData.forEach(r => {
+        const eks = (r.instruksi||'').toUpperCase().match(/JNE|JNT|SICEPAT|NINJA|LION|SAP|IDX|ANTERAJA|POS/)?.[0] || 'LAINNYA';
+        eksCount[eks] = (eksCount[eks]||0) + 1;
+        if ((r.status_akhir||'').toLowerCase().includes('retur')) {
+          eksRTS[eks] = (eksRTS[eks]||0) + 1;
+        }
+      });
+
+      const eksBreakdown = Object.entries(eksCount).sort((a,b)=>b[1]-a[1]).map(([eks,cnt])=>{
+        const rtsCount = eksRTS[eks]||0;
+        const pct = Math.round((rtsCount/cnt)*100);
+        const color = pct>=30?'var(--danger)':pct>=15?'var(--warn)':'var(--success)';
+        return `<tr style="border-bottom:0.5px solid var(--border)">
+          <td style="padding:8px 12px;font-weight:600">${eks}</td>
+          <td style="padding:8px 12px;text-align:right;font-family:monospace">${cnt}</td>
+          <td style="padding:8px 12px;text-align:right;font-family:monospace;color:var(--danger)">${rtsCount}</td>
+          <td style="padding:8px 12px;text-align:right;font-family:monospace;font-weight:600;color:${color}">${pct}%</td>
+        </tr>`;
+      }).join('');
+
+      // Riwayat table (last 50)
+      const riwayatRows = riwayatData.slice(0,50).map(r => {
+        const isRetur = (r.status_akhir||'').toLowerCase().includes('retur');
+        const isDeliver = (r.status_akhir||'').toLowerCase().includes('deliver');
+        const statusColor = isRetur?'var(--danger)':isDeliver?'var(--success)':'var(--muted)';
+        return `<tr style="border-bottom:0.5px solid var(--border)${isRetur?' background:var(--danger-light)':''}">
+          <td style="padding:7px 12px;font-size:11px;font-family:monospace;color:var(--muted)">${r.tanggal||''}</td>
+          <td style="padding:7px 12px;font-size:12px">${r.nama||'—'}</td>
+          <td style="padding:7px 12px;font-family:monospace;font-size:11px">${r.hp||''}</td>
+          <td style="padding:7px 12px;font-family:monospace;font-size:11px">${r.resi||'—'}</td>
+          <td style="padding:7px 12px;font-size:11px;font-weight:600;color:${statusColor}">${r.status_akhir||'—'}</td>
+          <td style="padding:7px 12px;font-size:11px;color:var(--muted)">${r.cs||''}</td>
+        </tr>`;
+      }).join('');
+
+      // Find/create riwayat section
+      let riwayatEl = document.getElementById('cekKP-riwayat');
+      if (!riwayatEl) {
+        riwayatEl = document.createElement('div');
+        riwayatEl.id = 'cekKP-riwayat';
+        document.getElementById('cekKP-result').appendChild(riwayatEl);
+      }
+
+      riwayatEl.innerHTML = `
+        <div class="card" style="margin-top:1rem">
+          <div style="font-size:13px;font-weight:700;margin-bottom:1rem">Breakdown per Ekspedisi (${riwayatData.length} orderan)</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:1rem">
+            <thead><tr>
+              <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Ekspedisi</th>
+              <th style="text-align:right;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Total</th>
+              <th style="text-align:right;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">RTS</th>
+              <th style="text-align:right;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">% RTS</th>
+            </tr></thead>
+            <tbody>${eksBreakdown}</tbody>
+          </table>
+        </div>
+        <div class="card" style="margin-top:1rem">
+          <div style="font-size:13px;font-weight:700;margin-bottom:1rem">Riwayat Orderan (${Math.min(riwayatData.length,50)} terbaru dari ${riwayatData.length})</div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;font-size:12px;border-collapse:collapse">
+              <thead><tr>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Tanggal</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Nama</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">HP</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Resi</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Status</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">CS</th>
+              </tr></thead>
+              <tbody>${riwayatRows}</tbody>
+            </table>
+          </div>
+        </div>`;
     }
 
     document.getElementById('cekKP-result').style.display = 'block';
