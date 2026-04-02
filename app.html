@@ -1014,7 +1014,7 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   // Restore last visited page (after all init done and role set)
   const lastPage = sessionStorage.getItem('vo_current_page');
   if (lastPage && lastPage !== 'harian') {
-    setTimeout(() => switchPage(lastPage), 100);
+    setTimeout(() => switchPage(lastPage), 500);
   }
 
   // Grade dropzone
