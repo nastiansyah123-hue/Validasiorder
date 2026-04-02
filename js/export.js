@@ -42,6 +42,7 @@ function buildExportRows(filteredData) {
       'Duplikat All Team'      : dupAllTeam,
       'ACC SPV CS'             : row._accSPV || r['ACC SPV CS'] || '',
       'ACC SPV OP'             : r['ACC SPV OP']||'',
+        'Noted'                  : row._noted||'',
     };
   });
 }
