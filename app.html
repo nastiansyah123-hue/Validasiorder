@@ -272,7 +272,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   </div>
   <nav class="sidebar-nav">
     <div class="nav-section">Menu</div>
-    <div class="nav-item active" id="nav-harian" onclick="switchPage('harian')">
+    <div class="nav-item" id="nav-harian" onclick="switchPage('harian')">
       <span class="nav-icon">✅</span> Validasi Harian
     </div>
     <div class="nav-item" id="nav-dashboard" onclick="switchPage('dashboard')">
@@ -339,7 +339,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   </div>
 
   <!-- PAGE: VALIDASI HARIAN -->
-  <div class="page active" id="page-harian">
+  <div class="page" id="page-harian">
     <div class="page-header">
       <div class="page-title">Validasi Harian</div>
       <div class="page-sub">Upload orderan baru dan validasi terhadap data master</div>
@@ -1012,10 +1012,8 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   await loadEkspedisiCache();
 
   // Restore last visited page - must be AFTER all async init
-  const lastPage = sessionStorage.getItem('vo_current_page');
-  if (lastPage && lastPage !== 'harian') {
-    switchPage(lastPage);
-  }
+  const lastPage = sessionStorage.getItem('vo_current_page') || 'harian';
+  switchPage(lastPage);
 
   // Grade dropzone
   setupDropzone('dz-grade', 'file-grade', 'grade', (data, fname) => {
