@@ -2010,6 +2010,11 @@ function restoreState() {
     updateAccSummary();
     updateGradeFilterOptions();
     renderTable();
+    // Show action buttons
+    const btnDash = document.getElementById('btn-save-dashboard');
+    const btnOngkir = document.getElementById('btn-cek-ongkir');
+    if (btnDash) btnDash.style.display = 'inline-flex';
+    if (btnOngkir) btnOngkir.style.display = 'inline-flex';
     showToast('Data sesi sebelumnya dipulihkan.', 'info');
     return true;
   } catch(e) { console.warn('restoreState error:', e); return false; }
