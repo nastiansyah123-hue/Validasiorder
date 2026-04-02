@@ -1409,7 +1409,8 @@ function doFilter() {
   const f  = document.getElementById('filter-status').value;
   const fe = document.getElementById('filter-ekspedisi').value;
   const fp = document.getElementById('filter-pembayaran').value;
-  const gf = document.getElementById('filter-grade')?.value || 'all';
+  const gradeChecked = [...document.querySelectorAll('.grade-chk:checked')].map(c=>c.value);
+  const gf = gradeChecked.length === 0 ? 'all' : gradeChecked;
   const q  = document.getElementById('search-box').value.toLowerCase();
 
   filteredData = validatedData.filter(row => {
