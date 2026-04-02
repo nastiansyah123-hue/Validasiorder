@@ -1427,8 +1427,9 @@ function doFilter() {
 
     // Ekspedisi filter
     if (fe !== 'all') {
-      const eks = String(row._raw['Ekspedisi']||row._raw['ekspedisi']||row._raw[' Ekspedisi']||'').toUpperCase();
-      if (!eks.includes(fe)) return false;
+      const eks = extractEkspedisi(row._raw['Pembayaran']||row._raw['pembayaran']||'') ||
+                  String(row._raw['Ekspedisi']||row._raw['ekspedisi']||'');
+      if (!eks.toUpperCase().includes(fe.toUpperCase())) return false;
     }
 
     // Pembayaran filter
