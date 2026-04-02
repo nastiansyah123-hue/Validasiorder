@@ -472,10 +472,18 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <option value="grade-ada">Grade Ada</option>
           <option value="grade-kosong">Grade Kosong</option>
         </select>
-        <select class="filter-select" id="filter-grade" multiple onchange="doFilter()"
-          style="height:32px;min-width:120px" title="Ctrl+klik untuk pilih lebih dari 1">
-          <option value="all" selected>Semua Grade</option>
-        </select>
+        <div style="position:relative" id="grade-dropdown-wrap">
+          <button class="filter-select" id="grade-dropdown-btn" onclick="toggleGradeDropdown()" 
+            style="cursor:pointer;text-align:left;min-width:130px;display:flex;justify-content:space-between;align-items:center;gap:6px">
+            <span id="grade-dropdown-label">Semua Grade</span><span>▾</span>
+          </button>
+          <div id="grade-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--bg);border:1px solid var(--border-strong);border-radius:10px;padding:6px;z-index:100;min-width:160px;max-height:280px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.12)">
+            <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:6px;font-size:12px" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+              <input type="checkbox" id="grade-chk-all" checked onchange="gradeCheckAll(this)"> Semua Grade
+            </label>
+            <div id="grade-chk-list"></div>
+          </div>
+        </div>
         <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
           <option value="all">Semua Ekspedisi</option>
           <option value="JNE">JNE</option><option value="JNT">JNT</option>
@@ -3006,12 +3014,38 @@ async function cekOngkirManual() {
 }
 
 function updateGradeFilterOptions() {
-  const sel = document.getElementById('filter-grade');
-  if (!sel) return;
+  const list = document.getElementById('grade-chk-list');
+  if (!list) return;
   const grades = [...new Set(validatedData.map(r => (r._grade||r._raw['Grade']||'').trim()).filter(g => g && !g.startsWith('#')))].sort();
-  sel.innerHTML = '<option value="all" selected>Semua Grade</option>' +
-    '<option value="">— Kosong —</option>' +
-    grades.map(g => `<option value="${g}">${g}</option>`).join('');
+  const allGrades = ['', ...grades]; // '' = kosong
+  list.innerHTML = allGrades.map(g => `
+    <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:6px;font-size:12px" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+      <input type="checkbox" class="grade-chk" value="${g}" onchange="onGradeChkChange()"> ${g||'— Kosong —'}
+    </label>`).join('');
+}
+
+function toggleGradeDropdown() {
+  const menu = document.getElementById('grade-dropdown-menu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function gradeCheckAll(chkAll) {
+  document.querySelectorAll('.grade-chk').forEach(c => c.checked = false);
+  document.getElementById('grade-dropdown-label').textContent = 'Semua Grade';
+  doFilter();
+}
+
+function onGradeChkChange() {
+  const checked = [...document.querySelectorAll('.grade-chk:checked')].map(c=>c.value);
+  const allChk = document.getElementById('grade-chk-all');
+  if (checked.length === 0) {
+    allChk.checked = true;
+    document.getElementById('grade-dropdown-label').textContent = 'Semua Grade';
+  } else {
+    allChk.checked = false;
+    document.getElementById('grade-dropdown-label').textContent = checked.length + ' grade dipilih';
+  }
+  doFilter();
 }
 
 
@@ -3090,6 +3124,10 @@ async function showRTSDetail(hp, nama, rowIdx) {
 // Close modal on background click
 document.addEventListener('click', function(e) {
   if (e.target && e.target.id === 'rts-modal') e.target.style.display = 'none';
+  // Close grade dropdown
+  const wrap = document.getElementById('grade-dropdown-wrap');
+  const menu = document.getElementById('grade-dropdown-menu');
+  if (wrap && menu && !wrap.contains(e.target)) menu.style.display = 'none';
 });
 
 function toggleUploadCard() {
