@@ -2292,7 +2292,7 @@ async function cekKodepos() {
 
     // Fetch riwayat orderan ke kodepos ini dari all_orderan
     const { data: riwayatData } = await sb.from('all_orderan')
-      .select('tanggal,nama,hp,resi,instruksi,status_akhir,cs')
+      .select('tanggal,nama,hp,resi,pembayaran,jumlah,instruksi,status_akhir,cs')
       .eq('kodepos', kp)
       .order('tanggal', { ascending: false })
       .limit(100);
@@ -2382,7 +2382,9 @@ async function cekKodepos() {
       const eksCount = {};
       const eksRTS   = {};
       riwayatData.forEach(r => {
-        const eks = (r.instruksi||'').toUpperCase().match(/JNE|JNT|SICEPAT|NINJA|LION|SAP|IDX|ANTERAJA|POS/)?.[0] || 'LAINNYA';
+        const src = ((r.pembayaran||'') + ' ' + (r.instruksi||'')).toUpperCase();
+        const eksMatch = src.match(/SICEPAT|ANTERAJA|NINJA|LION|SAP|IDX|JNE|JNT|POS/);
+        const eks = eksMatch?.[0] || 'LAINNYA';
         eksCount[eks] = (eksCount[eks]||0) + 1;
         if ((r.status_akhir||'').toLowerCase().includes('retur')) {
           eksRTS[eks] = (eksRTS[eks]||0) + 1;
@@ -2410,6 +2412,8 @@ async function cekKodepos() {
           <td style="padding:7px 12px;font-size:11px;font-family:monospace;color:var(--muted)">${r.tanggal||''}</td>
           <td style="padding:7px 12px;font-size:12px">${r.nama||'—'}</td>
           <td style="padding:7px 12px;font-family:monospace;font-size:11px">${r.hp||''}</td>
+          <td style="padding:7px 12px;font-size:11px;color:var(--muted)">${(r.jumlah||'—').slice(0,30)}</td>
+          <td style="padding:7px 12px;font-family:monospace;font-size:11px;font-weight:600">${(function(p){const m=((p||'')+' ').toUpperCase().match(/SICEPAT|ANTERAJA|NINJA|LION|SAP|IDX|JNE|JNT|POS/);return m?m[0]:'—';})(r.pembayaran)}</td>
           <td style="padding:7px 12px;font-family:monospace;font-size:11px">${r.resi||'—'}</td>
           <td style="padding:7px 12px;font-size:11px;font-weight:600;color:${statusColor}">${r.status_akhir||'—'}</td>
           <td style="padding:7px 12px;font-size:11px;color:var(--muted)">${r.cs||''}</td>
@@ -2445,6 +2449,8 @@ async function cekKodepos() {
                 <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Tanggal</th>
                 <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Nama</th>
                 <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">HP</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Produk</th>
+                <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Ekspedisi</th>
                 <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Resi</th>
                 <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">Status</th>
                 <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);text-transform:uppercase">CS</th>
