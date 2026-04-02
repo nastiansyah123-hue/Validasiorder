@@ -2991,7 +2991,30 @@ function renderTable() {
       <td style="font-family:monospace;font-size:11px;${row._realOngkir?'color:var(--success)':''}" title="${row._ongkirDate?'Estimasi: '+row._ongkirDate:''}">
         ${row._realOngkir ? 'Rp'+Number(row._realOngkir).toLocaleString('id-ID') : (row._raw['Real Ongkir']||'')}
       </td>
-      ${td(row._raw['Pengecekkan Ongkir']||row._raw['cek ongkir'])}
+      <td style="font-family:monospace;font-size:11px;text-align:right;${(function(){
+  const rincian = row._raw['Rincian Pembayaran']||row._raw['rincian']||'';
+  const ongkirRincian = parseInt((rincian.split('|')[0]||'0').replace(/[^0-9]/g,''))||0;
+  const real = row._realOngkir||0;
+  if (!ongkirRincian || !real) return '';
+  const diff = ongkirRincian - real;
+  return diff > 0 ? 'color:var(--success)' : diff < 0 ? 'color:var(--danger)' : 'color:var(--muted)';
+})()}" title="${(function(){
+  const rincian = row._raw['Rincian Pembayaran']||row._raw['rincian']||'';
+  const ongkirRincian = parseInt((rincian.split('|')[0]||'0').replace(/[^0-9]/g,''))||0;
+  const real = row._realOngkir||0;
+  if (!ongkirRincian || !real) return '';
+  const diff = ongkirRincian - real;
+  return 'Ongkir di rincian: Rp'+ongkirRincian.toLocaleString('id-ID')+' | Real: Rp'+real.toLocaleString('id-ID')+' | Selisih: '+(diff>=0?'+':'')+diff.toLocaleString('id-ID');
+})()}">${(function(){
+  const rincian = row._raw['Rincian Pembayaran']||row._raw['rincian']||'';
+  const ongkirRincian = parseInt((rincian.split('|')[0]||'0').replace(/[^0-9]/g,''))||0;
+  const real = row._realOngkir||0;
+  if (!ongkirRincian || !real) return row._raw['Pengecekkan Ongkir']||'';
+  const diff = ongkirRincian - real;
+  const sign = diff > 0 ? '+' : '';
+  const label = diff > 0 ? 'lebih' : diff < 0 ? 'kurang' : 'pas';
+  return 'Rp'+ongkirRincian.toLocaleString('id-ID')+' → '+sign+'Rp'+Math.abs(diff).toLocaleString('id-ID')+' ('+label+')';
+})()}</td>
       <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
       <td title="${row._wilayahRawan||''}" style="font-family:monospace;font-size:12px;${
   row._wilayahRawan && parseInt(row._wilayahRawan)>=30 ? 'color:#dc2626;font-weight:600' :
