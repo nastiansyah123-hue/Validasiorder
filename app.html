@@ -1380,6 +1380,7 @@ async function doValidasiHarian() {
     setTimeout(()=>{ const res=document.getElementById('result-section'); if(res) res.scrollIntoView({behavior:'smooth',block:'start'}); },200);
     showToast(`Selesai — ${dupCount} duplikat, ${rtsCount} pernah RTS dari ${validatedData.length} orderan.`, dupCount>0?'error':'success');
     saveState();
+    updateGradeFilterOptions();
     document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
     document.getElementById('btn-cek-ongkir').style.display = 'inline-flex';
 
@@ -1396,6 +1397,7 @@ function doFilter() {
   const f  = document.getElementById('filter-status').value;
   const fe = document.getElementById('filter-ekspedisi').value;
   const fp = document.getElementById('filter-pembayaran').value;
+  const gf = document.getElementById('filter-grade')?.value || 'all';
   const q  = document.getElementById('search-box').value.toLowerCase();
 
   filteredData = validatedData.filter(row => {
@@ -1416,6 +1418,12 @@ function doFilter() {
       :f==='grade-kosong'?(!gradeVal||gradeVal==='-')
       :true;
     if (!mf) return false;
+
+    // Grade filter
+    if (gf !== 'all') {
+      const gradeV = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim();
+      if (gf === '' ? (!!gradeV && gradeV !== '-' && !gradeV.startsWith('#')) : gradeV !== gf) return false;
+    }
 
     // Ekspedisi filter
     if (fe !== 'all') {
