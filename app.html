@@ -631,7 +631,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <input type="date" id="db-date-from" class="search-input" style="width:160px" onchange="document.getElementById('db-date-to').value=this.value" />
           <input type="date" id="db-date-to" style="display:none" />
         </div>
-        <div>
+        <div id="db-user-filter-wrap">
           <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">VALIDATOR</label>
           <select id="db-user-filter" class="filter-select">
             <option value="all">Semua</option>
@@ -2363,8 +2363,14 @@ async function loadDashboard() {
     const to    = document.getElementById('db-date-to').value;
     const uFilter = document.getElementById('db-user-filter').value;
 
+    const isAdmin = window._userRole === 'admin';
+    const currentEmail = document.getElementById('user-email').textContent;
     let query = sb.from('validasi_detail').select('*').gte('tanggal', from).lte('tanggal', to).order('created_at', { ascending:false });
-    if (uFilter !== 'all') query = query.eq('user_email', uFilter);
+    if (!isAdmin) {
+      query = query.eq('user_email', currentEmail);
+    } else if (uFilter !== 'all') {
+      query = query.eq('user_email', uFilter);
+    }
 
     // Paginate all
     const allData = [];
