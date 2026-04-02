@@ -2765,7 +2765,12 @@ async function cekOngkirRow(kecamatan, totalPembayaran) {
     if (!json.success) return null;
     const result = {};
     Object.entries(json.data||{}).forEach(([eks, v]) => {
-      if (!v.unsupported) result[eks] = { price: v.estimatedSpecialPrice||v.price, date: v.estimatedDate||v.estimate_delivery };
+      if (!v.unsupported) result[eks] = { 
+        price: v.price, 
+        normalPrice: v.price,
+        discount: v.discountPercent||0,
+        date: v.estimatedDate || v.estimate_delivery 
+      };
     });
     ongkirCache[key] = result;
     return result;
@@ -2811,8 +2816,9 @@ async function cekOngkirBatch() {
       const eksMapped = eksMap[eks] || eks;
       const eksKey = Object.keys(ongkirCache[kec]).find(k => k.toLowerCase() === eksMapped.toLowerCase());
       if (eksKey) {
-        row._realOngkir = ongkirCache[kec][eksKey].price;
-        row._ongkirDate = ongkirCache[kec][eksKey].date;
+        row._realOngkir     = ongkirCache[kec][eksKey].price;
+        row._ongkirDate     = ongkirCache[kec][eksKey].date;
+        row._ongkirDiscount = ongkirCache[kec][eksKey].discount||0;
       }
       row._ongkirData = ongkirCache[kec];
     }
@@ -2983,7 +2989,7 @@ function renderTable() {
       ${td(row._raw['Rincian Pembayaran']||row._raw['rincian'])}
       ${td(row._raw['Keluhan']||row._raw['keluhan'])}
       <td style="font-family:monospace;font-size:11px;${row._realOngkir?'color:var(--success)':''}" title="${row._ongkirDate?'Estimasi: '+row._ongkirDate:''}">
-        ${row._realOngkir ? 'Rp'+Number(row._realOngkir).toLocaleString('id-ID') : (row._raw['Real Ongkir']||'')}
+        ${row._realOngkir ? 'Rp'+Number(row._realOngkir).toLocaleString('id-ID')+(row._ongkirDiscount?'<span style="font-size:10px;color:var(--muted)"> (-'+row._ongkirDiscount+'%)</span>':'') : (row._raw['Real Ongkir']||'')}
       </td>
       ${td(row._raw['Pengecekkan Ongkir']||row._raw['cek ongkir'])}
       <td style="background:${row._rtsInfo||row._isRetur?'var(--c-warn-bg)':''};">${returADSY}</td>
