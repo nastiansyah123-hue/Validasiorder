@@ -1011,10 +1011,10 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   await loadEkspedisiCount();
   await loadEkspedisiCache();
 
-  // Restore last visited page (after all init done and role set)
+  // Restore last visited page - must be AFTER all async init
   const lastPage = sessionStorage.getItem('vo_current_page');
   if (lastPage && lastPage !== 'harian') {
-    setTimeout(() => switchPage(lastPage), 500);
+    switchPage(lastPage);
   }
 
   // Grade dropzone
