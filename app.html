@@ -2805,10 +2805,11 @@ async function cekOngkirBatch() {
     const kec = (row._raw['Kecamatan']||row._raw['kecamatan']||'').toLowerCase();
     if (ongkirCache[kec]) {
       const eks = extractEkspedisi(row._raw['Pembayaran']||'');
+      if (!eks || eks === 'POS Indonesia') return; // skip unknown/unsupported
       // Map ekspedisi name to Mengantar API key
-      const eksMap = {'JNE':'JNE','JNT':'JT','Lion':'lionparcel','Ninja':'ninja','SiCepat':'sicepat','IDX':'iDexpress','SAP':'SAP','Anteraja':'anteraja'};
+      const eksMap = {'JNE':'JNE','JNT':'JT','Lion':'lion','Ninja':'Ninja','SiCepat':'sicepat','IDX':'iDexpress','SAP':'SAP','Anteraja':'anteraja'};
       const eksMapped = eksMap[eks] || eks;
-      const eksKey = Object.keys(ongkirCache[kec]).find(k => k.toLowerCase() === eksMapped.toLowerCase() || k.toLowerCase().includes(eksMapped.toLowerCase()));
+      const eksKey = Object.keys(ongkirCache[kec]).find(k => k.toLowerCase() === eksMapped.toLowerCase());
       if (eksKey) {
         row._realOngkir = ongkirCache[kec][eksKey].price;
         row._ongkirDate = ongkirCache[kec][eksKey].date;
@@ -3103,7 +3104,7 @@ function initCheckboxes() {
 function extractEkspedisi(pembayaran) {
   if (!pembayaran) return '';
   const p = String(pembayaran).toUpperCase();
-  const eksOptions = ['SICEPAT','ANTERAJA','NINJA','LION','TIKI','SAP','IDX','JNE','JNT','SCP'];
+  const eksOptions = ['SICEPAT','ANTERAJA','NINJA','LION','TIKI','SAP','IDX','JNE','JNT','SCP','POS'];
   for (const eks of eksOptions) {
     if (p.includes(eks)) {
       // Normalize
@@ -3112,6 +3113,7 @@ function extractEkspedisi(pembayaran) {
       if (eks === 'ANTERAJA') return 'Anteraja';
       if (eks === 'NINJA') return 'Ninja';
       if (eks === 'LION') return 'Lion';
+      if (eks === 'POS') return 'POS Indonesia';
       return eks; // JNE, JNT, TIKI, SAP, IDX
     }
   }
