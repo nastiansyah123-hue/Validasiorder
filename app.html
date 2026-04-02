@@ -515,12 +515,13 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
                 <th data-col="dupteam" data-label="Duplikat Team" onclick="sortBy('dupteam')" style="cursor:pointer">Duplikat Team ↕</th>
                 <th data-col="dupall" data-label="Duplikat All Team" onclick="sortBy('dupall')" style="color:#dc2626;cursor:pointer">Duplikat All Team ↕</th>
                 <th data-label="ACC SPV CS">ACC SPV CS</th>
+              <th data-label="Noted">Noted</th>
                 <th data-label="ACC SPV OP">ACC SPV OP</th>
               <th data-label="Rek. Ekspedisi" style="color:var(--accent)">Rek. Ekspedisi</th>
               </tr>
             </thead>
             <tbody id="main-tbody">
-              <tr><td colspan="31" class="empty-state">Belum ada hasil validasi</td></tr>
+              <tr><td colspan="32" class="empty-state">Belum ada hasil validasi</td></tr>
             </tbody>
           </table>
         </div>
@@ -1844,6 +1845,16 @@ async function cekHP() {
   badge.classList.remove('show');
 }
 
+function setNoted(input) {
+  const idx = parseInt(input.dataset.idx);
+  if (!isNaN(idx) && filteredData[idx]) {
+    filteredData[idx]._noted = input.value;
+    const orig = validatedData.indexOf(filteredData[idx]);
+    if (orig >= 0) validatedData[orig]._noted = input.value;
+    saveState();
+  }
+}
+
 function setSsChat(chk, idx) {
   if (!isNaN(idx) && filteredData[idx]) {
     filteredData[idx]._ssChatDone = chk.checked;
@@ -2722,7 +2733,7 @@ function renderTable() {
   const pageData = filteredData.slice(start, start+PAGE_SIZE);
   const tbody = document.getElementById('main-tbody');
 
-  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="31" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
+  if (!pageData.length) { tbody.innerHTML=`<tr><td colspan="32" class="empty-state">Tidak ada data yang cocok</td></tr>`; renderPag(); return; }
 
   tbody.innerHTML = pageData.map(row => {
     // Row color priority: RTS > DupAll > DupTeam
@@ -2830,6 +2841,13 @@ function renderTable() {
           <option value="HOLD"   ${(row._raw['ACC SPV CS']||row._accSPV||'').toUpperCase()==='HOLD'   ?'selected':''}>⏸ Hold</option>
           <option value="CANCEL" ${(row._raw['ACC SPV CS']||row._accSPV||'').toUpperCase()==='CANCEL' ?'selected':''}>❌ Cancel</option>
         </select>
+      </td>
+      <td>
+        <input type="text" class="noted-input" data-idx="${filteredData.indexOf(row)}"
+          value="${(row._noted||'').replace(/"/g,'&quot;')}"
+          placeholder="tulis catatan..."
+          onchange="setNoted(this)"
+          style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:monospace;width:140px">
       </td>
       ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
       <td style="font-size:11px;font-family:monospace;color:${row._rekEkspedisi?'var(--text)':'var(--muted)'}">
