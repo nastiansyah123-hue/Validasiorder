@@ -1282,7 +1282,11 @@ async function doValidasiHarian() {
       let _kpLowSample = kpStat && kpStat.total < 5;
       if (kpStat && kpStat.total >= 5) {
         const pct = kpStat.pct || Math.round((kpStat.retur / kpStat.total) * 100);
-        wilayahRawan = pct + '% (' + kpStat.retur + '/' + kpStat.total + ')';
+        if (pct === 0) {
+          wilayahRawan = 'aman';
+        } else {
+          wilayahRawan = pct + '% (' + kpStat.retur + '/' + kpStat.total + ')';
+        }
       } else if (!kpStat && kp) {
         _kpExists = false;
       }
