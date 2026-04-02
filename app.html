@@ -1434,7 +1434,7 @@ function doFilter() {
     if (gf !== 'all') {
       const gradeV = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim();
       const grades = Array.isArray(gf) ? gf : [gf];
-      const match = grades.some(g => g === '' ? (!gradeV || gradeV === '-' || gradeV.startsWith('#')) : gradeV === g);
+      const match = grades.some(g => g === '__kosong__' ? (!gradeV || gradeV === '-' || gradeV.startsWith('#')) : gradeV === g);
       if (!match) return false;
     }
 
@@ -3019,10 +3019,14 @@ function updateGradeFilterOptions() {
   const list = document.getElementById('grade-chk-list');
   if (!list) return;
   const grades = [...new Set(validatedData.map(r => (r._grade||r._raw['Grade']||'').trim()).filter(g => g && !g.startsWith('#')))].sort();
-  const allGrades = ['', ...grades]; // '' = kosong
-  list.innerHTML = allGrades.map(g => `
+  // Remove '-' from grades list since it merges with kosong
+  const cleanGrades = grades.filter(g => g !== '-');
+  // Add kosong as first option (covers both '' and '-')
+  list.innerHTML = `<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:6px;font-size:12px" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
+    <input type="checkbox" class="grade-chk" value="__kosong__" onchange="onGradeChkChange()"> — Kosong / Tidak Ada —
+  </label>` + cleanGrades.map(g => `
     <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:6px;font-size:12px" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
-      <input type="checkbox" class="grade-chk" value="${g}" onchange="onGradeChkChange()"> ${g||'— Kosong —'}
+      <input type="checkbox" class="grade-chk" value="${g}" onchange="onGradeChkChange()"> ${g}
     </label>`).join('');
 }
 
