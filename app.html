@@ -1184,9 +1184,13 @@ async function doValidasiHarian() {
     // 1b. Ambil statistik wilayah dari cache tabel kodepos_stats
     badge.textContent = 'memuat statistik wilayah...';
     const kodeposStats = {};
-    const { data: kpCacheData } = await sb.from('kodepos_stats').select('kodepos,total,retur,pct');
-    if (kpCacheData) {
+    let kpFrom = 0;
+    while (true) {
+      const { data: kpCacheData } = await sb.from('kodepos_stats').select('kodepos,total,retur,pct').range(kpFrom, kpFrom+999);
+      if (!kpCacheData||!kpCacheData.length) break;
       kpCacheData.forEach(r => { kodeposStats[String(r.kodepos).trim()] = { total:r.total, retur:r.retur, pct:r.pct }; });
+      if (kpCacheData.length < 1000) break;
+      kpFrom += 1000;
     }
     window._kodeposStats = kodeposStats;
 
