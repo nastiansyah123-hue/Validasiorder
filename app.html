@@ -1036,6 +1036,9 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   });
   // Restore previous session data
   restoreState();
+  // Restore last page
+  const lastPage = sessionStorage.getItem('vo_current_page');
+  if (lastPage && lastPage !== 'harian') switchPage(lastPage);
 })();
 
 async function loadMasterCounts() {
@@ -1073,6 +1076,8 @@ function switchPage(name) {
     showToast('Akses ditolak — hanya admin yang bisa akses Data Master.', 'error');
     return;
   }
+  // Save current page
+  sessionStorage.setItem('vo_current_page', name);
   ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
