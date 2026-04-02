@@ -482,9 +482,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
               <input type="checkbox" id="grade-chk-all" checked onchange="gradeCheckAll(this)"> Semua Grade
             </label>
             <div id="grade-chk-list"></div>
-          <div style="padding:6px 8px;border-top:1px solid var(--border);margin-top:4px">
-            <button class="btn-primary" onclick="doFilter();toggleGradeDropdown()" style="width:100%;font-size:12px;padding:6px">Terapkan</button>
-          </div>
+
           </div>
         </div>
         <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
@@ -3049,6 +3047,7 @@ function onGradeChkChange() {
     allChk.checked = false;
     document.getElementById('grade-dropdown-label').textContent = checked.length + ' grade dipilih';
   }
+  doFilter();
 }
 
 
