@@ -2754,12 +2754,16 @@ async function cekOngkirBatch() {
   const badge = document.querySelector('.loading-badge#loading-validasi');
   if (badge) { badge.textContent='cek ongkir...'; badge.classList.add('show'); }
 
-  // Get unique kecamatan
+  // Get unique kecamatan - fetch all in parallel (batch of 20)
   const kecamatanList = [...new Set(validatedData.map(r => r._raw['Kecamatan']||r._raw['kecamatan']||'').filter(Boolean))];
   let done = 0;
-  for (const kec of kecamatanList) {
-    await cekOngkirRow(kec, 0);
-    done++;
+  const BATCH = 20;
+  for (let i = 0; i < kecamatanList.length; i += BATCH) {
+    const batch = kecamatanList.slice(i, i + BATCH);
+    await Promise.all(batch.map(async kec => {
+      await cekOngkirRow(kec, 0);
+      done++;
+    }));
     if (badge) badge.textContent = `cek ongkir ${done}/${kecamatanList.length}`;
   }
 
