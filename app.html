@@ -472,8 +472,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <option value="grade-ada">Grade Ada</option>
           <option value="grade-kosong">Grade Kosong</option>
         </select>
-        <select class="filter-select" id="filter-grade" onchange="doFilter()">
-          <option value="all">Semua Grade</option>
+        <select class="filter-select" id="filter-grade" multiple onchange="doFilter()"
+          style="height:32px;min-width:120px" title="Ctrl+klik untuk pilih lebih dari 1">
+          <option value="all" selected>Semua Grade</option>
         </select>
         <select class="filter-select" id="filter-ekspedisi" onchange="doFilter()">
           <option value="all">Semua Ekspedisi</option>
@@ -1422,7 +1423,9 @@ function doFilter() {
     // Grade filter
     if (gf !== 'all') {
       const gradeV = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim();
-      if (gf === '' ? (!!gradeV && gradeV !== '-' && !gradeV.startsWith('#')) : gradeV !== gf) return false;
+      const grades = Array.isArray(gf) ? gf : [gf];
+      const match = grades.some(g => g === '' ? (!gradeV || gradeV === '-' || gradeV.startsWith('#')) : gradeV === g);
+      if (!match) return false;
     }
 
     // Ekspedisi filter
@@ -3005,8 +3008,8 @@ async function cekOngkirManual() {
 function updateGradeFilterOptions() {
   const sel = document.getElementById('filter-grade');
   if (!sel) return;
-  const grades = [...new Set(validatedData.map(r => (r._grade||r._raw['Grade']||'').trim()).filter(g => g && g !== '-' && !g.startsWith('#')))].sort();
-  sel.innerHTML = '<option value="all">Semua Grade</option>' +
+  const grades = [...new Set(validatedData.map(r => (r._grade||r._raw['Grade']||'').trim()).filter(g => g && !g.startsWith('#')))].sort();
+  sel.innerHTML = '<option value="all" selected>Semua Grade</option>' +
     '<option value="">— Kosong —</option>' +
     grades.map(g => `<option value="${g}">${g}</option>`).join('');
 }
