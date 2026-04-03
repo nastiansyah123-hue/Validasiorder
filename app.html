@@ -1021,9 +1021,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       <select class="filter-select" id="status-filter-crm" onchange="filterStatusTable()">
         <option value="all">Semua Status</option>
         <option value="ON PROSES">On Proses</option>
-        <option value="UNDELL">Undell</option>
         <option value="DELIVERED">Delivered</option>
         <option value="RETUR">Retur</option>
+        <option value="__undell__">Sedang Diantar/Undell</option>
       </select>
       <select class="filter-select" id="status-filter-eks" onchange="filterStatusTable()">
         <option value="all">Semua Ekspedisi</option>
@@ -3818,12 +3818,17 @@ async function saveResiStatus() {
 async function loadStatusSummary() {
   try {
     // Summary counts
-    const statuses = ['ON PROSES','UNDELL','DELIVERED','RETUR'];
-    const counts = {};
-    await Promise.all(statuses.map(async s => {
-      const { count } = await sb.from('all_orderan').select('*',{count:'exact',head:true}).eq('update_crm', s).eq('sumber','validasi');
-      counts[s] = count||0;
-    }));
+    const counts = { 'ON PROSES':0, 'UNDELL':0, 'DELIVERED':0, 'RETUR':0 };
+    // Fetch all data to count by update_crm
+    const { data: crmData } = await sb.from('all_orderan').select('update_crm,status_akhir').eq('sumber','validasi');
+    (crmData||[]).forEach(r => {
+      const crm = r.update_crm||'ON PROSES';
+      const final = r.status_akhir||'';
+      if (final === 'DELIVERED' || crm === 'DELIVERED') counts['DELIVERED']++;
+      else if (final === 'RETUR' || crm.toUpperCase().includes('RETURN') || crm === 'RETUR') counts['RETUR']++;
+      else if (crm === 'ON PROSES' || crm === '' || crm === null) counts['ON PROSES']++;
+      else counts['UNDELL']++; // semua status lain = undell/proses antar
+    });
     const { count: total } = await sb.from('all_orderan').select('*',{count:'exact',head:true}).eq('sumber','validasi');
 
     document.getElementById('st-total').textContent    = (total||0).toLocaleString();
@@ -3844,7 +3849,12 @@ async function loadStatusTable() {
     .select('id,no,nama,hp,tanggal,pembayaran,resi,kabupaten,update_crm,status_akhir')
     .eq('sumber','validasi')
     .order('tanggal', { ascending: false });
-  if (crmFilter !== 'all') query = query.eq('update_crm', crmFilter);
+  if (crmFilter === '__undell__') {
+    // semua yang bukan ON PROSES, DELIVERED, RETUR
+    query = query.not('update_crm','in','("ON PROSES","DELIVERED","RETUR","")');
+  } else if (crmFilter !== 'all') {
+    query = query.eq('update_crm', crmFilter);
+  }
 
   while (true) {
     const { data, error } = await query.range(from, from+999);
@@ -3974,13 +3984,11 @@ async function updateStatusOtomatis() {
               const posRes  = await fetch('/api/pos-tracking?resi='+encodeURIComponent(row.resi));
               const posJson = await posRes.json();
               if (posJson.success && posJson.data) {
-                const posState = (posJson.data.connote_state||'').toUpperCase();
-                const hasFailedAttempt = posJson.data.pod && posJson.data.pod.reason_onprocess && Object.keys(posJson.data.pod.reason_onprocess).length > 0;
-                let newCRM = '', newStatus = '';
-                if (posState === 'DELIVERED') { newCRM='DELIVERED'; newStatus='DELIVERED'; }
-                else if (posState.includes('RETURN')) { newCRM='RETUR'; newStatus='RETUR'; }
-                else if (posState === 'ON PROCESS' || hasFailedAttempt) { newCRM='UNDELL'; }
-                else { newCRM = 'ON PROSES'; }
+                const posState = posJson.data.connote_state||'';
+                let newCRM = posState; // pakai status asli
+                let newStatus = '';
+                if (posState.toUpperCase() === 'DELIVERED') newStatus = 'DELIVERED';
+                else if (posState.toUpperCase().includes('RETURN')) newStatus = 'RETUR';
                 if (newCRM && newCRM !== row.update_crm) {
                   const upd = { update_crm: newCRM };
                   if (newStatus) upd.status_akhir = newStatus;
@@ -4000,15 +4008,10 @@ async function updateStatusOtomatis() {
 
           if (json.success && json.data) {
             const apiStatus = json.data.statusCategory || json.data.status || '';
-            if (apiStatus === 'DELIVERED') {
-              newCRM = 'DELIVERED'; newStatus = 'DELIVERED';
-            } else if (apiStatus.includes('RETUR') || apiStatus.includes('RETURN')) {
-              newCRM = 'RETUR'; newStatus = 'RETUR';
-            } else if (apiStatus === 'UNDELIVERED' || apiStatus === 'FAILED' || apiStatus.includes('UNDELL') || apiStatus.includes('GAGAL')) {
-              newCRM = 'UNDELL';
-            } else {
-              newCRM = 'ON PROSES'; // masih dalam perjalanan
-            }
+            // Pakai status asli dari API
+            newCRM = apiStatus;
+            if (apiStatus === 'DELIVERED') newStatus = 'DELIVERED';
+            else if (apiStatus.includes('RETUR') || apiStatus.includes('RETURN')) newStatus = 'RETUR';
 
             if (newCRM && newCRM !== row.update_crm) {
               const updateData = { update_crm: newCRM };
