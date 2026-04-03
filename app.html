@@ -3912,7 +3912,7 @@ async function updateStatusOtomatis() {
     let done=0, updated=0, errors=0;
     text.textContent = '0/'+toCheck.length;
 
-    const BATCH = 10;
+    const BATCH = 30;
     for (let i=0; i<toCheck.length; i+=BATCH) {
       await Promise.all(toCheck.slice(i,i+BATCH).map(async row => {
         try {
@@ -3938,8 +3938,10 @@ async function updateStatusOtomatis() {
               newCRM = 'DELIVERED'; newStatus = 'DELIVERED';
             } else if (apiStatus.includes('RETUR') || apiStatus.includes('RETURN')) {
               newCRM = 'RETUR'; newStatus = 'RETUR';
-            } else {
+            } else if (apiStatus === 'UNDELIVERED' || apiStatus === 'FAILED' || apiStatus.includes('UNDELL') || apiStatus.includes('GAGAL')) {
               newCRM = 'UNDELL';
+            } else {
+              newCRM = 'ON PROSES'; // masih dalam perjalanan
             }
 
             if (newCRM && newCRM !== row.update_crm) {
