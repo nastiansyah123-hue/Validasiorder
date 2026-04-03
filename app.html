@@ -297,6 +297,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-lacak" onclick="switchPage('lacak')">
       <span class="nav-icon">📦</span> Lacak Paket
     </div>
+    <div class="nav-item" id="nav-status" onclick="switchPage('status')">
+      <span class="nav-icon">📦</span> Status Pengiriman
+    </div>
     <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
       <span class="nav-icon">📖</span> Panduan
     </div>
@@ -950,6 +953,113 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
+  <!-- PAGE: STATUS PENGIRIMAN -->
+  <div class="page" id="page-status">
+    <div class="page-header">
+      <div class="page-title">Status Pengiriman</div>
+      <div class="page-sub">Monitor dan update status pengiriman orderan</div>
+    </div>
+
+    <!-- Summary cards -->
+    <div id="status-summary" style="display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;margin-bottom:1.25rem">
+      <div class="sum-card c-total" onclick="filterStatusTable('all')" style="cursor:pointer">
+        <div class="s-label">Total Kiriman</div>
+        <div class="s-value" id="st-total">—</div>
+      </div>
+      <div class="sum-card c-rts" onclick="filterStatusTable('ON PROSES')" style="cursor:pointer">
+        <div class="s-label">On Proses</div>
+        <div class="s-value" id="st-onproses" style="color:var(--warn)">—</div>
+      </div>
+      <div class="sum-card" onclick="filterStatusTable('UNDELL')" style="cursor:pointer;border:1px solid var(--border)">
+        <div class="s-label">Undell</div>
+        <div class="s-value" id="st-undell" style="color:#f59e0b">—</div>
+      </div>
+      <div class="sum-card c-aman" onclick="filterStatusTable('DELIVERED')" style="cursor:pointer">
+        <div class="s-label">Delivered</div>
+        <div class="s-value" id="st-delivered" style="color:var(--success)">—</div>
+      </div>
+      <div class="sum-card c-dupall" onclick="filterStatusTable('RETUR')" style="cursor:pointer">
+        <div class="s-label">Retur</div>
+        <div class="s-value" id="st-retur" style="color:var(--danger)">—</div>
+      </div>
+    </div>
+
+    <!-- Upload resi + Update otomatis -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:0.5rem">Upload File Resi</div>
+        <div class="card-desc" style="margin-bottom:0.75rem">Kolom: HP + Resi</div>
+        <div class="drop-zone" id="dz-resi-status" style="padding:1rem">
+          <input type="file" id="file-resi-status" accept=".csv,.xlsx,.xls" />
+          <div class="drop-zone-icon" style="font-size:24px">📋</div>
+          <div class="drop-zone-text">Upload file resi<br><span>.csv / .xlsx</span></div>
+        </div>
+        <div id="status-resi-file" class="drop-status"></div>
+        <button class="btn-primary" id="btn-save-resi-status" disabled onclick="saveResiStatus()" style="margin-top:0.75rem;font-size:12px;width:100%">💾 Simpan Resi</button>
+        <span class="loading-badge" id="loading-resi-status">menyimpan...</span>
+      </div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:0.5rem">Update Status Otomatis</div>
+        <div class="card-desc" style="margin-bottom:0.75rem">Cek semua resi via API Mengantar & POS Indonesia</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:0.75rem">
+          <button class="btn-primary" onclick="updateStatusOtomatis()" id="btn-update-status">🔄 Update Semua</button>
+          <button class="btn-secondary" onclick="loadStatusSummary()" style="font-size:12px">↻ Refresh</button>
+        </div>
+        <div id="status-update-progress" style="display:none;align-items:center;gap:8px;font-size:11px;font-family:monospace">
+          <div style="width:160px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div id="status-update-bar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.3s"></div>
+          </div>
+          <span id="status-update-text">0/0</span>
+        </div>
+        <div id="status-update-result" style="margin-top:8px;font-size:12px"></div>
+      </div>
+    </div>
+
+    <!-- Filter + Table -->
+    <div class="action-bar">
+      <select class="filter-select" id="status-filter-crm" onchange="filterStatusTable()">
+        <option value="all">Semua Status</option>
+        <option value="ON PROSES">On Proses</option>
+        <option value="UNDELL">Undell</option>
+        <option value="DELIVERED">Delivered</option>
+        <option value="RETUR">Retur</option>
+      </select>
+      <select class="filter-select" id="status-filter-eks" onchange="filterStatusTable()">
+        <option value="all">Semua Ekspedisi</option>
+        <option value="JNE">JNE</option>
+        <option value="JNT">JNT</option>
+        <option value="SiCepat">SiCepat</option>
+        <option value="Lion">Lion</option>
+        <option value="POS">POS</option>
+        <option value="SAP">SAP</option>
+        <option value="Ninja">Ninja</option>
+      </select>
+      <input class="search-input" id="status-search" type="text" placeholder="Cari nama / HP / resi..." oninput="filterStatusTable()" />
+      <span class="spacer"></span>
+      <span id="status-count" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll" style="max-height:calc(100vh - 420px)">
+        <table>
+          <thead>
+            <tr>
+              <th>Tanggal</th><th>No</th><th>Nama</th><th>HP</th>
+              <th>Ekspedisi</th><th>Resi</th><th>Kabupaten</th>
+              <th>Update CRM</th><th>Status Akhir</th>
+            </tr>
+          </thead>
+          <tbody id="status-tbody">
+            <tr><td colspan="9" class="empty-state">Klik Refresh untuk memuat data</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="status-page-info">—</span>
+        <div id="status-page-btns"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- PAGE: PANDUAN -->
   <div class="page" id="page-panduan">
     <div class="page-header">
@@ -1181,7 +1291,7 @@ function switchPage(name) {
   }
   // Save current page
   sessionStorage.setItem('vo_current_page', name);
-  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','lacak','panduan'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','lacak','status','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
@@ -1189,7 +1299,8 @@ function switchPage(name) {
   });
   if (name === 'statistik') loadStatistik();
   if (name === 'dashboard') initDashboard();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', lacak:'Lacak Paket', panduan:'Panduan'};
+  if (name === 'status') { loadStatusSummary(); initStatusDropzone(); }
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', lacak:'Lacak Paket', status:'Status Pengiriman', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -3525,7 +3636,10 @@ function switchDashboardTab(tab) {
 
 let resiFileParsed = []; // [{hp, resi}]
 
+let resiDropzoneSetup = false;
 function loadResiInput() {
+  if (resiDropzoneSetup) return;
+  resiDropzoneSetup = true;
   // Setup dropzone for resi file
   setupDropzone('dz-resi-upload', 'file-resi-upload', 'resi-upload', (data, fname) => {
     resiFileParsed = data.map(row => {
@@ -3554,29 +3668,23 @@ async function saveResiFromFile() {
   badge.classList.add('show');
 
   try {
-    // Fetch semua ON PROSES dari all_orderan
-    let allOnProses = [], from = 0;
-    while (true) {
-      const { data, error } = await sb.from('all_orderan')
-        .select('id,hp,no')
-        .eq('status_akhir','ON PROSES')
-        .range(from, from+999);
-      if (error) throw error;
-      if (!data||!data.length) break;
-      allOnProses.push(...data);
-      if (data.length < 1000) break;
-      from += 1000;
-    }
+    // Update langsung berdasarkan HP - batch update
+    let matched = 0, updated = 0;
+    const hpList = resiFileParsed.map(r => normalizeHP(r.hp)).filter(Boolean);
+    
+    // Fetch hanya HP yang ada di file resi
+    const { data: onProses } = await sb.from('all_orderan')
+      .select('id,hp')
+      .eq('status_akhir','ON PROSES')
+      .in('hp', hpList.map(hp => hp.replace(/^0/,'')));
 
-    // Build HP index dari all_orderan
     const hpIndex = {};
-    allOnProses.forEach(r => {
+    (onProses||[]).forEach(r => {
       const hp = normalizeHP(String(r.hp||''));
       if (hp) hpIndex[hp] = r.id;
     });
 
-    // Match dan update
-    let matched = 0, updated = 0;
+    // Update semua sekaligus
     for (const row of resiFileParsed) {
       const hp = normalizeHP(row.hp);
       const id = hpIndex[hp];
@@ -3614,6 +3722,249 @@ async function getPosOngkir(kodepos) {
     }
   } catch(e) { console.warn('getPosOngkir error:', e); }
   return null;
+}
+
+
+// ── STATUS PENGIRIMAN ─────────────────────────────────────────────────────────
+let statusAllData = [], statusFiltered = [], statusPage = 1;
+const STATUS_PAGE_SIZE = 100;
+let statusDropzoneInit = false;
+let resiStatusParsed = [];
+
+function initStatusDropzone() {
+  if (statusDropzoneInit) return;
+  statusDropzoneInit = true;
+  setupDropzone('dz-resi-status', 'file-resi-status', 'resi-status', (data, fname) => {
+    resiStatusParsed = data.map(row => {
+      const keys = Object.keys(row);
+      const hpKey   = keys.find(k => k.toLowerCase().replace(/\s/g,'').includes('hp')||k.toLowerCase().includes('telp')||k.toLowerCase().includes('nomor')||k.toLowerCase().includes('phone'));
+      const resiKey = keys.find(k => k.toLowerCase().includes('resi')||k.toLowerCase().includes('awb')||k.toLowerCase().includes('tracking'));
+      return { hp: String(row[hpKey]||'').trim(), resi: String(row[resiKey]||'').trim() };
+    }).filter(r => r.resi);
+    setStatus(document.getElementById('status-resi-file'), 'ok', `✓ ${resiStatusParsed.length} resi dari ${fname}`);
+    document.getElementById('btn-save-resi-status').disabled = false;
+  });
+}
+
+async function saveResiStatus() {
+  if (!resiStatusParsed.length) return;
+  const badge = document.getElementById('loading-resi-status');
+  badge.classList.add('show');
+  try {
+    const hpList = [...new Set(resiStatusParsed.map(r => normalizeHP(r.hp)).filter(Boolean))];
+    const { data: orders } = await sb.from('all_orderan').select('id,hp').in('hp', hpList.map(h=>h.replace(/^0/,'')));
+    const hpIdx = {};
+    (orders||[]).forEach(r => { hpIdx[normalizeHP(String(r.hp||''))] = r.id; });
+    let updated = 0;
+    for (const row of resiStatusParsed) {
+      const id = hpIdx[normalizeHP(row.hp)];
+      if (!id) continue;
+      const { error } = await sb.from('all_orderan').update({ resi: row.resi }).eq('id', id);
+      if (!error) updated++;
+    }
+    showToast(`✓ ${updated} resi tersimpan!`, 'success');
+    loadStatusSummary();
+  } catch(e) { showToast('Error: '+e.message,'error'); }
+  badge.classList.remove('show');
+}
+
+async function loadStatusSummary() {
+  try {
+    // Summary counts
+    const statuses = ['ON PROSES','UNDELL','DELIVERED','RETUR'];
+    const counts = {};
+    await Promise.all(statuses.map(async s => {
+      const { count } = await sb.from('all_orderan').select('*',{count:'exact',head:true}).eq('update_crm', s).eq('sumber','validasi');
+      counts[s] = count||0;
+    }));
+    const { count: total } = await sb.from('all_orderan').select('*',{count:'exact',head:true}).eq('sumber','validasi');
+
+    document.getElementById('st-total').textContent    = (total||0).toLocaleString();
+    document.getElementById('st-onproses').textContent = (counts['ON PROSES']||0).toLocaleString();
+    document.getElementById('st-undell').textContent   = (counts['UNDELL']||0).toLocaleString();
+    document.getElementById('st-delivered').textContent= (counts['DELIVERED']||0).toLocaleString();
+    document.getElementById('st-retur').textContent    = (counts['RETUR']||0).toLocaleString();
+
+    // Load table data
+    await loadStatusTable();
+  } catch(e) { console.error(e); }
+}
+
+async function loadStatusTable() {
+  let all = [], from = 0;
+  const crmFilter = document.getElementById('status-filter-crm')?.value || 'all';
+  let query = sb.from('all_orderan')
+    .select('id,no,nama,hp,tanggal,pembayaran,resi,kabupaten,update_crm,status_akhir')
+    .eq('sumber','validasi')
+    .order('tanggal', { ascending: false });
+  if (crmFilter !== 'all') query = query.eq('update_crm', crmFilter);
+
+  while (true) {
+    const { data, error } = await query.range(from, from+999);
+    if (error) throw error;
+    if (!data||!data.length) break;
+    all.push(...data);
+    if (data.length < 1000) break;
+    from += 1000;
+  }
+  statusAllData = all;
+  statusFiltered = [...all];
+  statusPage = 1;
+  renderStatusTable();
+}
+
+function filterStatusTable(crm) {
+  if (crm) {
+    const sel = document.getElementById('status-filter-crm');
+    if (sel) sel.value = crm;
+  }
+  const f   = document.getElementById('status-filter-crm')?.value || 'all';
+  const eks = document.getElementById('status-filter-eks')?.value || 'all';
+  const q   = (document.getElementById('status-search')?.value||'').toLowerCase();
+
+  statusFiltered = statusAllData.filter(r => {
+    if (f !== 'all' && r.update_crm !== f) return false;
+    if (eks !== 'all') {
+      const rEks = extractEkspedisi(r.pembayaran||'');
+      if (!rEks.toLowerCase().includes(eks.toLowerCase())) return false;
+    }
+    if (q) {
+      const searchStr = (r.nama||'') + (r.hp||'') + (r.resi||'');
+      if (!searchStr.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+  statusPage = 1;
+  renderStatusTable();
+}
+
+function renderStatusTable() {
+  const tbody = document.getElementById('status-tbody');
+  const start = (statusPage-1)*STATUS_PAGE_SIZE;
+  const pageData = statusFiltered.slice(start, start+STATUS_PAGE_SIZE);
+  document.getElementById('status-count').textContent = statusFiltered.length.toLocaleString() + ' baris';
+
+  if (!pageData.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">Tidak ada data</td></tr>';
+  } else {
+    tbody.innerHTML = pageData.map(r => {
+      const crm = r.update_crm||'—';
+      const crmColor = crm==='DELIVERED'?'var(--success)':crm==='RETUR'?'var(--danger)':crm==='UNDELL'?'#f59e0b':'var(--warn)';
+      const eks = extractEkspedisi(r.pembayaran||'');
+      return `<tr style="border-bottom:0.5px solid var(--border)">
+        <td style="font-size:11px;font-family:monospace;color:var(--muted)">${r.tanggal||''}</td>
+        <td style="font-size:11px;font-family:monospace">${r.no||''}</td>
+        <td style="font-size:12px">${r.nama||''}</td>
+        <td style="font-family:monospace">${r.hp||''}</td>
+        <td style="font-family:monospace;font-size:12px;font-weight:600">${eks||'—'}</td>
+        <td style="font-family:monospace;font-size:11px">${r.resi||'<span style="color:var(--muted);font-size:10px">belum ada</span>'}</td>
+        <td style="font-size:11px">${r.kabupaten||''}</td>
+        <td style="font-weight:600;font-size:12px;color:${crmColor}">${crm}</td>
+        <td style="font-size:11px;color:var(--muted)">${r.status_akhir||''}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const total = statusFiltered.length;
+  const totalPages = Math.ceil(total/STATUS_PAGE_SIZE);
+  document.getElementById('status-page-info').textContent = total ? `${Math.min(start+1,total)}–${Math.min(start+STATUS_PAGE_SIZE,total)} dari ${total.toLocaleString()}` : '0';
+  const btns = document.getElementById('status-page-btns');
+  btns.innerHTML = '';
+  const mb = (lbl,fn,dis)=>{ const b=document.createElement('button'); b.className='page-btn'; b.textContent=lbl; b.disabled=dis; b.onclick=fn; return b; };
+  btns.appendChild(mb('‹',()=>{statusPage--;renderStatusTable();},statusPage===1));
+  btns.appendChild(mb('›',()=>{statusPage++;renderStatusTable();},statusPage>=totalPages||totalPages===0));
+}
+
+async function updateStatusOtomatis() {
+  const btn  = document.getElementById('btn-update-status');
+  const prog = document.getElementById('status-update-progress');
+  const bar  = document.getElementById('status-update-bar');
+  const text = document.getElementById('status-update-text');
+  const resultEl = document.getElementById('status-update-result');
+
+  btn.disabled = true;
+  prog.style.display = 'flex';
+  resultEl.innerHTML = '';
+
+  try {
+    // Fetch semua yang punya resi dan belum DELIVERED/RETUR
+    let toCheck = [], from = 0;
+    while (true) {
+      const { data, error } = await sb.from('all_orderan')
+        .select('id,resi,pembayaran,update_crm')
+        .eq('sumber','validasi')
+        .not('resi','is',null)
+        .neq('resi','')
+        .not('update_crm','in','("DELIVERED","RETUR")')
+        .range(from, from+999);
+      if (error) throw error;
+      if (!data||!data.length) break;
+      toCheck.push(...data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+
+    if (!toCheck.length) {
+      resultEl.innerHTML = '<span style="color:var(--muted)">Tidak ada resi yang perlu dicek.</span>';
+      btn.disabled = false; prog.style.display = 'none'; return;
+    }
+
+    let done=0, updated=0, errors=0;
+    text.textContent = '0/'+toCheck.length;
+
+    const BATCH = 10;
+    for (let i=0; i<toCheck.length; i+=BATCH) {
+      await Promise.all(toCheck.slice(i,i+BATCH).map(async row => {
+        try {
+          const eks = extractEkspedisi(row.pembayaran||'');
+          let newCRM = '', newStatus = '';
+
+          if (eks === 'POS Indonesia') {
+            // POS tidak support tracking via Mengantar, skip
+            done++; return;
+          }
+
+          const courierKey = COURIER_MAP[eks] || eks;
+          if (!courierKey || !row.resi) { done++; return; }
+
+          const res  = await fetch('/api/tracking?tracking_number='+encodeURIComponent(row.resi)+'&courier='+encodeURIComponent(courierKey));
+          const json = await res.json();
+
+          if (json.success && json.data) {
+            const apiStatus = json.data.statusCategory || json.data.status || '';
+            if (apiStatus === 'DELIVERED') {
+              newCRM = 'DELIVERED'; newStatus = 'DELIVERED';
+            } else if (apiStatus.includes('RETUR') || apiStatus.includes('RETURN')) {
+              newCRM = 'RETUR'; newStatus = 'RETUR';
+            } else {
+              newCRM = 'UNDELL';
+            }
+
+            if (newCRM && newCRM !== row.update_crm) {
+              const updateData = { update_crm: newCRM };
+              if (newStatus) updateData.status_akhir = newStatus;
+              await sb.from('all_orderan').update(updateData).eq('id', row.id);
+              updated++;
+            }
+          }
+        } catch(e) { errors++; }
+        done++;
+      }));
+
+      const pct = Math.round((done/toCheck.length)*100);
+      bar.style.width = pct+'%';
+      text.textContent = done+'/'+toCheck.length+' ('+updated+' diupdate)';
+    }
+
+    resultEl.innerHTML = `<span style="color:var(--success)">✓ Selesai — ${updated} status diupdate dari ${toCheck.length} resi${errors?' ('+errors+' error)':''}</span>`;
+    showToast(`${updated} status diupdate!`, 'success');
+    await loadStatusSummary();
+
+  } catch(e) {
+    resultEl.innerHTML = '<span style="color:var(--danger)">Error: '+e.message+'</span>';
+  }
+  btn.disabled = false;
+  prog.style.display = 'none';
 }
 
 function toggleUploadCard() {
