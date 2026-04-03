@@ -1612,7 +1612,6 @@ function clearFiles() {
 
 function handleMultiFiles(files) {
   if (!files.length) return;
-  clearState(); // clear old session when new file uploaded
   files.forEach(file => processFile(file, 'baru-multi', (data, fname) => {
     loadedFiles[fname] = data.map(extractOrderFields);
     updateFileList();
