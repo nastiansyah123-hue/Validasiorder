@@ -1322,10 +1322,7 @@ async function saveRTSMaster() {
 }
 
 // HAPUS
-function confirmClearOrderan() {
-  if (!confirm('Hapus SEMUA data All Orderan dari database?')) return;
-  clearTable('all_orderan', loadOrderanCount);
-}
+// confirmClearOrderan replaced below
 function confirmClearRTS() {
   if (!confirm('Hapus SEMUA data RTS dari database?')) return;
   clearTable('all_rts', loadRTSCount);
