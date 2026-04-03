@@ -1416,7 +1416,7 @@ async function doValidasiHarian() {
     badge.textContent = 'mengecek RTS...';
     const resiToCheck = new Set();
     orderBaruRaw.forEach(row => {
-      const hp = normalizeHP(String(row.hp||'');
+      const hp = normalizeHP(String(row.hp||''));
       if (hp && hpIndex[hp]) hpIndex[hp].forEach(m => { if(m.resi) resiToCheck.add(m.resi.trim().toLowerCase()); });
     });
     // Hitung total RTS per HP dari allOrderan (normalize HP saat counting)
@@ -1449,7 +1449,7 @@ async function doValidasiHarian() {
 
     // 5. Gabungkan
     validatedData = orderBaruRaw.map(row => {
-      const hp = normalizeHP(String(row.hp||'');
+      const hp = normalizeHP(String(row.hp||''));
       const matches = hp && hpIndex[hp] ? hpIndex[hp] : [];
       const isDup = matches.length > 0;
 
@@ -2145,7 +2145,7 @@ function restoreState() {
       gradeMap = JSON.parse(savedGrade);
       // Re-apply grades to validatedData
       validatedData.forEach(row => {
-        const hp = normalizeHP(String(row.hp||'');
+        const hp = normalizeHP(String(row.hp||''));
         const hpStrip = hp.replace(/^0+/,'');
         const grade = gradeMap[hp] || gradeMap[hpStrip] || gradeMap['0'+hpStrip] || '';
         if (grade) { row._grade = grade; row._raw['Grade'] = grade; }
@@ -2211,7 +2211,7 @@ function applyGradeToTable() {
   });
 
   validatedData.forEach(row => {
-    const hp = normalizeHP(String(row.hp||'');
+    const hp = normalizeHP(String(row.hp||''));
     const grade = normalizedGradeMap[hp] || '';
     if (grade) {
       row._grade = grade;
