@@ -294,6 +294,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-cekOngkir" onclick="switchPage('cekOngkir')">
       <span class="nav-icon">🚚</span> Cek Ongkir
     </div>
+    <div class="nav-item" id="nav-lacak" onclick="switchPage('lacak')">
+      <span class="nav-icon">📦</span> Lacak Paket
+    </div>
     <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
       <span class="nav-icon">📖</span> Panduan
     </div>
@@ -582,12 +585,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button class="btn-primary" id="btn-save-order" disabled onclick="saveOrderanMaster()">Simpan ke Database</button>
           <button class="btn-secondary" onclick="loadOrderanCount()" style="font-size:12px">Refresh</button>
-          <button class="btn-secondary btn-danger" onclick="showHapusOrderanMenu()" style="font-size:12px">Hapus...</button>
-      <div id="hapus-orderan-menu" style="display:none;position:absolute;background:var(--bg);border:1px solid var(--border-strong);border-radius:10px;padding:6px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.12);min-width:220px">
-        <div onclick="confirmClearOrderan('upload')" style="padding:8px 12px;cursor:pointer;border-radius:6px;font-size:12px" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">🗑 Hapus data upload manual</div>
-        <div onclick="confirmClearOrderan('validasi')" style="padding:8px 12px;cursor:pointer;border-radius:6px;font-size:12px" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">🗑 Hapus data dari validasi</div>
-        <div onclick="confirmClearOrderan('all')" style="padding:8px 12px;cursor:pointer;border-radius:6px;font-size:12px;color:var(--danger)" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">⚠️ Hapus Semua</div>
-      </div>
+          <button class="btn-secondary btn-danger" onclick="confirmClearOrderan('upload')" style="font-size:12px">Hapus Upload</button>
+          <button class="btn-secondary btn-danger" onclick="confirmClearOrderan('validasi')" style="font-size:12px">Hapus Validasi</button>
+          <button class="btn-secondary btn-danger" onclick="confirmClearOrderan('all')" style="font-size:12px">Hapus Semua</button>
           <span class="loading-badge" id="loading-order">menyimpan...</span>
         </div>
         <div id="status-order-save" class="drop-status" style="margin-top:8px"></div>
@@ -864,6 +864,72 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
+  <!-- PAGE: LACAK PAKET -->
+  <div class="page" id="page-lacak">
+    <div class="page-header">
+      <div class="page-title">Lacak Paket</div>
+      <div class="page-sub">Cek status pengiriman dan update otomatis ke Data Master</div>
+    </div>
+
+    <!-- Manual tracking -->
+    <div class="card" style="max-width:600px;margin-bottom:1.25rem">
+      <div class="card-title" style="margin-bottom:0.75rem">Lacak Manual</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="lacak-resi" type="text" class="search-input" placeholder="Nomor resi..." style="flex:1;min-width:180px"
+          onkeydown="if(event.key==='Enter') lacakPaket()" />
+        <select id="lacak-ekspedisi" class="filter-select" style="width:130px">
+          <option value="JNE">JNE</option>
+          <option value="JT">JNT</option>
+          <option value="SiCepat">SiCepat</option>
+          <option value="lion">Lion</option>
+          <option value="SAP">SAP</option>
+          <option value="anteraja">Anteraja</option>
+          <option value="Ninja">Ninja</option>
+          <option value="iDexpress">IDX</option>
+        </select>
+        <button class="btn-primary" onclick="lacakPaket()">Lacak</button>
+        <span class="loading-badge" id="loading-lacak">melacak...</span>
+      </div>
+    </div>
+
+    <!-- Tracking result -->
+    <div id="lacak-result" style="display:none">
+      <div class="card" style="margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+          <div>
+            <div style="font-size:15px;font-weight:700" id="lacak-resi-title"></div>
+            <div style="font-size:12px;color:var(--muted);font-family:monospace" id="lacak-receiver"></div>
+          </div>
+          <div id="lacak-status-badge"></div>
+        </div>
+        <div id="lacak-info" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem"></div>
+        <div id="lacak-history"></div>
+      </div>
+    </div>
+    <div id="lacak-empty" style="display:none;text-align:center;padding:3rem;color:var(--muted);font-size:14px">
+      Resi tidak ditemukan.
+    </div>
+
+    <!-- Batch update -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:0.5rem">Update Otomatis Status Pengiriman</div>
+      <div class="card-desc" style="margin-bottom:1rem">Cek semua orderan ON PROSES di Data Master dan update status ke DELIVERED/RETUR otomatis.</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn-primary" onclick="updateBatchTracking()" id="btn-batch-tracking">🔄 Update Semua ON PROSES</button>
+        <span class="loading-badge" id="loading-batch-tracking">mengecek...</span>
+      </div>
+      <div style="margin-top:10px">
+        <div id="batch-tracking-progress" style="display:none;align-items:center;gap:8px;font-size:11px;font-family:monospace">
+          <div style="width:200px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div id="batch-tracking-bar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.3s"></div>
+          </div>
+          <span id="batch-tracking-text">0/0</span>
+        </div>
+        <div id="batch-tracking-result" style="margin-top:8px;font-size:12px"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- PAGE: PANDUAN -->
   <div class="page" id="page-panduan">
     <div class="page-header">
@@ -1095,7 +1161,7 @@ function switchPage(name) {
   }
   // Save current page
   sessionStorage.setItem('vo_current_page', name);
-  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','panduan'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','lacak','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
@@ -1103,7 +1169,7 @@ function switchPage(name) {
   });
   if (name === 'statistik') loadStatistik();
   if (name === 'dashboard') initDashboard();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', panduan:'Panduan'};
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', lacak:'Lacak Paket', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -2894,7 +2960,7 @@ async function saveValidasiDetail() {
         resi        : String(r._raw['Resi']||r._raw['RESI']||'').slice(0,100),
         team        : '',
         update_crm  : '',
-        status_akhir: 'PENDING',
+        status_akhir: 'ON PROSES',
         sumber      : 'validasi',
         retur       : '0',
         cs          : (String(r._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/CS\s*/i,'').trim().slice(0,50),
@@ -3195,6 +3261,163 @@ document.addEventListener('click', function(e) {
   const menu = document.getElementById('grade-dropdown-menu');
   if (wrap && menu && !wrap.contains(e.target)) menu.style.display = 'none';
 });
+
+
+// ── LACAK PAKET ───────────────────────────────────────────────────────────────
+const COURIER_MAP = {
+  'JNE':'JNE','JNT':'JT','SiCepat':'SiCepat','Lion':'lion',
+  'SAP':'SAP','Anteraja':'anteraja','Ninja':'Ninja','IDX':'iDexpress',
+  'SICEPAT':'SiCepat','ANTERAJA':'anteraja','NINJA':'Ninja','LION':'lion'
+};
+
+async function lacakPaket(resi, ekspedisi) {
+  const resiVal = resi || document.getElementById('lacak-resi').value.trim();
+  const eksVal  = ekspedisi || document.getElementById('lacak-ekspedisi').value;
+  if (!resiVal) return null;
+
+  const badge = document.getElementById('loading-lacak');
+  if (badge) badge.classList.add('show');
+  const resultEl = document.getElementById('lacak-result');
+  const emptyEl  = document.getElementById('lacak-empty');
+  if (resultEl) { resultEl.style.display='none'; }
+  if (emptyEl)  { emptyEl.style.display='none'; }
+
+  try {
+    const res  = await fetch(`/api/tracking?tracking_number=${encodeURIComponent(resiVal)}&courier=${encodeURIComponent(eksVal)}`);
+    const json = await res.json();
+
+    if (!json.success || !json.data) {
+      if (emptyEl) emptyEl.style.display = 'block';
+      if (badge) badge.classList.remove('show');
+      return null;
+    }
+
+    const d = json.data;
+    const status = d.status || d.statusCategory || '—';
+    const statusColor = status==='DELIVERED'?'var(--success)':status.includes('RETUR')||status.includes('RETURN')?'var(--danger)':'var(--warn)';
+
+    if (resultEl) {
+      document.getElementById('lacak-resi-title').textContent = resiVal + ' (' + json.courier + ')';
+      document.getElementById('lacak-receiver').textContent = (d.RECEIVER_NAME||'') + ' — ' + (d.RECEIVER_CITY||'');
+      document.getElementById('lacak-status-badge').innerHTML =
+        '<span style="font-size:14px;font-weight:700;color:'+statusColor+';font-family:monospace">'+status+'</span>';
+
+      document.getElementById('lacak-info').innerHTML = [
+        ['Pengirim', d.PICKUP_NAME||'—'],
+        ['Produk', d.GOODS_DESC||'—'],
+        ['COD Amount', d.COD_AMOUNT ? 'Rp'+Number(d.COD_AMOUNT).toLocaleString('id-ID') : '—'],
+      ].map(([k,v]) => `<div style="background:var(--bg-2);padding:10px 12px;border-radius:8px">
+        <div style="font-size:10px;color:var(--muted);font-family:monospace;text-transform:uppercase">${k}</div>
+        <div style="font-size:13px;font-weight:600;margin-top:2px">${v}</div>
+      </div>`).join('');
+
+      const history = (d.history||[]).slice().reverse();
+      document.getElementById('lacak-history').innerHTML = `
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--muted);font-family:monospace;text-transform:uppercase">History Pengiriman</div>
+        ${history.map((h,i) => `
+          <div style="display:flex;gap:12px;padding:8px 0;border-bottom:0.5px solid var(--border);align-items:flex-start">
+            <div style="width:8px;height:8px;border-radius:50%;background:${i===0?statusColor:'var(--border-strong)'};margin-top:5px;flex-shrink:0"></div>
+            <div>
+              <div style="font-size:12px;${i===0?'font-weight:600':''}">${h.desc||''}</div>
+              <div style="font-size:11px;color:var(--muted);font-family:monospace;margin-top:2px">${h.date||''}</div>
+            </div>
+          </div>`).join('')}`;
+
+      resultEl.style.display = 'block';
+    }
+
+    if (badge) badge.classList.remove('show');
+    return { status, statusCategory: d.statusCategory, lastUpdate: d.lastStatusChange };
+  } catch(e) {
+    if (badge) badge.classList.remove('show');
+    showToast('Error: '+e.message, 'error');
+    return null;
+  }
+}
+
+async function updateBatchTracking() {
+  const btn  = document.getElementById('btn-batch-tracking');
+  const prog = document.getElementById('batch-tracking-progress');
+  const bar  = document.getElementById('batch-tracking-bar');
+  const text = document.getElementById('batch-tracking-text');
+  const resultEl = document.getElementById('batch-tracking-result');
+
+  btn.disabled = true;
+  prog.style.display = 'flex';
+  resultEl.innerHTML = '';
+
+  try {
+    // Fetch semua ON PROSES dari all_orderan
+    let allOnProses = [], from = 0;
+    while (true) {
+      const { data, error } = await sb.from('all_orderan')
+        .select('id,resi,pembayaran,status_akhir')
+        .eq('status_akhir','ON PROSES')
+        .not('resi','is',null)
+        .neq('resi','')
+        .range(from, from+999);
+      if (error) throw error;
+      if (!data||!data.length) break;
+      allOnProses.push(...data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+
+    if (!allOnProses.length) {
+      resultEl.innerHTML = '<span style="color:var(--muted)">Tidak ada orderan ON PROSES dengan resi.</span>';
+      btn.disabled = false;
+      prog.style.display = 'none';
+      return;
+    }
+
+    let done=0, updated=0, errors=0;
+    text.textContent = '0/'+allOnProses.length;
+
+    const BATCH = 10;
+    for (let i=0; i<allOnProses.length; i+=BATCH) {
+      const batch = allOnProses.slice(i, i+BATCH);
+      await Promise.all(batch.map(async row => {
+        try {
+          const eks = extractEkspedisi(row.pembayaran||'');
+          const courierKey = COURIER_MAP[eks] || eks;
+          if (!courierKey || !row.resi) { done++; return; }
+
+          const res = await fetch('/api/tracking?tracking_number='+encodeURIComponent(row.resi)+'&courier='+encodeURIComponent(courierKey));
+          const json = await res.json();
+
+          if (json.success && json.data) {
+            const newStatus = json.data.statusCategory || json.data.status;
+            let statusAkhir = '';
+            if (newStatus === 'DELIVERED') statusAkhir = 'DELIVERED';
+            else if (newStatus && (newStatus.includes('RETUR') || newStatus.includes('RETURN'))) statusAkhir = 'RETUR';
+
+            if (statusAkhir) {
+              await sb.from('all_orderan').update({ status_akhir: statusAkhir, update_crm: statusAkhir }).eq('id', row.id);
+              updated++;
+            }
+          }
+        } catch(e) { errors++; }
+        done++;
+      }));
+
+      const pct = Math.round((done/allOnProses.length)*100);
+      bar.style.width = pct+'%';
+      text.textContent = done+'/'+allOnProses.length+' ('+(updated)+' diupdate)';
+    }
+
+    resultEl.innerHTML = `<span style="color:var(--success)">✓ Selesai — ${updated} status diupdate dari ${allOnProses.length} orderan${errors?' ('+errors+' error)':''}</span>`;
+    showToast(`${updated} status diupdate!`, 'success');
+
+    // Recalculate kodepos stats
+    await calcKodeposStats(null);
+
+  } catch(e) {
+    resultEl.innerHTML = '<span style="color:var(--danger)">Error: '+e.message+'</span>';
+  }
+
+  btn.disabled = false;
+  prog.style.display = 'none';
+}
 
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
