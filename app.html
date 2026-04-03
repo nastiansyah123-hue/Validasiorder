@@ -1322,7 +1322,22 @@ async function saveRTSMaster() {
 }
 
 // HAPUS
-// confirmClearOrderan replaced below
+function showHapusOrderanMenu() {}
+
+function confirmClearOrderan(type) {
+  const labels = { upload:'data upload manual', validasi:'data dari validasi', all:'SEMUA data' };
+  const t = type || 'all';
+  if (!confirm('Hapus ' + (labels[t]||'SEMUA data') + ' dari All Orderan? Tidak bisa dibatalkan.')) return;
+  if (t === 'all') {
+    clearTable('all_orderan', loadOrderanCount);
+  } else {
+    sb.from('all_orderan').delete().eq('sumber', t).then(({error}) => {
+      if (error) showToast('Gagal: '+error.message, 'error');
+      else { showToast('Data '+labels[t]+' berhasil dihapus!', 'success'); loadOrderanCount(); }
+    });
+  }
+}
+
 function confirmClearRTS() {
   if (!confirm('Hapus SEMUA data RTS dari database?')) return;
   clearTable('all_rts', loadRTSCount);
