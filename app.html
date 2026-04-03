@@ -878,7 +878,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
 
     <div class="card" style="max-width:600px;margin-bottom:1.25rem">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input id="ongkir-kec-input" type="text" class="search-input" placeholder="Masukkan kecamatan tujuan..." style="flex:1;min-width:200px"
+        <input id="ongkir-kec-input" type="text" class="search-input" placeholder="Kecamatan (JNE/JNT/dll) atau Kode Pos (POS)..." style="flex:1;min-width:200px"
           onkeydown="if(event.key==='Enter') cekOngkirManual()" />
         <button class="btn-primary" onclick="cekOngkirManual()">Cek</button>
         <span class="loading-badge" id="loading-cekOngkirManual">mencari...</span>
@@ -1612,6 +1612,7 @@ function clearFiles() {
 
 function handleMultiFiles(files) {
   if (!files.length) return;
+  clearState(); // clear old session when new file uploaded
   files.forEach(file => processFile(file, 'baru-multi', (data, fname) => {
     loadedFiles[fname] = data.map(extractOrderFields);
     updateFileList();
@@ -3054,6 +3055,7 @@ async function getAddressId(kecamatan) {
       return id;
     }
   } catch(e) { console.warn('getAddressId error:', e); }
+  addressCache[key] = '__error__'; // mark as failed
   return null;
 }
 
@@ -3063,7 +3065,10 @@ async function cekOngkirRow(kecamatan, totalPembayaran) {
   try {
     const oId = await getOriginId();
     const dId = await getAddressId(kecamatan);
-    if (!oId || !dId) return null;
+    if (!oId || !dId) {
+      ongkirCache[key] = '__not_found__';
+      return null;
+    }
     const cod = parseInt(totalPembayaran)||0;
     const url = `${MENGANTAR_PROXY}?path=order/allEstimatePublic&origin_id=${oId}&destination_id=${dId}&weight=1`;
     const res  = await fetch(url);
@@ -3111,9 +3116,27 @@ async function cekOngkirBatch() {
     }));
   }
 
+  // Apply POS ongkir for POS Indonesia rows
+  const posRows = validatedData.filter(r => extractEkspedisi(r._raw['Pembayaran']||'') === 'POS Indonesia');
+  if (posRows.length) {
+    const posKpList = [...new Set(posRows.map(r => String(r._raw['Kode Pos']||r.kodepos||'').trim()).filter(Boolean))];
+    for (let i=0; i<posKpList.length; i+=10) {
+      await Promise.all(posKpList.slice(i,i+10).map(kp => getPosOngkir(kp)));
+    }
+    posRows.forEach(row => {
+      const kp = String(row._raw['Kode Pos']||row.kodepos||'').trim();
+      const posData = posOngkirCache[kp];
+      if (posData) { row._realOngkir = posData.price; row._ongkirDate = posData.estimation; }
+    });
+  }
+
   // Apply to validatedData
   validatedData.forEach(row => {
     const kec = (row._raw['Kecamatan']||row._raw['kecamatan']||'').toLowerCase();
+    if (ongkirCache[kec] === '__not_found__') {
+      row._ongkirError = true;
+      return;
+    }
     if (ongkirCache[kec]) {
       const eks = extractEkspedisi(row._raw['Pembayaran']||'');
       if (!eks || eks === 'POS Indonesia') return; // skip unknown/unsupported
@@ -3125,6 +3148,9 @@ async function cekOngkirBatch() {
         row._realOngkir     = ongkirCache[kec][eksKey].price;
         row._ongkirDate     = ongkirCache[kec][eksKey].date;
         row._ongkirDiscount = ongkirCache[kec][eksKey].discount||0;
+        row._ongkirError    = false;
+      } else {
+        row._ongkirError = true; // ekspedisi tidak tersedia di rute ini
       }
       row._ongkirData = ongkirCache[kec];
     }
@@ -3142,13 +3168,38 @@ async function cekOngkirBatch() {
 
 // ── CEK ONGKIR MANUAL ────────────────────────────────────────────────────────
 async function cekOngkirManual() {
-  const kec = document.getElementById('ongkir-kec-input').value.trim();
-  if (!kec) return;
+  const input = document.getElementById('ongkir-kec-input').value.trim();
+  if (!input) return;
   const badge = document.getElementById('loading-cekOngkirManual');
   badge.classList.add('show');
   document.getElementById('cekOngkir-result').style.display = 'none';
   document.getElementById('cekOngkir-empty').style.display  = 'none';
 
+  // If input is numeric (kode pos) → try POS Indonesia
+  if (/^\d{5}$/.test(input)) {
+    const posData = await getPosOngkir(input);
+    if (posData) {
+      document.getElementById('cekOngkir-title').textContent = 'Estimasi ongkir POS Indonesia ke kode pos: ' + input;
+      document.getElementById('cekOngkir-table').innerHTML = `
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          <thead><tr>
+            <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border)">Layanan</th>
+            <th style="text-align:right;padding:8px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border)">Harga</th>
+            <th style="text-align:right;padding:8px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border)">Estimasi</th>
+          </tr></thead>
+          <tbody><tr style="background:var(--success-light)">
+            <td style="padding:10px 12px;font-weight:700">⭐ POS Indonesia — ${posData.serviceName||'Reguler'}</td>
+            <td style="text-align:right;padding:10px 12px;font-family:monospace;font-weight:600;color:var(--success)">Rp${Number(posData.price).toLocaleString('id-ID')}</td>
+            <td style="text-align:right;padding:10px 12px;font-family:monospace;font-size:12px;color:var(--muted)">${posData.estimation||'—'}</td>
+          </tr></tbody>
+        </table>`;
+      document.getElementById('cekOngkir-result').style.display = 'block';
+      badge.classList.remove('show');
+      return;
+    }
+  }
+
+  const kec = input;
   try {
     const result = await cekOngkirRow(kec, 0);
     if (!result || !Object.keys(result).length) {
@@ -3566,6 +3617,26 @@ async function saveResiInput() {
   badge.classList.remove('show');
 }
 
+// ── POS INDONESIA ONGKIR ─────────────────────────────────────────────────────
+const posOngkirCache = {}; // kodepos -> {fee, estimation}
+
+async function getPosOngkir(kodepos) {
+  if (!kodepos) return null;
+  const kp = String(kodepos).trim();
+  if (posOngkirCache[kp]) return posOngkirCache[kp];
+  try {
+    const res  = await fetch('/api/pos-ongkir?receiverzipcode='+encodeURIComponent(kp)+'&weight=100');
+    const json = await res.json();
+    const data = json?.response?.data;
+    if (data && data.totalFee) {
+      const result = { price: data.totalFee, estimation: data.estimation, serviceName: data.serviceName };
+      posOngkirCache[kp] = result;
+      return result;
+    }
+  } catch(e) { console.warn('getPosOngkir error:', e); }
+  return null;
+}
+
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
   const btn  = document.getElementById('btn-toggle-upload');
@@ -3675,8 +3746,14 @@ function renderTable() {
       ${td(row._raw['Keterangan']||row._raw['keterangan'])}
       ${td(row._raw['Rincian Pembayaran']||row._raw['rincian'])}
       ${td(row._raw['Keluhan']||row._raw['keluhan'])}
-      <td style="font-family:monospace;font-size:11px;${row._realOngkir?'color:var(--success)':''}" title="${row._ongkirDate?'Estimasi: '+row._ongkirDate:''}">
-        ${row._realOngkir ? 'Rp'+Number(row._realOngkir).toLocaleString('id-ID') : (row._raw['Real Ongkir']||'')}
+      <td style="font-family:monospace;font-size:11px;${
+  row._realOngkir ? 'color:var(--success)' :
+  row._ongkirError === true ? 'color:var(--muted)' :
+  row._ongkirError === false ? '' : ''
+}" title="${row._ongkirDate?'Estimasi: '+row._ongkirDate : row._ongkirError===true?'Ekspedisi tidak tersedia di rute ini':''}">
+        ${row._realOngkir ? 'Rp'+Number(row._realOngkir).toLocaleString('id-ID') :
+          row._ongkirError === true ? '<span style="font-size:10px;color:var(--muted)">tidak tersedia</span>' :
+          (row._raw['Real Ongkir']||'')}
       </td>
       <td style="font-family:monospace;font-size:11px;text-align:right;${(function(){
   const rincian = row._raw['Rincian Pembayaran']||row._raw['rincian']||'';
