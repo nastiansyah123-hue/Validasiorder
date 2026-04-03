@@ -1486,7 +1486,7 @@ async function doValidasiHarian() {
         _kpExists = false;
       }
 
-      const _hpStat = hpRturCount[normalizeHP(String(row.hp||'')];
+      const _hpStat = hpRturCount[normalizeHP(String(row.hp||''))];
       const _rtsCount = _hpStat ? _hpStat.retur : 0;
       // Rekomendasi ekspedisi dari cache
       const _rekEkspedisi = ekspedisiCache[kp] || '';
