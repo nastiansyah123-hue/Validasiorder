@@ -1416,7 +1416,7 @@ async function doValidasiHarian() {
     badge.textContent = 'mengecek RTS...';
     const resiToCheck = new Set();
     orderBaruRaw.forEach(row => {
-      const hp = normalizeHP(row.hp||'');
+      const hp = normalizeHP(String(row.hp||'');
       if (hp && hpIndex[hp]) hpIndex[hp].forEach(m => { if(m.resi) resiToCheck.add(m.resi.trim().toLowerCase()); });
     });
     // Hitung total RTS per HP dari allOrderan (normalize HP saat counting)
@@ -1449,7 +1449,7 @@ async function doValidasiHarian() {
 
     // 5. Gabungkan
     validatedData = orderBaruRaw.map(row => {
-      const hp = normalizeHP(row.hp||'');
+      const hp = normalizeHP(String(row.hp||'');
       const matches = hp && hpIndex[hp] ? hpIndex[hp] : [];
       const isDup = matches.length > 0;
 
@@ -1486,7 +1486,7 @@ async function doValidasiHarian() {
         _kpExists = false;
       }
 
-      const _hpStat = hpRturCount[normalizeHP(row.hp||'')];
+      const _hpStat = hpRturCount[normalizeHP(String(row.hp||'')];
       const _rtsCount = _hpStat ? _hpStat.retur : 0;
       // Rekomendasi ekspedisi dari cache
       const _rekEkspedisi = ekspedisiCache[kp] || '';
@@ -2145,7 +2145,7 @@ function restoreState() {
       gradeMap = JSON.parse(savedGrade);
       // Re-apply grades to validatedData
       validatedData.forEach(row => {
-        const hp = normalizeHP(row.hp||'');
+        const hp = normalizeHP(String(row.hp||'');
         const hpStrip = hp.replace(/^0+/,'');
         const grade = gradeMap[hp] || gradeMap[hpStrip] || gradeMap['0'+hpStrip] || '';
         if (grade) { row._grade = grade; row._raw['Grade'] = grade; }
@@ -2211,7 +2211,7 @@ function applyGradeToTable() {
   });
 
   validatedData.forEach(row => {
-    const hp = normalizeHP(row.hp||'');
+    const hp = normalizeHP(String(row.hp||'');
     const grade = normalizedGradeMap[hp] || '';
     if (grade) {
       row._grade = grade;
@@ -3714,7 +3714,7 @@ function renderTable() {
     const rtsCountBadge = row._rtsCount > 0
       ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;font-family:monospace;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">${row._rtsCount}x RTS</span>`
       : '';
-    const rtsClickAttr = (row._isRetur || row._rtsInfo) ? `onclick="showRTSDetail('${(row.hp||'').replace(/'/g,"\\'")}','${(row.nama||'').replace(/'/g,"\\'")}',${filteredData.indexOf(row)})" style="cursor:pointer;font-size:11px;font-family:monospace;color:var(--c-warn)"` : '';
+    const rtsClickAttr = (row._isRetur || row._rtsInfo) ? `onclick="showRTSDetail('${String(row.hp||'').replace(/'/g,"\\'")}','${String(row.nama||'').replace(/'/g,"\\'")}',${filteredData.indexOf(row)})" style="cursor:pointer;font-size:11px;font-family:monospace;color:var(--c-warn)"` : '';
     const returADSY = row._rtsInfo
       ? `<span ${rtsClickAttr} title="Klik untuk lihat detail RTS">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}${rtsCountBadge} 🔍</span>`
       : (row._isRetur ? `<span ${rtsClickAttr} title="Klik untuk lihat detail RTS">Pernah RTS${rtsCountBadge} 🔍</span>` : '');
