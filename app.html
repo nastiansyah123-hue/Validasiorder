@@ -903,6 +903,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <select id="lacak-ekspedisi" class="filter-select" style="width:130px">
           <option value="JNE">JNE</option>
           <option value="JT">JNT</option>
+          <option value="POS">POS Indonesia</option>
           <option value="SiCepat">SiCepat</option>
           <option value="lion">Lion</option>
           <option value="SAP">SAP</option>
@@ -3475,6 +3476,49 @@ async function lacakPaket(resi, ekspedisi) {
   if (resultEl) { resultEl.style.display='none'; }
   if (emptyEl)  { emptyEl.style.display='none'; }
 
+  // POS Indonesia gunakan API bosampuh
+  if (eksVal === 'POS' || eksVal.toLowerCase().includes('pos')) {
+    try {
+      const posRes  = await fetch('/api/pos-tracking?resi='+encodeURIComponent(resiVal));
+      const posJson = await posRes.json();
+      if (posJson.success && posJson.data) {
+        const d = posJson.data;
+        const state = d.connote_state||'';
+        const stateColor = state==='DELIVERED'?'var(--success)':state.includes('RETURN')?'var(--danger)':'var(--warn)';
+        const history = (d.connote_history||[]).slice().reverse();
+        if (resultEl) {
+          document.getElementById('lacak-resi-title').textContent = resiVal + ' (POS Indonesia)';
+          document.getElementById('lacak-receiver').textContent = (d.connote_receiver_name||'') + ' — ' + (d.connote_receiver_zipcode||'');
+          document.getElementById('lacak-status-badge').innerHTML = '<span style="font-size:14px;font-weight:700;color:'+stateColor+';font-family:monospace">'+state+'</span>';
+          document.getElementById('lacak-info').innerHTML = [
+            ['Pengirim', d.connote_sender_name||'—'],
+            ['Layanan', d.connote_service||'—'],
+            ['Ongkir', d.connote_service_price ? 'Rp'+Number(d.connote_service_price).toLocaleString('id-ID') : '—'],
+          ].map(([k,v]) => `<div style="background:var(--bg-2);padding:10px 12px;border-radius:8px"><div style="font-size:10px;color:var(--muted);font-family:monospace;text-transform:uppercase">${k}</div><div style="font-size:13px;font-weight:600;margin-top:2px">${v}</div></div>`).join('');
+          document.getElementById('lacak-history').innerHTML = history.map((h,i) => {
+            if (!h.content && !h.content2) return '';
+            const isFirst = i === 0;
+            const dotColor = isFirst ? stateColor : 'var(--border-strong)';
+            return `<div style="display:flex;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border);align-items:flex-start">
+              <div style="width:8px;height:8px;border-radius:50%;background:${dotColor};margin-top:5px;flex-shrink:0"></div>
+              <div style="flex:1">
+                <div style="font-size:11px;color:var(--muted);font-family:monospace">${h.date||''}</div>
+                <div style="font-size:11px;font-weight:600;color:var(--muted);margin-top:1px">${h.location_name||''}</div>
+                <div style="font-size:12px;${isFirst?'font-weight:600':''}margin-top:2px">${h.content||''}</div>
+                ${h.reason_delivery ? `<div style="font-size:11px;color:var(--danger);margin-top:2px">⚠ ${h.reason_delivery}</div>` : ''}
+              </div>
+            </div>`;
+          }).filter(Boolean).join('');
+          resultEl.style.display = 'block';
+        }
+      } else {
+        if (emptyEl) emptyEl.style.display = 'block';
+      }
+    } catch(e) { showToast('Error POS: '+e.message,'error'); }
+    if (badge) badge.classList.remove('show');
+    return;
+  }
+
   try {
     const res  = await fetch(`/api/tracking?tracking_number=${encodeURIComponent(resiVal)}&courier=${encodeURIComponent(eksVal)}`);
     const json = await res.json();
@@ -3739,8 +3783,11 @@ function initStatusDropzone() {
       const keys = Object.keys(row);
       const hpKey   = keys.find(k => k.toLowerCase().replace(/\s/g,'').includes('hp')||k.toLowerCase().includes('telp')||k.toLowerCase().includes('nomor')||k.toLowerCase().includes('phone'));
       const resiKey = keys.find(k => k.toLowerCase().includes('resi')||k.toLowerCase().includes('awb')||k.toLowerCase().includes('tracking'));
-      return { hp: String(row[hpKey]||'').trim(), resi: String(row[resiKey]||'').trim() };
-    }).filter(r => r.resi);
+      // Fix scientific notation for long resi numbers
+      let resiVal = row[resiKey];
+      if (typeof resiVal === 'number') resiVal = resiVal.toFixed(0);
+      return { hp: String(row[hpKey]||'').trim(), resi: String(resiVal||'').trim() };
+    }).filter(r => r.resi && r.resi !== '0');
     setStatus(document.getElementById('status-resi-file'), 'ok', `✓ ${resiStatusParsed.length} resi dari ${fname}`);
     document.getElementById('btn-save-resi-status').disabled = false;
   });
@@ -3922,7 +3969,26 @@ async function updateStatusOtomatis() {
           let newCRM = '', newStatus = '';
 
           if (eks === 'POS Indonesia') {
-            // POS tidak support tracking via Mengantar, skip
+            // POS tracking via bosampuh.id
+            try {
+              const posRes  = await fetch('/api/pos-tracking?resi='+encodeURIComponent(row.resi));
+              const posJson = await posRes.json();
+              if (posJson.success && posJson.data) {
+                const posState = (posJson.data.connote_state||'').toUpperCase();
+                const hasFailedAttempt = posJson.data.pod && posJson.data.pod.reason_onprocess && Object.keys(posJson.data.pod.reason_onprocess).length > 0;
+                let newCRM = '', newStatus = '';
+                if (posState === 'DELIVERED') { newCRM='DELIVERED'; newStatus='DELIVERED'; }
+                else if (posState.includes('RETURN')) { newCRM='RETUR'; newStatus='RETUR'; }
+                else if (posState === 'ON PROCESS' || hasFailedAttempt) { newCRM='UNDELL'; }
+                else { newCRM = 'ON PROSES'; }
+                if (newCRM && newCRM !== row.update_crm) {
+                  const upd = { update_crm: newCRM };
+                  if (newStatus) upd.status_akhir = newStatus;
+                  await sb.from('all_orderan').update(upd).eq('id', row.id);
+                  updated++;
+                }
+              }
+            } catch(e) { errors++; }
             done++; return;
           }
 
