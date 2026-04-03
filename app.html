@@ -684,32 +684,19 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <!-- Resi Input Section -->
     <div id="db-resi-section" style="display:none">
       <div class="card" style="margin-bottom:1rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-          <div>
-            <div class="card-title">Input Resi Orderan</div>
-            <div class="card-desc">Isi nomor resi untuk orderan ON PROSES dari hasil validasi</div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn-primary" onclick="saveResiInput()" style="font-size:12px">💾 Simpan Resi</button>
-            <span class="loading-badge" id="loading-resi-input">menyimpan...</span>
-          </div>
+        <div class="card-title" style="margin-bottom:0.5rem">Upload File Resi</div>
+        <div class="card-desc" style="margin-bottom:1rem">Upload file CSV/XLSX berisi kolom <b>HP</b> (atau No) dan <b>Resi</b>. Sistem akan otomatis cocokkan ke orderan ON PROSES.</div>
+        <div class="drop-zone" id="dz-resi-upload">
+          <input type="file" id="file-resi-upload" accept=".csv,.xlsx,.xls" />
+          <div class="drop-zone-icon">📋</div>
+          <div class="drop-zone-text">Upload file resi<br><span>.csv / .xlsx — kolom: HP + Resi</span></div>
         </div>
-        <div class="table-wrap">
-          <div class="table-scroll" style="max-height:500px">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tanggal</th><th>No</th><th>Nama</th><th>HP</th>
-                  <th>Ekspedisi</th><th>Kabupaten</th>
-                  <th style="color:var(--accent)">Resi</th>
-                </tr>
-              </thead>
-              <tbody id="resi-input-tbody">
-                <tr><td colspan="7" class="empty-state">Memuat data ON PROSES...</td></tr>
-              </tbody>
-            </table>
-          </div>
+        <div id="status-resi-upload" class="drop-status"></div>
+        <div style="margin-top:1rem;display:flex;gap:8px;align-items:center">
+          <button class="btn-primary" id="btn-save-resi" disabled onclick="saveResiFromFile()" style="font-size:12px">💾 Simpan Resi ke Database</button>
+          <span class="loading-badge" id="loading-resi-input">menyimpan...</span>
         </div>
+        <div id="resi-match-info" style="font-size:12px;color:var(--muted);font-family:monospace;margin-top:8px"></div>
       </div>
     </div>
 
@@ -3536,80 +3523,73 @@ function switchDashboardTab(tab) {
   }
 }
 
-async function loadResiInput() {
-  const tbody = document.getElementById('resi-input-tbody');
-  tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Memuat...</td></tr>';
+let resiFileParsed = []; // [{hp, resi}]
+
+function loadResiInput() {
+  // Setup dropzone for resi file
+  setupDropzone('dz-resi-upload', 'file-resi-upload', 'resi-upload', (data, fname) => {
+    resiFileParsed = data.map(row => {
+      const keys = Object.keys(row);
+      const hpKey   = keys.find(k => k.toLowerCase().replace(/\s/g,'').includes('hp') || k.toLowerCase().includes('telp') || k.toLowerCase().includes('nomor') || k.toLowerCase().includes('phone'));
+      const resiKey = keys.find(k => k.toLowerCase().includes('resi') || k.toLowerCase().includes('awb') || k.toLowerCase().includes('tracking'));
+      const noKey   = keys.find(k => k.toLowerCase() === 'no' || k.toLowerCase() === 'no.');
+      return {
+        hp  : String(row[hpKey]||'').trim(),
+        no  : String(row[noKey]||'').trim(),
+        resi: String(row[resiKey]||'').trim()
+      };
+    }).filter(r => r.resi);
+
+    const infoEl = document.getElementById('resi-match-info');
+    infoEl.textContent = `✓ ${resiFileParsed.length} data resi dimuat dari ${fname}`;
+    infoEl.style.color = 'var(--success)';
+    document.getElementById('btn-save-resi').disabled = false;
+    setStatus(document.getElementById('status-resi-upload'), 'ok', `✓ ${resiFileParsed.length} resi siap disimpan`);
+  });
+}
+
+async function saveResiFromFile() {
+  if (!resiFileParsed.length) return showToast('Upload file resi dulu!', 'error');
+  const badge = document.getElementById('loading-resi-input');
+  badge.classList.add('show');
 
   try {
-    // Ambil semua ON PROSES dari hasil validasi (sumber = validasi)
-    let all = [], from = 0;
+    // Fetch semua ON PROSES dari all_orderan
+    let allOnProses = [], from = 0;
     while (true) {
       const { data, error } = await sb.from('all_orderan')
-        .select('id,no,nama,hp,tanggal,pembayaran,kabupaten,resi,sumber')
+        .select('id,hp,no')
         .eq('status_akhir','ON PROSES')
-        .eq('sumber','validasi')
-        .order('tanggal', { ascending: false })
         .range(from, from+999);
       if (error) throw error;
       if (!data||!data.length) break;
-      all.push(...data);
+      allOnProses.push(...data);
       if (data.length < 1000) break;
       from += 1000;
     }
 
-    resiInputData = all;
+    // Build HP index dari all_orderan
+    const hpIndex = {};
+    allOnProses.forEach(r => {
+      const hp = normalizeHP(String(r.hp||''));
+      if (hp) hpIndex[hp] = r.id;
+    });
 
-    if (!all.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Tidak ada orderan ON PROSES dari validasi</td></tr>';
-      return;
+    // Match dan update
+    let matched = 0, updated = 0;
+    for (const row of resiFileParsed) {
+      const hp = normalizeHP(row.hp);
+      const id = hpIndex[hp];
+      if (!id || !row.resi) continue;
+      matched++;
+      const { error } = await sb.from('all_orderan').update({ resi: row.resi }).eq('id', id);
+      if (!error) updated++;
     }
 
-    tbody.innerHTML = all.map((r,i) => {
-      const eks = extractEkspedisi(r.pembayaran||'');
-      return `<tr style="border-bottom:0.5px solid var(--border)">
-        <td style="font-family:monospace;font-size:11px;color:var(--muted)">${r.tanggal||''}</td>
-        <td style="font-family:monospace;font-size:11px">${r.no||''}</td>
-        <td style="font-size:12px">${r.nama||''}</td>
-        <td style="font-family:monospace">${r.hp||''}</td>
-        <td style="font-family:monospace;font-size:12px;font-weight:600">${eks||'—'}</td>
-        <td style="font-size:11px">${r.kabupaten||''}</td>
-        <td><input type="text" class="resi-input-field" data-id="${r.id}"
-          value="${r.resi||''}"
-          placeholder="input resi..."
-          style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:monospace;width:160px">
-        </td>
-      </tr>`;
-    }).join('');
-
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Error: '+e.message+'</td></tr>';
-  }
-}
-
-async function saveResiInput() {
-  const badge = document.getElementById('loading-resi-input');
-  badge.classList.add('show');
-
-  const inputs = [...document.querySelectorAll('.resi-input-field')].filter(el => el.value.trim());
-  if (!inputs.length) {
-    showToast('Belum ada resi yang diisi', 'error');
-    badge.classList.remove('show');
-    return;
-  }
-
-  let saved = 0;
-  try {
-    for (const input of inputs) {
-      const id   = parseInt(input.dataset.id);
-      const resi = input.value.trim();
-      if (!id || !resi) continue;
-      const { error } = await sb.from('all_orderan').update({ resi }).eq('id', id);
-      if (!error) {
-        saved++;
-        input.style.borderColor = 'var(--success)';
-      }
-    }
-    showToast(`✓ ${saved} resi berhasil disimpan!`, 'success');
+    const infoEl = document.getElementById('resi-match-info');
+    infoEl.textContent = `✓ ${updated} resi berhasil disimpan dari ${resiFileParsed.length} data (${matched} cocok)`;
+    infoEl.style.color = updated > 0 ? 'var(--success)' : 'var(--warn)';
+    showToast(`✓ ${updated} resi tersimpan!`, 'success');
   } catch(e) {
     showToast('Error: '+e.message, 'error');
   }
