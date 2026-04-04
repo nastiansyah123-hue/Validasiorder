@@ -3376,7 +3376,11 @@ function onGradeChkChange() {
 
 
 // ── RTS DETAIL MODAL ─────────────────────────────────────────────────────────
-async function showRTSDetail(hp, nama, rowIdx) {
+async function showRTSDetail(rowIdx) {
+  const rowData = filteredData[rowIdx];
+  if (!rowData) return;
+  const hp   = String(rowData.hp||'');
+  const nama = String(rowData.nama||'');
   const modal = document.getElementById('rts-modal');
   const title = document.getElementById('rts-modal-title');
   const hpEl  = document.getElementById('rts-modal-hp');
@@ -4127,7 +4131,8 @@ function renderTable() {
     const rtsCountBadge = row._rtsCount > 0
       ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;font-family:monospace;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">${row._rtsCount}x RTS</span>`
       : '';
-    const rtsClickAttr = (row._isRetur || row._rtsInfo) ? 'onclick="showRTSDetail(' + JSON.stringify(String(row.hp||'')) + ',' + JSON.stringify(String(row.nama||'')) + ',' + filteredData.indexOf(row) + ')" style="cursor:pointer;font-size:11px;font-family:monospace;color:var(--c-warn)"' : '';
+    const _rtsIdx = filteredData.indexOf(row);
+    const rtsClickAttr = (row._isRetur || row._rtsInfo) ? `onclick="showRTSDetail(${_rtsIdx})" style="cursor:pointer;font-size:11px;font-family:monospace;color:var(--c-warn)"` : '';
     const returADSY = row._rtsInfo
       ? `<span ${rtsClickAttr} title="Klik untuk lihat detail RTS">${row._rtsInfo.reason||row._rtsInfo.status||'RTS'}${rtsCountBadge} 🔍</span>`
       : (row._isRetur ? `<span ${rtsClickAttr} title="Klik untuk lihat detail RTS">Pernah RTS${rtsCountBadge} 🔍</span>` : '');
