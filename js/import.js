@@ -37,7 +37,7 @@ function processFile(file, type, onSuccess) {
         const wb   = XLSX.read(e.target.result, { type: 'array' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rng  = rangeEl ? rangeEl.value.trim() : '';
-        const opts = rng ? { range: rng, defval: '' } : { defval: '' };
+        const opts = rng ? { range: rng, defval: '', raw: false } : { defval: '', raw: false };
         data = XLSX.utils.sheet_to_json(ws, opts);
       } else {
         throw new Error('Format file tidak didukung. Gunakan CSV atau XLSX.');
