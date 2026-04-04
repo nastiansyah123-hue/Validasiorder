@@ -3915,7 +3915,12 @@ function filterStatusTable(crm) {
   const q   = (document.getElementById('status-search')?.value||'').toLowerCase();
 
   statusFiltered = statusAllData.filter(r => {
-    if (f !== 'all' && r.update_crm !== f) return false;
+    if (f !== 'all') {
+      const crm = r.update_crm||'';
+      if (f === 'ON PROSES') { if (!(!crm || crm === 'ON PROSES' || crm.startsWith('ON PROSES ('))) return false; }
+      else if (f === 'UNDELL') { if (!(crm === 'UNDELL' || crm.startsWith('UNDELL ('))) return false; }
+      else if (crm !== f) return false;
+    }
     if (eks !== 'all') {
       const rEks = extractEkspedisi(r.pembayaran||'');
       if (!rEks.toLowerCase().includes(eks.toLowerCase())) return false;
