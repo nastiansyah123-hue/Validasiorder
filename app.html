@@ -3827,7 +3827,8 @@ async function loadStatusSummary() {
       if (final === 'DELIVERED' || crm === 'DELIVERED') counts['DELIVERED']++;
       else if (final === 'RETUR' || crm.toUpperCase().includes('RETURN') || crm === 'RETUR') counts['RETUR']++;
       else if (crm === 'ON PROSES' || crm === '' || crm === null) counts['ON PROSES']++;
-      else counts['UNDELL']++; // semua status lain = undell/proses antar
+      else if (crm === 'UNDELL' || crm === 'DEX' || crm.startsWith('UNDELL (')) counts['UNDELL']++;
+      else counts['ON PROSES']++; // status lain masih dalam perjalanan
     });
     const { count: total } = await sb.from('all_orderan').select('*',{count:'exact',head:true}).eq('sumber','validasi');
 
@@ -4008,10 +4009,18 @@ async function updateStatusOtomatis() {
 
           if (json.success && json.data) {
             const apiStatus = json.data.statusCategory || json.data.status || '';
-            // Pakai status asli dari API
-            newCRM = apiStatus;
-            if (apiStatus === 'DELIVERED') newStatus = 'DELIVERED';
-            else if (apiStatus.includes('RETUR') || apiStatus.includes('RETURN')) newStatus = 'RETUR';
+            // Map status API ke CRM
+            if (apiStatus === 'DELIVERED') { newCRM = 'DELIVERED'; newStatus = 'DELIVERED'; }
+            else if (apiStatus.includes('RETUR') || apiStatus.includes('RETURN')) { newCRM = 'RETUR'; newStatus = 'RETUR'; }
+            else if (apiStatus === 'DEX' || apiStatus === 'UNDELIVERED' || apiStatus === 'FAILED') {
+              // Ambil alasan dari history terakhir yang gagal antar
+              const failHistory = (json.data.history||[]).filter(h =>
+                h.code && (h.code.includes('DEX') || h.code.includes('UNDEL') || h.code.includes('FAIL') || h.code.includes('RETURN'))
+              ).pop();
+              const reason = failHistory ? failHistory.desc.replace(/^(DEX|UNDELIVERED|UNDEL|FAILED)\s*/i,'').trim() : (json.data.SPECIAL_INS||'');
+              newCRM = reason ? 'UNDELL (' + reason.slice(0,150) + ')' : 'UNDELL';
+            }
+            else { newCRM = apiStatus; }
 
             if (newCRM && newCRM !== row.update_crm) {
               const updateData = { update_crm: newCRM };
