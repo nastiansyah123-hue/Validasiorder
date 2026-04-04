@@ -294,12 +294,6 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-cekOngkir" onclick="switchPage('cekOngkir')">
       <span class="nav-icon">🚚</span> Cek Ongkir
     </div>
-    <div class="nav-item" id="nav-lacak" onclick="switchPage('lacak')">
-      <span class="nav-icon">📦</span> Lacak Paket
-    </div>
-    <div class="nav-item" id="nav-status" onclick="switchPage('status')">
-      <span class="nav-icon">📦</span> Status Pengiriman
-    </div>
     <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
       <span class="nav-icon">📖</span> Panduan
     </div>
@@ -887,180 +881,6 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
-  <!-- PAGE: LACAK PAKET -->
-  <div class="page" id="page-lacak">
-    <div class="page-header">
-      <div class="page-title">Lacak Paket</div>
-      <div class="page-sub">Cek status pengiriman dan update otomatis ke Data Master</div>
-    </div>
-
-    <!-- Manual tracking -->
-    <div class="card" style="max-width:600px;margin-bottom:1.25rem">
-      <div class="card-title" style="margin-bottom:0.75rem">Lacak Manual</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input id="lacak-resi" type="text" class="search-input" placeholder="Nomor resi..." style="flex:1;min-width:180px"
-          onkeydown="if(event.key==='Enter') lacakPaket()" />
-        <select id="lacak-ekspedisi" class="filter-select" style="width:130px">
-          <option value="JNE">JNE</option>
-          <option value="JT">JNT</option>
-          <option value="POS">POS Indonesia</option>
-          <option value="SiCepat">SiCepat</option>
-          <option value="lion">Lion</option>
-          <option value="SAP">SAP</option>
-          <option value="anteraja">Anteraja</option>
-          <option value="Ninja">Ninja</option>
-          <option value="iDexpress">IDX</option>
-        </select>
-        <button class="btn-primary" onclick="lacakPaket()">Lacak</button>
-        <span class="loading-badge" id="loading-lacak">melacak...</span>
-      </div>
-    </div>
-
-    <!-- Tracking result -->
-    <div id="lacak-result" style="display:none">
-      <div class="card" style="margin-bottom:1rem">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
-          <div>
-            <div style="font-size:15px;font-weight:700" id="lacak-resi-title"></div>
-            <div style="font-size:12px;color:var(--muted);font-family:monospace" id="lacak-receiver"></div>
-          </div>
-          <div id="lacak-status-badge"></div>
-        </div>
-        <div id="lacak-info" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem"></div>
-        <div id="lacak-history"></div>
-      </div>
-    </div>
-    <div id="lacak-empty" style="display:none;text-align:center;padding:3rem;color:var(--muted);font-size:14px">
-      Resi tidak ditemukan.
-    </div>
-
-    <!-- Batch update -->
-    <div class="card">
-      <div class="card-title" style="margin-bottom:0.5rem">Update Otomatis Status Pengiriman</div>
-      <div class="card-desc" style="margin-bottom:1rem">Cek semua orderan ON PROSES di Data Master dan update status ke DELIVERED/RETUR otomatis.</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn-primary" onclick="updateBatchTracking()" id="btn-batch-tracking">🔄 Update Semua ON PROSES</button>
-        <span class="loading-badge" id="loading-batch-tracking">mengecek...</span>
-      </div>
-      <div style="margin-top:10px">
-        <div id="batch-tracking-progress" style="display:none;align-items:center;gap:8px;font-size:11px;font-family:monospace">
-          <div style="width:200px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
-            <div id="batch-tracking-bar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.3s"></div>
-          </div>
-          <span id="batch-tracking-text">0/0</span>
-        </div>
-        <div id="batch-tracking-result" style="margin-top:8px;font-size:12px"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- PAGE: STATUS PENGIRIMAN -->
-  <div class="page" id="page-status">
-    <div class="page-header">
-      <div class="page-title">Status Pengiriman</div>
-      <div class="page-sub">Monitor dan update status pengiriman orderan</div>
-    </div>
-
-    <!-- Summary cards -->
-    <div id="status-summary" style="display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;margin-bottom:1.25rem">
-      <div class="sum-card c-total" onclick="filterStatusTable('all')" style="cursor:pointer">
-        <div class="s-label">Total Kiriman</div>
-        <div class="s-value" id="st-total">—</div>
-      </div>
-      <div class="sum-card c-rts" onclick="filterStatusTable('ON PROSES')" style="cursor:pointer">
-        <div class="s-label">On Proses</div>
-        <div class="s-value" id="st-onproses" style="color:var(--warn)">—</div>
-      </div>
-      <div class="sum-card" onclick="filterStatusTable('UNDELL')" style="cursor:pointer;border:1px solid var(--border)">
-        <div class="s-label">Undell</div>
-        <div class="s-value" id="st-undell" style="color:#f59e0b">—</div>
-      </div>
-      <div class="sum-card c-aman" onclick="filterStatusTable('DELIVERED')" style="cursor:pointer">
-        <div class="s-label">Delivered</div>
-        <div class="s-value" id="st-delivered" style="color:var(--success)">—</div>
-      </div>
-      <div class="sum-card c-dupall" onclick="filterStatusTable('RETUR')" style="cursor:pointer">
-        <div class="s-label">Retur</div>
-        <div class="s-value" id="st-retur" style="color:var(--danger)">—</div>
-      </div>
-    </div>
-
-    <!-- Upload resi + Update otomatis -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem">
-      <div class="card">
-        <div class="card-title" style="margin-bottom:0.5rem">Upload File Resi</div>
-        <div class="card-desc" style="margin-bottom:0.75rem">Kolom: HP + Resi</div>
-        <div class="drop-zone" id="dz-resi-status" style="padding:1rem">
-          <input type="file" id="file-resi-status" accept=".csv,.xlsx,.xls" />
-          <div class="drop-zone-icon" style="font-size:24px">📋</div>
-          <div class="drop-zone-text">Upload file resi<br><span>.csv / .xlsx</span></div>
-        </div>
-        <div id="status-resi-file" class="drop-status"></div>
-        <button class="btn-primary" id="btn-save-resi-status" disabled onclick="saveResiStatus()" style="margin-top:0.75rem;font-size:12px;width:100%">💾 Simpan Resi</button>
-        <span class="loading-badge" id="loading-resi-status">menyimpan...</span>
-      </div>
-      <div class="card">
-        <div class="card-title" style="margin-bottom:0.5rem">Update Status Otomatis</div>
-        <div class="card-desc" style="margin-bottom:0.75rem">Cek semua resi via API Mengantar & POS Indonesia</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:0.75rem">
-          <button class="btn-primary" onclick="updateStatusOtomatis()" id="btn-update-status">🔄 Update Semua</button>
-          <button class="btn-secondary" onclick="loadStatusSummary()" style="font-size:12px">↻ Refresh</button>
-        </div>
-        <div id="status-update-progress" style="display:none;align-items:center;gap:8px;font-size:11px;font-family:monospace">
-          <div style="width:160px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
-            <div id="status-update-bar" style="height:100%;background:var(--accent);border-radius:3px;width:0%;transition:width 0.3s"></div>
-          </div>
-          <span id="status-update-text">0/0</span>
-        </div>
-        <div id="status-update-result" style="margin-top:8px;font-size:12px"></div>
-      </div>
-    </div>
-
-    <!-- Filter + Table -->
-    <div class="action-bar">
-      <select class="filter-select" id="status-filter-crm" onchange="filterStatusTable()">
-        <option value="all">Semua Status</option>
-        <option value="ON PROSES">On Proses</option>
-        <option value="DELIVERED">Delivered</option>
-        <option value="RETUR">Retur</option>
-        <option value="UNDELL">Undell</option>
-      </select>
-      <select class="filter-select" id="status-filter-eks" onchange="filterStatusTable()">
-        <option value="all">Semua Ekspedisi</option>
-        <option value="JNE">JNE</option>
-        <option value="JNT">JNT</option>
-        <option value="SiCepat">SiCepat</option>
-        <option value="Lion">Lion</option>
-        <option value="POS">POS</option>
-        <option value="SAP">SAP</option>
-        <option value="Ninja">Ninja</option>
-      </select>
-      <input class="search-input" id="status-search" type="text" placeholder="Cari nama / HP / resi..." oninput="filterStatusTable()" />
-      <span class="spacer"></span>
-      <span id="status-count" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
-    </div>
-    <div class="table-wrap">
-      <div class="table-scroll" style="max-height:calc(100vh - 420px)">
-        <table>
-          <thead>
-            <tr>
-              <th>Tanggal</th><th>No</th><th>Nama</th><th>HP</th>
-              <th>Ekspedisi</th><th>Resi</th><th>Kabupaten</th>
-              <th>Update CRM</th><th>Status Akhir</th>
-            </tr>
-          </thead>
-          <tbody id="status-tbody">
-            <tr><td colspan="9" class="empty-state">Klik Refresh untuk memuat data</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="pagination">
-        <span id="status-page-info">—</span>
-        <div id="status-page-btns"></div>
-      </div>
-    </div>
-  </div>
-
   <!-- PAGE: PANDUAN -->
   <div class="page" id="page-panduan">
     <div class="page-header">
@@ -1292,7 +1112,7 @@ function switchPage(name) {
   }
   // Save current page
   sessionStorage.setItem('vo_current_page', name);
-  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','lacak','status','panduan'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
@@ -1300,8 +1120,7 @@ function switchPage(name) {
   });
   if (name === 'statistik') loadStatistik();
   if (name === 'dashboard') initDashboard();
-  if (name === 'status') { loadStatusSummary(); initStatusDropzone(); }
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', lacak:'Lacak Paket', status:'Status Pengiriman', panduan:'Panduan'};
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -2091,7 +1910,7 @@ async function cekHP() {
     const { data, error } = await sb.from('all_orderan')
       .select('tanggal,nama,resi,status_akhir,kodepos,kabupaten,provinsi,cs,adv,jumlah,instruksi')
       .or('hp.eq.' + hp + ',hp.eq.' + hpStrip)
-      .order('tanggal', { ascending: false });
+      .eq('sumber','validasi').order('tanggal', { ascending: false });
     if (error) throw error;
     if (!data || !data.length) {
       document.getElementById('cekHP-empty').style.display = 'block';
@@ -3879,8 +3698,7 @@ async function loadStatusTable() {
   const crmFilter = document.getElementById('status-filter-crm')?.value || 'all';
   let query = sb.from('all_orderan')
     .select('id,no,nama,hp,tanggal,pembayaran,resi,kabupaten,update_crm,status_akhir')
-    .eq('sumber','validasi')
-    .order('tanggal', { ascending: false });
+    .eq('sumber','validasi').order('tanggal', { ascending: false });
   if (crmFilter === 'ON PROSES') {
     query = query.or('update_crm.eq.ON PROSES,update_crm.like.ON PROSES (%)');
   } else if (crmFilter === 'UNDELL') {
