@@ -1023,7 +1023,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <option value="ON PROSES">On Proses</option>
         <option value="DELIVERED">Delivered</option>
         <option value="RETUR">Retur</option>
-        <option value="__undell__">Sedang Diantar/Undell</option>
+        <option value="UNDELL">Undell</option>
       </select>
       <select class="filter-select" id="status-filter-eks" onchange="filterStatusTable()">
         <option value="all">Semua Ekspedisi</option>
@@ -3881,8 +3881,11 @@ async function loadStatusTable() {
     .select('id,no,nama,hp,tanggal,pembayaran,resi,kabupaten,update_crm,status_akhir')
     .eq('sumber','validasi')
     .order('tanggal', { ascending: false });
-  if (crmFilter === '__undell__') {
-    // semua yang bukan ON PROSES, DELIVERED, RETUR
+  if (crmFilter === 'ON PROSES') {
+    query = query.or('update_crm.eq.ON PROSES,update_crm.like.ON PROSES (%)');
+  } else if (crmFilter === 'UNDELL') {
+    query = query.or('update_crm.eq.UNDELL,update_crm.like.UNDELL (%)');
+  } else if (crmFilter === '__undell__') {
     query = query.not('update_crm','in','("ON PROSES","DELIVERED","RETUR","")');
   } else if (crmFilter !== 'all') {
     query = query.eq('update_crm', crmFilter);
