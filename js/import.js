@@ -111,7 +111,13 @@ function normalizeResi(r) {
 function getCol(row, ...candidates) {
   for (const c of candidates) {
     const found = Object.keys(row).find(k => k.toLowerCase().replace(/\s/g,'') === c.toLowerCase().replace(/\s/g,''));
-    if (found && row[found] !== undefined && row[found] !== '') return row[found];
+    if (found && row[found] !== undefined && row[found] !== '') {
+      const val = row[found];
+      // Fix scientific notation for numeric values (e.g. resi)
+      if (typeof val === 'number') return Math.round(val).toString();
+      if (typeof val === 'string' && /\d+\.\d+E[+\-]\d+/i.test(val)) return Math.round(parseFloat(val)).toString();
+      return val;
+    }
   }
   return '';
 }
