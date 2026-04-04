@@ -2503,6 +2503,19 @@ function confirmClearEkspedisi() {
 
 // Load ekspedisi cache for validation
 async function loadEkspedisiCache() {
+  // Check localStorage cache (valid for 24 hours)
+  try {
+    const cached = localStorage.getItem('vo_ekspedisi_cache');
+    if (cached) {
+      const { ts, data } = JSON.parse(cached);
+      if (Date.now() - ts < 24*60*60*1000) {
+        ekspedisiCache = data;
+        console.log('ekspedisi cache dari localStorage:', Object.keys(data).length, 'entries');
+        return;
+      }
+    }
+  } catch(e) {}
+
   ekspedisiCache = {};
   try {
     let from = 0;
@@ -3392,12 +3405,13 @@ async function showRTSDetail(rowIdx) {
   modal.style.display = 'flex';
 
   try {
-    // Fetch all orders for this HP
+    // Fetch orders for this HP - limit to 50
     const hpStrip = hp.replace(/^0+/,'');
     const { data: orders } = await sb.from('all_orderan')
       .select('tanggal,nama,resi,instruksi,pembayaran,jumlah,status_akhir,cs,kodepos,kabupaten,provinsi')
       .or('hp.eq.'+hp+',hp.eq.'+hpStrip)
-      .order('tanggal', { ascending: false });
+      .order('tanggal', { ascending: false })
+      .limit(50);
 
     if (!orders||!orders.length) {
       body.innerHTML = '<p style="color:var(--muted);text-align:center;padding:1rem">Tidak ada riwayat ditemukan.</p>';
@@ -3462,6 +3476,9 @@ document.addEventListener('click', function(e) {
 
 
 // ── LACAK PAKET ───────────────────────────────────────────────────────────────
+const trackingCache = {}; // resi -> {status, timestamp}
+const TRACKING_CACHE_TTL = 30 * 60 * 1000; // 30 menit
+
 const COURIER_MAP = {
   'JNE':'JNE','JNT':'JT','SiCepat':'SiCepat','Lion':'lion',
   'SAP':'SAP','Anteraja':'anteraja','Ninja':'Ninja','IDX':'iDexpress',
@@ -3789,7 +3806,8 @@ function initStatusDropzone() {
       const resiKey = keys.find(k => k.toLowerCase().includes('resi')||k.toLowerCase().includes('awb')||k.toLowerCase().includes('tracking'));
       // Fix scientific notation for long resi numbers
       let resiVal = row[resiKey];
-      if (typeof resiVal === 'number') resiVal = resiVal.toFixed(0);
+      if (typeof resiVal === 'number') resiVal = Math.round(resiVal).toString();
+      else if (typeof resiVal === 'string' && resiVal.includes('E+')) resiVal = Math.round(parseFloat(resiVal)).toString();
       return { hp: String(row[hpKey]||'').trim(), resi: String(resiVal||'').trim() };
     }).filter(r => r.resi && r.resi !== '0');
     setStatus(document.getElementById('status-resi-file'), 'ok', `✓ ${resiStatusParsed.length} resi dari ${fname}`);
@@ -3806,12 +3824,21 @@ async function saveResiStatus() {
     const { data: orders } = await sb.from('all_orderan').select('id,hp').in('hp', hpList.map(h=>h.replace(/^0/,'')));
     const hpIdx = {};
     (orders||[]).forEach(r => { hpIdx[normalizeHP(String(r.hp||''))] = r.id; });
-    let updated = 0;
+    // Batch upsert - update semua sekaligus
+    const updates = [];
     for (const row of resiStatusParsed) {
       const id = hpIdx[normalizeHP(row.hp)];
-      if (!id) continue;
-      const { error } = await sb.from('all_orderan').update({ resi: row.resi }).eq('id', id);
-      if (!error) updated++;
+      if (!id || !row.resi) continue;
+      updates.push({ id, resi: row.resi });
+    }
+
+    let updated = 0;
+    const BATCH = 50;
+    for (let i = 0; i < updates.length; i += BATCH) {
+      await Promise.all(updates.slice(i, i+BATCH).map(async u => {
+        const { error } = await sb.from('all_orderan').update({ resi: u.resi }).eq('id', u.id);
+        if (!error) updated++;
+      }));
     }
     showToast(`✓ ${updated} resi tersimpan!`, 'success');
     loadStatusSummary();
@@ -4008,6 +4035,19 @@ async function updateStatusOtomatis() {
           const courierKey = COURIER_MAP[eks] || eks;
           if (!courierKey || !row.resi) { done++; return; }
 
+          // Check cache
+          const cacheKey = row.resi + '_' + courierKey;
+          const cached = trackingCache[cacheKey];
+          if (cached && (Date.now() - cached.timestamp) < TRACKING_CACHE_TTL) {
+            if (cached.newCRM && cached.newCRM !== row.update_crm) {
+              const upd = { update_crm: cached.newCRM };
+              if (cached.newStatus) upd.status_akhir = cached.newStatus;
+              await sb.from('all_orderan').update(upd).eq('id', row.id);
+              updated++;
+            }
+            done++; return;
+          }
+
           const res  = await fetch('/api/tracking?tracking_number='+encodeURIComponent(row.resi)+'&courier='+encodeURIComponent(courierKey));
           const json = await res.json();
 
@@ -4025,6 +4065,9 @@ async function updateStatusOtomatis() {
               newCRM = reason ? 'UNDELL (' + reason.slice(0,150) + ')' : 'UNDELL';
             }
             else { newCRM = apiStatus; }
+
+            // Save to cache
+            trackingCache[cacheKey] = { newCRM, newStatus, timestamp: Date.now() };
 
             if (newCRM && newCRM !== row.update_crm) {
               const updateData = { update_crm: newCRM };
