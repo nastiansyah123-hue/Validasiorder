@@ -2944,7 +2944,7 @@ async function saveValidasiDetail() {
         pembayaran  : String(r._raw['Pembayaran']||'').slice(0,100),
         instruksi   : String(r._raw['Instruksi Pengiriman']||r._raw['instruksi']||'').slice(0,200),
         resi        : String(r._raw['Resi']||r._raw['RESI']||'').slice(0,100),
-        team        : '',
+        team        : document.getElementById('select-team')?.value || '',
         update_crm  : '',
         status_akhir: 'ON PROSES',
         sumber      : 'validasi',
