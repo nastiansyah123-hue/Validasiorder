@@ -373,7 +373,17 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <button onclick="toggleUploadCard()" id="btn-toggle-upload" title="Sembunyikan/Tampilkan" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:6px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'">▲</button>
       </div>
       <div id="upload-body">
-        <div class="drop-zone" id="dz-baru">
+        <div style="margin-bottom:1rem;display:flex;align-items:center;gap:10px">
+    <label style="font-size:13px;font-weight:600">Team:</label>
+    <select id="select-team" class="filter-select" style="width:160px">
+      <option value="">-- Pilih Team --</option>
+      <option value="Ghazi">Ghazi</option>
+      <option value="Herba">Herba</option>
+      <option value="Zaydan">Zaydan</option>
+    </select>
+    <span id="team-warning" style="font-size:11px;color:var(--danger);display:none">⚠ Pilih team dulu!</span>
+  </div>
+  <div class="drop-zone" id="dz-baru">
           <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" multiple />
           <div class="drop-zone-icon">📥</div>
           <div class="drop-zone-text">Drag & drop atau klik — bisa pilih banyak file<br><span>.csv / .xlsx</span></div>
