@@ -2949,7 +2949,7 @@ async function saveValidasiDetail() {
         status_akhir: 'ON PROSES',
         sumber      : 'validasi',
         retur       : '0',
-          cs          : (String(r._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/Pengirim\s+/i,'').replace(/CS\s*/i,'').trim().slice(0,50),
+          cs          : (String(r._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim().slice(0,50),
         adv         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[1]||'').replace(/Adv\.\s*/i,'').trim().slice(0,50),
         adm         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,50),
       }));
