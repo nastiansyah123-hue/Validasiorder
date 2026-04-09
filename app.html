@@ -1136,6 +1136,7 @@ function switchPage(name) {
     if (nav) nav.classList.toggle('active', t===name);
   });
   if (name === 'statistik') loadStatistik();
+  if (name === 'master') loadCSData();
   if (name === 'dashboard') initDashboard();
   const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
@@ -3971,6 +3972,131 @@ async function updateStatusOtomatis() {
   prog.style.display = 'none';
 }
 
+
+// ── DATA CS ──────────────────────────────────────────────────────────────────
+let csData = []; // cache {id, nama, nomor_wa, aktif}
+let editingCSId = null;
+
+async function loadCSData() {
+  const { data } = await sb.from('data_cs').select('*').order('nama');
+  csData = data || [];
+  renderCSTable();
+}
+
+function renderCSTable() {
+  const tbody = document.getElementById('tbody-cs');
+  if (!tbody) return;
+  if (!csData.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--muted)">Belum ada data CS</td></tr>';
+    return;
+  }
+  tbody.innerHTML = csData.map(cs => `
+    <tr style="border-bottom:0.5px solid var(--border)">
+      <td style="padding:8px 12px;font-size:13px;font-weight:600">${cs.nama}</td>
+      <td style="padding:8px 12px;font-family:monospace;font-size:12px">${cs.nomor_wa}</td>
+      <td style="padding:8px 12px">
+        <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${cs.aktif?'var(--success-light)':'var(--border)'};color:${cs.aktif?'var(--success)':'var(--muted)'}">
+          ${cs.aktif?'Aktif':'Nonaktif'}
+        </span>
+      </td>
+      <td style="padding:8px 12px;display:flex;gap:6px">
+        <button onclick="editCS(${cs.id})" style="background:none;border:1px solid var(--border);padding:3px 8px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--muted)">✏️</button>
+        <button onclick="deleteCS(${cs.id})" style="background:none;border:1px solid var(--border);padding:3px 8px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--danger)">🗑</button>
+      </td>
+    </tr>`).join('');
+}
+
+function showAddCS() {
+  editingCSId = null;
+  document.getElementById('cs-modal-title').textContent = 'Tambah CS';
+  document.getElementById('cs-nama-input').value = '';
+  document.getElementById('cs-wa-input').value = '';
+  document.getElementById('cs-modal').style.display = 'flex';
+}
+
+function editCS(id) {
+  const cs = csData.find(c => c.id === id);
+  if (!cs) return;
+  editingCSId = id;
+  document.getElementById('cs-modal-title').textContent = 'Edit CS';
+  document.getElementById('cs-nama-input').value = cs.nama;
+  document.getElementById('cs-wa-input').value = cs.nomor_wa;
+  document.getElementById('cs-modal').style.display = 'flex';
+}
+
+async function saveCS() {
+  const nama    = document.getElementById('cs-nama-input').value.trim();
+  const noWA    = document.getElementById('cs-wa-input').value.trim().replace(/^0/, '62');
+  if (!nama || !noWA) { showToast('Nama dan nomor WA wajib diisi', 'error'); return; }
+
+  try {
+    if (editingCSId) {
+      const { error } = await sb.from('data_cs').update({ nama, nomor_wa: noWA }).eq('id', editingCSId);
+      if (error) throw error;
+      showToast('CS berhasil diupdate!', 'success');
+    } else {
+      const { error } = await sb.from('data_cs').insert({ nama, nomor_wa: noWA });
+      if (error) throw error;
+      showToast('CS berhasil ditambahkan!', 'success');
+    }
+    document.getElementById('cs-modal').style.display = 'none';
+    await loadCSData();
+  } catch(e) { showToast('Error: '+e.message, 'error'); }
+}
+
+async function deleteCS(id) {
+  if (!confirm('Hapus CS ini?')) return;
+  const { error } = await sb.from('data_cs').delete().eq('id', id);
+  if (error) { showToast('Gagal hapus: '+error.message, 'error'); return; }
+  showToast('CS dihapus', 'info');
+  await loadCSData();
+}
+
+// Get WA number for CS name (case-insensitive)
+async function getCSWA(namaCS) {
+  if (!namaCS) return null;
+  // Try cache first
+  const cached = csData.find(c => c.nama.toLowerCase() === namaCS.toLowerCase() && c.aktif);
+  if (cached) return cached.nomor_wa;
+  // Fetch from DB
+  const { data } = await sb.from('data_cs').select('nomor_wa').ilike('nama', namaCS).eq('aktif', true).limit(1);
+  return data?.[0]?.nomor_wa || null;
+}
+
+// Generate WA link for duplicate
+async function bukaWADuplikat(rowIdx) {
+  const row = filteredData[rowIdx];
+  if (!row) return;
+
+  // Get CS name from instruksi
+  const instruksi = row._raw['Instruksi Pengiriman']||'';
+  const csRaw = (instruksi.split('/')[0]||'').replace(/Pengirim\s+CS\s+/i,'').replace(/Pengirim\s+/i,'').replace(/CS\s+/i,'').trim();
+
+  if (!csRaw) { showToast('Nama CS tidak ditemukan di instruksi', 'error'); return; }
+
+  // Lookup WA number
+  const noWA = await getCSWA(csRaw);
+  if (!noWA) { showToast('Nomor WA CS "'+csRaw+'" tidak ditemukan di Data CS', 'error'); return; }
+
+  // Build message
+  const dupInfo = row._dupAllInfo || row._matches?.map(m => m.nama + ' (' + (m.tanggal||'') + ') · CS: ' + (m.cs||'')  ).join(', ') || '—';
+  const pesan = `Halo ${csRaw} 👋
+
+Ada orderan DUPLIKAT yang perlu dikonfirmasi:
+
+👤 Nama Customer: ${row.nama||'—'}
+📱 No HP: ${row.hp||'—'}
+📦 Produk: ${row._raw['Jumlah Pesanan']||'—'}
+📅 Pernah order: ${dupInfo}
+
+Mohon segera upload SS chat customer sebagai bukti konfirmasi.
+
+Terima kasih 🙏`;
+
+  const url = 'https://wa.me/' + noWA.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(pesan);
+  window.open(url, '_blank');
+}
+
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
   const btn  = document.getElementById('btn-toggle-upload');
@@ -4038,11 +4164,12 @@ function renderTable() {
               : '';
 
     // Kolom Duplikat All Team — isi nama+tanggal jika duplikat
+    const _rowIdx = filteredData.indexOf(row);
     const dupAllTeam = row._isDup && row._matches.length
       ? row._matches.slice(0,3).map(m => {
           const csBadge = m.cs ? ` · CS: ${m.cs}` : '';
-          return `<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block">${m.nama||''}${m.tanggal?' ('+m.tanggal+')':''}${csBadge}</span>`;
-        }).join('')
+          return `<a onclick="bukaWADuplikat(${_rowIdx})" style="cursor:pointer;background:#22c55e;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-right:4px;text-decoration:none;font-weight:600">WA</a><span style="font-size:11px;color:var(--c-dup);font-family:monospace">${m.nama||''}${m.tanggal?' ('+m.tanggal+')':''}${csBadge}</span>`;
+        }).join('<br>')
       : '';
 
     // Kolom Retur ADSY — isi reason RTS + jumlah RTS (clickable)
@@ -4389,6 +4516,25 @@ function updateThemeToggle(theme) {
   updateThemeToggle(saved);
 })();
 </script>
+  <!-- Add/Edit CS Modal -->
+  <div id="cs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:400px;width:90%">
+      <div style="font-size:15px;font-weight:700;margin-bottom:1rem" id="cs-modal-title">Tambah CS</div>
+      <div style="margin-bottom:0.75rem">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Nama CS</label>
+        <input type="text" id="cs-nama-input" class="search-input" placeholder="contoh: Anny" style="width:100%" />
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Nomor WA (62xxx)</label>
+        <input type="text" id="cs-wa-input" class="search-input" placeholder="contoh: 6281234567890" style="width:100%" />
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('cs-modal').style.display='none'" class="btn-secondary" style="flex:1">Batal</button>
+        <button onclick="saveCS()" class="btn-primary" style="flex:1;justify-content:center">Simpan</button>
+      </div>
+    </div>
+  </div>
+
   <!-- RTS Detail Modal -->
   <div id="rts-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
     <div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:680px;width:90%;max-height:80vh;overflow-y:auto;position:relative">
