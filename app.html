@@ -756,25 +756,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       </div>
     </div>
 
-    <!-- Data CS Management -->
-    <div class="card" style="margin-top:1rem;max-width:700px" id="card-data-cs">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <div>
-          <div class="card-title">Data CS</div>
-          <div class="card-desc">Kelola nama dan nomor WA CS untuk notifikasi duplikat</div>
-        </div>
-        <button class="btn-primary" onclick="showAddCS()" style="font-size:12px">+ Tambah CS</button>
-      </div>
-      <table style="width:100%;font-size:12px;border-collapse:collapse">
-        <thead><tr>
-          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Nama CS</th>
-          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Nomor WA</th>
-          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Status</th>
-          <th style="width:80px;padding:8px 12px;border-bottom:1px solid var(--border)"></th>
-        </tr></thead>
-        <tbody id="tbody-cs"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--muted)">Memuat...</td></tr></tbody>
-      </table>
-    </div>
+
   </div>
 
   <!-- PAGE: STATISTIK WILAYAH -->
@@ -1157,6 +1139,7 @@ function switchPage(name) {
   });
   if (name === 'statistik') loadStatistik();
   if (name === 'master') loadCSData();
+
   if (name === 'dashboard') initDashboard();
   const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
@@ -3567,17 +3550,26 @@ let resiInputData = []; // {id, no, nama, hp, tanggal, pembayaran, kabupaten, re
 function switchDashboardTab(tab) {
   const detailSection = document.getElementById('db-detail-section');
   const resiSection   = document.getElementById('db-resi-section');
+  const csSection     = document.getElementById('db-cs-section');
   const summaryEl     = document.getElementById('db-summary');
   const sesiCard      = document.getElementById('db-sesi-card');
 
+  // Hide all
+  if (detailSection) detailSection.style.display = 'none';
+  if (resiSection)   resiSection.style.display   = 'none';
+  if (csSection)     csSection.style.display     = 'none';
+
   if (tab === 'resi') {
-    if (detailSection) detailSection.style.display = 'none';
     if (sesiCard) sesiCard.style.display = 'none';
     if (summaryEl) summaryEl.style.display = 'none';
     if (resiSection) resiSection.style.display = 'block';
     loadResiInput();
+  } else if (tab === 'cs') {
+    if (sesiCard) sesiCard.style.display = 'none';
+    if (summaryEl) summaryEl.style.display = 'none';
+    if (csSection) csSection.style.display = 'block';
+    loadCSData();
   } else {
-    if (resiSection) resiSection.style.display = 'none';
     loadDashboard();
   }
 }
