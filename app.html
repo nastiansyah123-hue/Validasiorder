@@ -1517,7 +1517,19 @@ function doFilter() {
 
     // Ekspedisi color filter
     const feksc = document.getElementById('filter-eks-color')?.value || 'all';
-    if (feksc !== 'all' && (row._eksColor||'none') !== feksc) return false;
+    if (feksc !== 'all') {
+      const _eks = extractEkspedisi(row._raw['Pembayaran']||'');
+      const _rek = row._rekEkspedisi||'';
+      let _color = 'none';
+      if (_eks && _rek) {
+        const _rekList = _rek.split(' > ').map(e=>e.replace(/\(.*?\)/g,'').trim());
+        const _top = _rekList[0]||'';
+        if (!_rekList.some(r=>r.toLowerCase()===_eks.toLowerCase())) _color = 'red';
+        else if (_top.toLowerCase()!==_eks.toLowerCase()) _color = 'yellow';
+        else _color = 'green';
+      }
+      if (_color !== feksc) return false;
+    }
 
     // Ekspedisi filter
     if (fe !== 'all') {
