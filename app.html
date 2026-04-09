@@ -1920,7 +1920,7 @@ async function cekHP() {
     const { data, error } = await sb.from('all_orderan')
       .select('tanggal,nama,resi,status_akhir,kodepos,kabupaten,provinsi,cs,adv,jumlah,instruksi')
       .or('hp.eq.' + hp + ',hp.eq.' + hpStrip)
-      .eq('sumber','validasi').order('tanggal', { ascending: false });
+      .order('tanggal', { ascending: false });
     if (error) throw error;
     if (!data || !data.length) {
       document.getElementById('cekHP-empty').style.display = 'block';
