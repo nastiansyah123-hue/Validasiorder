@@ -641,6 +641,22 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       </div>
       <div id="ekspedisi-db-count" class="db-badge">—</div>
 
+    </div>
+    <div class="drop-zone" id="dz-ekspedisi">
+      <input type="file" id="file-ekspedisi" accept=".csv,.xlsx,.xls" />
+      <div class="drop-zone-icon">🚚</div>
+      <div class="drop-zone-text">Upload file rekomendasi ekspedisi<br><span>.csv / .xlsx</span></div>
+    </div>
+    <div id="status-ekspedisi" class="drop-status"></div>
+    <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn-primary" id="btn-save-ekspedisi" disabled onclick="saveEkspedisiMaster()">Simpan ke Database</button>
+      <button class="btn-secondary" onclick="loadEkspedisiCount()" style="font-size:12px">Refresh</button>
+      <button class="btn-secondary btn-danger" onclick="confirmClearEkspedisi()" style="font-size:12px">Hapus Semua</button>
+      <span class="loading-badge" id="loading-ekspedisi">menyimpan...</span>
+    </div>
+    <div id="status-ekspedisi-save" class="drop-status" style="margin-top:8px"></div>
+  </div>
+
     <!-- Data CS & Nomor WA -->
     <div class="card" style="margin-top:1.5rem;max-width:700px" id="card-data-cs">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -659,23 +675,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <tbody id="tbody-cs"><tr><td colspan="3" style="text-align:center;padding:1rem;color:var(--muted)">Memuat...</td></tr></tbody>
       </table>
     </div>
-    </div>
-    <div class="drop-zone" id="dz-ekspedisi">
-      <input type="file" id="file-ekspedisi" accept=".csv,.xlsx,.xls" />
-      <div class="drop-zone-icon">🚚</div>
-      <div class="drop-zone-text">Upload file rekomendasi ekspedisi<br><span>.csv / .xlsx</span></div>
-    </div>
-    <div id="status-ekspedisi" class="drop-status"></div>
-    <div style="margin-top:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn-primary" id="btn-save-ekspedisi" disabled onclick="saveEkspedisiMaster()">Simpan ke Database</button>
-      <button class="btn-secondary" onclick="loadEkspedisiCount()" style="font-size:12px">Refresh</button>
-      <button class="btn-secondary btn-danger" onclick="confirmClearEkspedisi()" style="font-size:12px">Hapus Semua</button>
-      <span class="loading-badge" id="loading-ekspedisi">menyimpan...</span>
-    </div>
-    <div id="status-ekspedisi-save" class="drop-status" style="margin-top:8px"></div>
-  </div>
 
 </div>
+
 
   <!-- PAGE: DASHBOARD -->
   <div class="page" id="page-dashboard">
