@@ -502,6 +502,13 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <option value="ANTERAJA">Anteraja</option><option value="NINJA">Ninja</option>
           <option value="SAP">SAP</option><option value="TIKI">TIKI</option>
         </select>
+        <select class="filter-select" id="filter-eks-color" onchange="doFilter()">
+          <option value="all">Semua Kesesuaian</option>
+          <option value="green">🟢 Sesuai</option>
+          <option value="yellow">🟡 Kurang Optimal</option>
+          <option value="red">🔴 Tidak Sesuai</option>
+          <option value="none">⬜ Tidak Ada Data</option>
+        </select>
         <select class="filter-select" id="filter-pembayaran" onchange="doFilter()">
           <option value="all">Semua Pembayaran</option>
           <option value="COD">COD</option>
@@ -1418,7 +1425,17 @@ async function doValidasiHarian() {
       const _rtsCount = _hpStat ? _hpStat.retur : 0;
       // Rekomendasi ekspedisi dari cache
       const _rekEkspedisi = ekspedisiCache[kp] || '';
-      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _rtsCount, _status, _wilayahRawan:wilayahRawan, _kpExists, _kpLowSample, _rekEkspedisi };
+      // Calculate _eksColor for filter
+      const _usedEks = extractEkspedisi(row._raw['Pembayaran']||'');
+      let _eksColor = 'none';
+      if (_usedEks && _rekEkspedisi) {
+        const _rekList = _rekEkspedisi.split(' > ').map(e=>e.replace(/\(.*?\)/,'').trim());
+        const _topRek  = _rekList[0]||'';
+        if (!_rekList.some(r=>r.toLowerCase()===_usedEks.toLowerCase())) _eksColor = 'red';
+        else if (_topRek.toLowerCase()!==_usedEks.toLowerCase()) _eksColor = 'yellow';
+        else _eksColor = 'green';
+      }
+      return { ...row, _isDup:isDup, _isDupTeam:isDupTeam, _matches:matches, _isRetur:isRetur, _rtsInfo:rtsInfo, _rtsCount, _status, _wilayahRawan:wilayahRawan, _kpExists, _kpLowSample, _rekEkspedisi, _eksColor };
     });
 
     filteredData = [...validatedData];
@@ -1497,6 +1514,10 @@ function doFilter() {
       const match = grades.some(g => g === '__kosong__' ? (!gradeV || gradeV === '-' || gradeV.startsWith('#')) : gradeV === g);
       if (!match) return false;
     }
+
+    // Ekspedisi color filter
+    const feksc = document.getElementById('filter-eks-color')?.value || 'all';
+    if (feksc !== 'all' && (row._eksColor||'none') !== feksc) return false;
 
     // Ekspedisi filter
     if (fe !== 'all') {
