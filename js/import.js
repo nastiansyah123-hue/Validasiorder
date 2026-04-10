@@ -37,7 +37,7 @@ function processFile(file, type, onSuccess) {
         const wb   = XLSX.read(e.target.result, { type: 'array' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rng  = rangeEl ? rangeEl.value.trim() : '';
-        const opts = rng ? { range: rng, defval: '', raw: false } : { defval: '', raw: false };
+        const opts = rng ? { range: rng, defval: '' } : { defval: '' };
         data = XLSX.utils.sheet_to_json(ws, opts);
       } else {
         throw new Error('Format file tidak didukung. Gunakan CSV atau XLSX.');
@@ -110,7 +110,7 @@ function normalizeResi(r) {
 // ── KEY MAPPING — fleksibel terhadap variasi nama kolom ───────────────────────
 function getCol(row, ...candidates) {
   for (const c of candidates) {
-    const found = Object.keys(row).find(k => k.toLowerCase().replace(/\s/g,'') === c.toLowerCase().replace(/\s/g,''));
+    const found = Object.keys(row).find(k => k.replace(/['"]/g,'').toLowerCase().replace(/\s/g,'') === c.toLowerCase().replace(/\s/g,''));
     if (found && row[found] !== undefined && row[found] !== '') {
       const val = row[found];
       // Fix scientific notation for numeric values (e.g. resi)
