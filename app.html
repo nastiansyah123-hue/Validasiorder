@@ -4474,11 +4474,12 @@ async function loadAO() {
     let all = [], from = 0;
     while (true) {
       let query = sb.from('all_orderan')
-        .select('id,'+AO_COLS.join(','))
+        .select('id,created_at,'+AO_COLS.join(','))
         .order('id', { ascending: false })
         .range(from, from+999);
       if (sumber !== 'all') query = query.eq('sumber', sumber);
-      // Date filter handled client-side (tanggal format: DD/MM/YYYY)
+      if (tglStart) query = query.gte('created_at', tglStart);
+      if (tglEnd)   query = query.lte('created_at', tglEnd + 'T23:59:59');
       const { data, error } = await query;
       if (error) throw error;
       if (!data?.length) break;
@@ -4486,20 +4487,7 @@ async function loadAO() {
       if (data.length < 1000) break;
       from += 1000;
     }
-    // Client-side date filter
-    const tglStart2 = document.getElementById('ao-tgl-start')?.value;
-    const tglEnd2   = document.getElementById('ao-tgl-end')?.value;
-    if (tglStart2 || tglEnd2) {
-      all = all.filter(r => {
-        if (!r.tanggal) return true;
-        try {
-          const d = new Date(r.tanggal.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
-          if (tglStart2 && d < new Date(tglStart2)) return false;
-          if (tglEnd2   && d > new Date(tglEnd2 + 'T23:59:59')) return false;
-          return true;
-        } catch(e) { return true; }
-      });
-    }
+
     aoData = all;
     aoFiltered = [...aoData];
     aoPage = 1;
