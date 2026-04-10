@@ -929,18 +929,23 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       <div class="page-title">All Orderan</div>
       <div class="page-sub">Edit data all orderan langsung — perubahan tersimpan otomatis</div>
     </div>
-    <div class="action-bar" style="margin-bottom:1rem">
-      <input type="text" id="ao-search" class="search-input" placeholder="Cari nama / HP / resi / kabupaten..." oninput="filterAO()" style="min-width:250px" />
+    <div class="action-bar" style="margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <input type="text" id="ao-search" class="search-input" placeholder="Cari nama / HP / resi / kabupaten..." oninput="filterAO()" style="min-width:220px" />
       <select class="filter-select" id="ao-sumber" onchange="loadAO()">
         <option value="all">Semua Sumber</option>
         <option value="validasi">Dari Validasi</option>
         <option value="upload">Upload Manual</option>
       </select>
-      <select class="filter-select" id="ao-pagesize" onchange="loadAO()">
-        <option value="100">100 baris</option>
-        <option value="200">200 baris</option>
-        <option value="300">300 baris</option>
+      <input type="date" id="ao-tgl-start" class="filter-select" onchange="loadAO()" style="width:140px" title="Dari tanggal" />
+      <input type="date" id="ao-tgl-end" class="filter-select" onchange="loadAO()" style="width:140px" title="Sampai tanggal" />
+      <button class="btn-secondary" onclick="document.getElementById('ao-tgl-start').value=new Date().toISOString().slice(0,10);document.getElementById('ao-tgl-end').value=new Date().toISOString().slice(0,10);loadAO()" style="font-size:12px">Hari Ini</button>
+      <button class="btn-secondary" onclick="document.getElementById('ao-tgl-start').value='';document.getElementById('ao-tgl-end').value='';loadAO()" style="font-size:12px">Semua</button>
+      <select class="filter-select" id="ao-pagesize" onchange="renderAO()">
+        <option value="100">100 / hal</option>
+        <option value="200">200 / hal</option>
+        <option value="300">300 / hal</option>
       </select>
+      <button class="btn-secondary" onclick="showImportUpdateAO()" style="font-size:12px">⬆ Import Update</button>
       <span class="spacer"></span>
       <span id="ao-count" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
       <span class="loading-badge" id="loading-ao">memuat...</span>
@@ -3054,10 +3059,10 @@ async function saveValidasiDetail() {
         nama        : String(r.nama||'').slice(0,200),
         hp          : String(r.hp||''),
         alamat      : String(r._raw['Alamat']||'').slice(0,300),
-        kelurahan   : String(r._raw['Kelurahan']||'').slice(0,100),
-        kecamatan   : String(r._raw['Kecamatan']||'').slice(0,100),
-        kabupaten   : String(r._raw['Kabupaten']||'').slice(0,100),
-        provinsi    : String(r._raw['Provinsi']||'').slice(0,100),
+        kelurahan   : String(r.kelurahan||r._raw['Kelurahan']||r._raw['"Kelurahan"']||'').slice(0,100),
+        kecamatan   : String(r.kecamatan||r._raw['Kecamatan']||r._raw['"Kecamatan"']||'').slice(0,100),
+        kabupaten   : String(r.kabupaten||r._raw['Kabupaten']||r._raw['"Kabupaten"']||'').slice(0,100),
+        provinsi    : String(r.provinsi||r._raw['Provinsi']||r._raw['"Provinsi"']||'').slice(0,100),
         kodepos     : String(r._raw['Kode Pos']||r.kodepos||'').slice(0,20),
         jumlah      : String(r._raw['Jumlah Pesanan']||'').slice(0,200),
         pembayaran  : String(r._raw['Pembayaran']||'').slice(0,100),
@@ -4067,6 +4072,113 @@ async function updateStatusOtomatis() {
 }
 
 
+// ── IMPORT UPDATE ALL ORDERAN ────────────────────────────────────────────────
+let aoUpdateParsed = [];
+
+function showImportUpdateAO() {
+  document.getElementById('ao-import-modal').style.display = 'flex';
+}
+
+async function parseAOUpdateFile(file) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      let data = [];
+      if (file.name.endsWith('.csv')) {
+        const lines = e.target.result.split('\n').filter(l=>l.trim());
+        const headers = lines[0].split(',').map(h=>h.trim().replace(/['"]/g,''));
+        data = lines.slice(1).map(line => {
+          const vals = line.split(',');
+          const obj = {};
+          headers.forEach((h,i) => obj[h] = (vals[i]||'').trim().replace(/['"]/g,''));
+          return obj;
+        });
+      } else {
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' });
+      }
+
+      // Normalize - accept any column name for HP, Kecamatan, Kabupaten
+      aoUpdateParsed = data.map(row => {
+        const keys = Object.keys(row);
+        const hpKey  = keys.find(k => /hp|telp|nomor|phone/i.test(k.replace(/['"\s]/g,'')));
+        const kecKey = keys.find(k => /kecamatan/i.test(k.replace(/['"\s]/g,'')));
+        const kabKey = keys.find(k => /kabupaten|kota/i.test(k.replace(/['"\s]/g,'')));
+        const kelKey = keys.find(k => /kelurahan/i.test(k.replace(/['"\s]/g,'')));
+        const provKey= keys.find(k => /provinsi/i.test(k.replace(/['"\s]/g,'')));
+        const kpKey  = keys.find(k => /kodepos|kode.pos|postal|zip/i.test(k.replace(/['"\s]/g,'')));
+        return {
+          hp       : String(row[hpKey]||'').trim(),
+          kecamatan: String(row[kecKey]||'').trim(),
+          kabupaten: String(row[kabKey]||'').trim(),
+          kelurahan: String(row[kelKey]||'').trim(),
+          provinsi : String(row[provKey]||'').trim(),
+          kodepos  : String(row[kpKey]||'').trim(),
+        };
+      }).filter(r => r.hp && (r.kecamatan || r.kabupaten));
+
+      document.getElementById('ao-import-status').textContent = '✓ ' + aoUpdateParsed.length + ' baris siap diupdate dari ' + file.name;
+      document.getElementById('ao-import-status').style.color = 'var(--success)';
+      document.getElementById('btn-ao-import-save').disabled = false;
+    } catch(err) {
+      document.getElementById('ao-import-status').textContent = 'Error: ' + err.message;
+      document.getElementById('ao-import-status').style.color = 'var(--danger)';
+    }
+  };
+  if (file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+async function saveAOUpdate() {
+  if (!aoUpdateParsed.length) return;
+  const badge = document.getElementById('loading-ao-import');
+  badge.classList.add('show');
+  document.getElementById('btn-ao-import-save').disabled = true;
+
+  try {
+    // Fetch HP index from all_orderan
+    const hpList = [...new Set(aoUpdateParsed.map(r => normalizeHP(r.hp)).filter(Boolean))];
+    let allRows = [], from = 0;
+    while (true) {
+      const { data } = await sb.from('all_orderan').select('id,hp').in('hp', hpList.map(h=>h.replace(/^0/,''))).range(from, from+999);
+      if (!data?.length) break;
+      allRows.push(...data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+
+    const hpIdx = {};
+    allRows.forEach(r => { hpIdx[normalizeHP(String(r.hp||''))] = r.id; });
+
+    let updated = 0;
+    const BATCH = 50;
+    const updates = aoUpdateParsed.map(r => {
+      const id = hpIdx[normalizeHP(r.hp)];
+      if (!id) return null;
+      const upd = { id };
+      if (r.kecamatan) upd.kecamatan = r.kecamatan;
+      if (r.kabupaten) upd.kabupaten = r.kabupaten;
+      if (r.kelurahan) upd.kelurahan = r.kelurahan;
+      if (r.provinsi)  upd.provinsi  = r.provinsi;
+      if (r.kodepos)   upd.kodepos   = r.kodepos;
+      return upd;
+    }).filter(Boolean);
+
+    for (let i=0; i<updates.length; i+=BATCH) {
+      await Promise.all(updates.slice(i,i+BATCH).map(async u => {
+        const {id, ...fields} = u;
+        const { error } = await sb.from('all_orderan').update(fields).eq('id', id);
+        if (!error) updated++;
+      }));
+    }
+
+    showToast('✓ ' + updated + ' baris berhasil diupdate!', 'success');
+    document.getElementById('ao-import-modal').style.display = 'none';
+    await loadAO();
+  } catch(e) { showToast('Error: '+e.message, 'error'); }
+  badge.classList.remove('show');
+}
+
 // ── DATA CS ──────────────────────────────────────────────────────────────────
 let csData = []; // cache {id, nama, nomor_wa, aktif}
 let editingCSId = null;
@@ -4334,17 +4446,30 @@ function initAllOrderan() {
 }
 
 async function loadAO() {
-  const badge   = document.getElementById('loading-ao');
-  const sumber  = document.getElementById('ao-sumber')?.value || 'all';
-  const limit   = parseInt(document.getElementById('ao-pagesize')?.value || 100);
+  const badge    = document.getElementById('loading-ao');
+  const sumber   = document.getElementById('ao-sumber')?.value || 'all';
+  const tglStart = document.getElementById('ao-tgl-start')?.value;
+  const tglEnd   = document.getElementById('ao-tgl-end')?.value;
   badge.classList.add('show');
 
   try {
-    let query = sb.from('all_orderan').select('id,'+AO_COLS.join(',')).order('id', { ascending: false }).limit(limit);
-    if (sumber !== 'all') query = query.eq('sumber', sumber);
-    const { data, error } = await query;
-    if (error) throw error;
-    aoData = data || [];
+    let all = [], from = 0;
+    while (true) {
+      let query = sb.from('all_orderan')
+        .select('id,'+AO_COLS.join(','))
+        .order('id', { ascending: false })
+        .range(from, from+999);
+      if (sumber !== 'all') query = query.eq('sumber', sumber);
+      if (tglStart) query = query.gte('tanggal', tglStart);
+      if (tglEnd)   query = query.lte('tanggal', tglEnd + 'T23:59:59');
+      const { data, error } = await query;
+      if (error) throw error;
+      if (!data?.length) break;
+      all.push(...data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    aoData = all;
     aoFiltered = [...aoData];
     aoPage = 1;
     document.getElementById('ao-count').textContent = aoData.length.toLocaleString() + ' baris';
@@ -4372,7 +4497,7 @@ function filterAO() {
 
 function renderAO() {
   const tbody = document.getElementById('ao-tbody');
-  const PS = 50;
+  const PS = parseInt(document.getElementById('ao-pagesize')?.value || 100);
   const start = (aoPage-1)*PS;
   const rows  = aoFiltered.slice(start, start+PS);
 
@@ -4880,6 +5005,25 @@ function updateThemeToggle(theme) {
       <div style="display:flex;gap:8px">
         <button onclick="document.getElementById('cs-modal').style.display='none'" class="btn-secondary" style="flex:1">Batal</button>
         <button onclick="saveCS()" class="btn-primary" style="flex:1;justify-content:center">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Update All Orderan Modal -->
+  <div id="ao-import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:480px;width:90%">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Import Update Data</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:1rem">Upload file CSV/XLSX berisi kolom HP + Kecamatan + Kabupaten (dan opsional Kelurahan, Provinsi, Kode Pos)</div>
+      <div class="drop-zone" onclick="document.getElementById('ao-import-file').click()" style="padding:1.5rem;margin-bottom:0.75rem">
+        <input type="file" id="ao-import-file" accept=".csv,.xlsx,.xls" onchange="parseAOUpdateFile(this.files[0])" style="display:none" />
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">Upload file update<br><span>HP + Kecamatan + Kabupaten</span></div>
+      </div>
+      <div id="ao-import-status" style="font-size:12px;font-family:monospace;margin-bottom:1rem"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="document.getElementById('ao-import-modal').style.display='none'" class="btn-secondary" style="flex:1">Batal</button>
+        <button id="btn-ao-import-save" disabled onclick="saveAOUpdate()" class="btn-primary" style="flex:1;justify-content:center">💾 Update Data</button>
+        <span class="loading-badge" id="loading-ao-import">mengupdate...</span>
       </div>
     </div>
   </div>
