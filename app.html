@@ -1093,6 +1093,11 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
     if (navMaster) navMaster.style.display = 'none';
   }
   window._userRole = userRole;
+  // Show admin-only nav items
+  if (userRole === 'admin') {
+    const navAO = document.getElementById('nav-allorderan');
+    if (navAO) navAO.style.display = 'flex';
+  }
   // Topbar date
   const dateEl = document.getElementById('topbar-date');
   if (dateEl) dateEl.textContent = new Date().toLocaleDateString('id-ID', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
