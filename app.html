@@ -1082,6 +1082,9 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   await loadEkspedisiCount();
   await loadEkspedisiCache();
 
+  // Check for unsaved draft
+  await checkAndRestoreDraft();
+  
   // Restore last visited page - must be AFTER all async init
   const lastPage = sessionStorage.getItem('vo_current_page') || 'harian';
   switchPage(lastPage);
@@ -1493,6 +1496,8 @@ async function doValidasiHarian() {
     saveState();
     updateGradeFilterOptions();
     document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
+    startDraftAutoSave();
+    await saveDraft();
     document.getElementById('btn-cek-ongkir').style.display = 'inline-flex';
 
   } catch(e) {
@@ -2982,6 +2987,7 @@ async function saveValidasiDetail() {
       badge.textContent = `menyimpan sesi... ${Math.min(i+500,rows.length)}/${rows.length}`;
     }
     showToast(`✓ ${rows.length} baris tersimpan ke Dashboard!`, 'success');
+    await deleteDraft();
 
     // Simpan yang KIRIM ke all_orderan
     const kirimRows = validatedData
@@ -4152,6 +4158,108 @@ Terimakasih 🙏`;
 
   const url = 'https://wa.me/' + noWA.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(pesan);
   window.open(url, '_blank');
+}
+
+
+// ── DRAFT VALIDASI ───────────────────────────────────────────────────────────
+let draftSesiId = null;
+let draftAutoSaveTimer = null;
+
+function startDraftAutoSave() {
+  if (draftAutoSaveTimer) clearInterval(draftAutoSaveTimer);
+  // Auto-save every 2 minutes
+  draftAutoSaveTimer = setInterval(saveDraft, 120000);
+}
+
+function stopDraftAutoSave() {
+  if (draftAutoSaveTimer) clearInterval(draftAutoSaveTimer);
+  draftAutoSaveTimer = null;
+}
+
+async function saveDraft() {
+  if (!validatedData.length) return;
+  try {
+    const userEmail = document.getElementById('user-email').textContent;
+    if (!draftSesiId) draftSesiId = new Date().toISOString();
+    
+    const draftData = {
+      sesiId: draftSesiId,
+      validatedData: validatedData,
+      gradeMap: gradeMap,
+      files: Object.keys(loadedFiles)
+    };
+
+    // Upsert - 1 baris per user
+    const { error } = await sb.from('draft_validasi')
+      .upsert({ 
+        user_email: userEmail, 
+        sesi_id: draftSesiId, 
+        data: draftData,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_email' });
+
+    if (!error) {
+      const badge = document.getElementById('draft-badge');
+      if (badge) { 
+        badge.textContent = '✓ Draft tersimpan ' + new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'});
+        badge.style.display = 'inline';
+      }
+    }
+  } catch(e) { console.warn('Draft save error:', e); }
+}
+
+async function deleteDraft() {
+  try {
+    const userEmail = document.getElementById('user-email').textContent;
+    await sb.from('draft_validasi').delete().eq('user_email', userEmail);
+    draftSesiId = null;
+    stopDraftAutoSave();
+  } catch(e) { console.warn('Draft delete error:', e); }
+}
+
+async function checkAndRestoreDraft() {
+  try {
+    const userEmail = document.getElementById('user-email').textContent;
+    const { data } = await sb.from('draft_validasi')
+      .select('*').eq('user_email', userEmail).limit(1);
+    
+    if (!data?.length) return;
+    
+    const draft = data[0];
+    const updatedAt = new Date(draft.updated_at);
+    const timeAgo = Math.round((Date.now() - updatedAt) / 60000);
+    
+    // Show restore prompt
+    const restore = confirm(
+      'Ada draft validasi yang belum selesai (' + timeAgo + ' menit lalu).\n' +
+      'Mau lanjutkan dari draft?'
+    );
+    
+    if (restore) {
+      const d = draft.data;
+      validatedData = d.validatedData || [];
+      gradeMap = d.gradeMap || {};
+      draftSesiId = d.sesiId;
+      
+      if (validatedData.length) {
+        filteredData = [...validatedData];
+        updateAccSummary();
+        updateGradeFilterOptions();
+        renderTable();
+        
+        const btnDash = document.getElementById('btn-save-dashboard');
+        const btnOngkir = document.getElementById('btn-cek-ongkir');
+        if (btnDash) btnDash.style.display = 'inline-flex';
+        if (btnOngkir) btnOngkir.style.display = 'inline-flex';
+        
+        showToast('Draft berhasil dipulihkan — ' + validatedData.length + ' baris', 'success');
+        startDraftAutoSave();
+      }
+    } else {
+      // User declined, delete draft
+      await deleteDraft();
+    }
+  } catch(e) { console.warn('Draft restore error:', e); }
 }
 
 function toggleUploadCard() {
