@@ -4110,20 +4110,45 @@ async function bukaWADuplikat(rowIdx) {
   const noWA = await getCSWA(csRaw);
   if (!noWA) { showToast('Nomor WA CS "'+csRaw+'" tidak ditemukan di Data CS', 'error'); return; }
 
-  // Build message
-  const dupInfo = row._dupAllInfo || row._matches?.map(m => m.nama + ' (' + (m.tanggal||'') + ') · CS: ' + (m.cs||'')  ).join(', ') || '—';
+  // Build message with all matches
+  const dupInfo = (row._matches||[]).map(m => '• ' + (m.nama||'—') + (m.tanggal?' ('+m.tanggal+')':'') + (m.cs?' · CS: '+m.cs:'')).join('\n') || '—';
   const pesan = `Halo ${csRaw} 👋
-
 Ada orderan DUPLIKAT yang perlu dikonfirmasi:
 
 👤 Nama Customer: ${row.nama||'—'}
 📱 No HP: ${row.hp||'—'}
 📦 Produk: ${row._raw['Jumlah Pesanan']||'—'}
-📅 Pernah order: ${dupInfo}
+📅 Pernah order:
+${dupInfo}
 
-Mohon segera upload SS chat customer sebagai bukti konfirmasi.
-
+Mohon segera upload SS Costumer Klik Iklan sebagai bukti .
 Terima kasih 🙏`;
+
+  const url = 'https://wa.me/' + noWA.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(pesan);
+  window.open(url, '_blank');
+}
+
+async function bukaWAGrade(rowIdx) {
+  const row = filteredData[rowIdx];
+  if (!row) return;
+
+  const instruksi = row._raw['Instruksi Pengiriman']||'';
+  const csRaw = (instruksi.split('/')[0]||'').replace(/Pengirim\s+CS\s+/i,'').replace(/Pengirim\s+/i,'').replace(/CS\s+/i,'').trim();
+  if (!csRaw) { showToast('Nama CS tidak ditemukan di instruksi', 'error'); return; }
+
+  const noWA = await getCSWA(csRaw);
+  if (!noWA) { showToast('Nomor WA CS "'+csRaw+'" tidak ditemukan di Data CS', 'error'); return; }
+
+  const gradeVal = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim() || 'Kosong';
+  const pesan = `Halo ${csRaw} 👋
+Orderan berikut memiliki grade rendah yang perlu diperhatikan:
+
+👤 Nama: ${row.nama||'—'}
+📱 HP: ${row.hp||'—'}
+📊 Grade: ${gradeVal}
+
+Mohon Kirimkan konfirmasi SS Costumer Berniat Beli.
+Terimakasih 🙏`;
 
   const url = 'https://wa.me/' + noWA.replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(pesan);
   window.open(url, '_blank');
@@ -4198,10 +4223,11 @@ function renderTable() {
     // Kolom Duplikat All Team — isi nama+tanggal jika duplikat
     const _rowIdx = filteredData.indexOf(row);
     const dupAllTeam = row._isDup && row._matches.length
-      ? row._matches.slice(0,3).map(m => {
+      ? `<a onclick="bukaWADuplikat(${_rowIdx})" style="cursor:pointer;background:#22c55e;color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;margin-right:6px;text-decoration:none;font-weight:600">WA</a>` +
+        row._matches.slice(0,3).map(m => {
           const csBadge = m.cs ? ` · CS: ${m.cs}` : '';
-          return `<a onclick="bukaWADuplikat(${_rowIdx})" style="cursor:pointer;background:#22c55e;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-right:4px;text-decoration:none;font-weight:600">WA</a><span style="font-size:11px;color:var(--c-dup);font-family:monospace">${m.nama||''}${m.tanggal?' ('+m.tanggal+')':''}${csBadge}</span>`;
-        }).join('<br>')
+          return `<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block;margin-top:2px">${m.nama||''}${m.tanggal?' ('+m.tanggal+')':''}${csBadge}</span>`;
+        }).join('')
       : '';
 
     // Kolom Retur ADSY — isi reason RTS + jumlah RTS (clickable)
@@ -4338,6 +4364,12 @@ function renderTable() {
       ${td(row._raw['ACC SPV OP']||row._raw['acc spv op'])}
       <td style="font-size:11px;font-family:monospace;color:${row._rekEkspedisi?'var(--text)':'var(--muted)'}">
         ${row._rekEkspedisi||'<i>tidak ada data</i>'}
+      </td>
+      <td style="font-size:11px;color:var(--muted)">
+        ${(function(){
+          const ins = row._raw['Instruksi Pengiriman']||'';
+          return ins.split('/')[0].replace(/Pengirim\s+CS\s+/i,'').replace(/Pengirim\s+/i,'').replace(/CS\s+/i,'').trim();
+        })()}
       </td>
     </tr>`;
   }).join('');
