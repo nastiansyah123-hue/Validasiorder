@@ -294,6 +294,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-cekOngkir" onclick="switchPage('cekOngkir')">
       <span class="nav-icon">🚚</span> Cek Ongkir
     </div>
+    <div class="nav-item" id="nav-allorderan" onclick="switchPage('allorderan')" style="display:none">
+      <span class="nav-icon">📋</span> All Orderan
+    </div>
     <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
       <span class="nav-icon">📖</span> Panduan
     </div>
@@ -920,6 +923,53 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
+  <!-- PAGE: ALL ORDERAN -->
+  <div class="page" id="page-allorderan">
+    <div class="page-header">
+      <div class="page-title">All Orderan</div>
+      <div class="page-sub">Edit data all orderan langsung — perubahan tersimpan otomatis</div>
+    </div>
+    <div class="action-bar" style="margin-bottom:1rem">
+      <input type="text" id="ao-search" class="search-input" placeholder="Cari nama / HP / resi / kabupaten..." oninput="filterAO()" style="min-width:250px" />
+      <select class="filter-select" id="ao-sumber" onchange="loadAO()">
+        <option value="all">Semua Sumber</option>
+        <option value="validasi">Dari Validasi</option>
+        <option value="upload">Upload Manual</option>
+      </select>
+      <select class="filter-select" id="ao-pagesize" onchange="loadAO()">
+        <option value="100">100 baris</option>
+        <option value="200">200 baris</option>
+        <option value="300">300 baris</option>
+      </select>
+      <span class="spacer"></span>
+      <span id="ao-count" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+      <span class="loading-badge" id="loading-ao">memuat...</span>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll" style="max-height:calc(100vh - 280px)">
+        <table id="ao-table">
+          <thead>
+            <tr>
+              <th>No</th><th>Tanggal</th><th>Nama</th><th>HP</th>
+              <th>Alamat</th><th>Kelurahan</th><th>Kecamatan</th><th>Kabupaten</th>
+              <th>Provinsi</th><th>Kode Pos</th><th>Jumlah</th><th>Pembayaran</th>
+              <th>Instruksi</th><th>Resi</th><th>Team</th><th>Update CRM</th>
+              <th>Status Akhir</th><th>Retur</th><th>CS</th><th>ADV</th><th>ADM</th>
+              <th>Sumber</th>
+            </tr>
+          </thead>
+          <tbody id="ao-tbody">
+            <tr><td colspan="22" class="empty-state">Klik menu untuk memuat data</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span id="ao-page-info">—</span>
+        <div id="ao-page-btns"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- PAGE: PANDUAN -->
   <div class="page" id="page-panduan">
     <div class="page-header">
@@ -1154,17 +1204,18 @@ function switchPage(name) {
   }
   // Save current page
   sessionStorage.setItem('vo_current_page', name);
-  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','panduan'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
     if (nav) nav.classList.toggle('active', t===name);
   });
   if (name === 'statistik') loadStatistik();
+  if (name === 'allorderan') initAllOrderan();
   if (name === 'master') loadCSData();
 
   if (name === 'dashboard') initDashboard();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', panduan:'Panduan'};
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -4260,6 +4311,127 @@ async function checkAndRestoreDraft() {
       await deleteDraft();
     }
   } catch(e) { console.warn('Draft restore error:', e); }
+}
+
+
+// ── ALL ORDERAN ───────────────────────────────────────────────────────────────
+let aoData = [], aoFiltered = [], aoPage = 1;
+const AO_COLS = ['no','tanggal','nama','hp','alamat','kelurahan','kecamatan','kabupaten',
+  'provinsi','kodepos','jumlah','pembayaran','instruksi','resi','team','update_crm',
+  'status_akhir','retur','cs','adv','adm','sumber'];
+const AO_LABELS = ['No','Tanggal','Nama','HP','Alamat','Kelurahan','Kecamatan','Kabupaten',
+  'Provinsi','Kode Pos','Jumlah','Pembayaran','Instruksi','Resi','Team','Update CRM',
+  'Status Akhir','Retur','CS','ADV','ADM','Sumber'];
+
+let aoInitDone = false;
+function initAllOrderan() {
+  if (!aoInitDone) { aoInitDone = true; loadAO(); }
+}
+
+async function loadAO() {
+  const badge   = document.getElementById('loading-ao');
+  const sumber  = document.getElementById('ao-sumber')?.value || 'all';
+  const limit   = parseInt(document.getElementById('ao-pagesize')?.value || 100);
+  badge.classList.add('show');
+
+  try {
+    let query = sb.from('all_orderan').select('id,'+AO_COLS.join(',')).order('id', { ascending: false }).limit(limit);
+    if (sumber !== 'all') query = query.eq('sumber', sumber);
+    const { data, error } = await query;
+    if (error) throw error;
+    aoData = data || [];
+    aoFiltered = [...aoData];
+    aoPage = 1;
+    document.getElementById('ao-count').textContent = aoData.length.toLocaleString() + ' baris';
+    renderAO();
+  } catch(e) { showToast('Error: '+e.message, 'error'); }
+  badge.classList.remove('show');
+}
+
+function filterAO() {
+  const q = (document.getElementById('ao-search')?.value||'').toLowerCase();
+  if (!q) { aoFiltered = [...aoData]; }
+  else {
+    aoFiltered = aoData.filter(r =>
+      (r.nama||'').toLowerCase().includes(q) ||
+      (r.hp||'').includes(q) ||
+      (r.resi||'').toLowerCase().includes(q) ||
+      (r.kabupaten||'').toLowerCase().includes(q) ||
+      (r.no||'').toLowerCase().includes(q)
+    );
+  }
+  aoPage = 1;
+  document.getElementById('ao-count').textContent = aoFiltered.length.toLocaleString() + ' baris';
+  renderAO();
+}
+
+function renderAO() {
+  const tbody = document.getElementById('ao-tbody');
+  const PS = 50;
+  const start = (aoPage-1)*PS;
+  const rows  = aoFiltered.slice(start, start+PS);
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="22" class="empty-state">Tidak ada data</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
+    <tr data-id="${r.id}" style="border-bottom:0.5px solid var(--border)">
+      ${AO_COLS.map((col,ci) => `
+        <td style="padding:6px 10px;font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis"
+          ondblclick="editAOCell(this,'${col}',${r.id})"
+          title="Double-klik untuk edit">
+          ${r[col]||''}
+        </td>`).join('')}
+    </tr>`).join('');
+
+  // Pagination
+  const total = aoFiltered.length;
+  const totalPages = Math.ceil(total/PS);
+  document.getElementById('ao-page-info').textContent = 
+    total ? `${Math.min(start+1,total)}–${Math.min(start+PS,total)} dari ${total.toLocaleString()}` : '0';
+  const btns = document.getElementById('ao-page-btns');
+  btns.innerHTML = '';
+  const mb = (lbl,fn,dis) => { const b=document.createElement('button'); b.className='page-btn'; b.textContent=lbl; b.disabled=dis; b.onclick=fn; return b; };
+  btns.appendChild(mb('‹',()=>{aoPage--;renderAO();},aoPage===1));
+  btns.appendChild(mb('›',()=>{aoPage++;renderAO();},aoPage>=totalPages||!totalPages));
+}
+
+function editAOCell(td, col, id) {
+  if (td.querySelector('input')) return; // already editing
+  const oldVal = td.textContent.trim();
+  td.innerHTML = `<input type="text" value="${oldVal.replace(/"/g,'&quot;')}" 
+    style="width:100%;padding:3px 6px;border:1px solid var(--accent);border-radius:4px;font-size:11px;background:var(--bg);color:var(--text)"
+    onblur="saveAOCell(this,'${col}',${id})"
+    onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value='${oldVal.replace(/'/g,"\\'")}';this.blur();}" />`;
+  td.querySelector('input').select();
+}
+
+async function saveAOCell(input, col, id) {
+  const newVal = input.value.trim();
+  const td = input.parentElement;
+  td.textContent = newVal;
+
+  // Update in local data
+  const row = aoData.find(r => r.id === id);
+  if (row) row[col] = newVal;
+  const frow = aoFiltered.find(r => r.id === id);
+  if (frow) frow[col] = newVal;
+
+  // Save to Supabase
+  try {
+    const upd = {};
+    upd[col] = newVal || null;
+    const { error } = await sb.from('all_orderan').update(upd).eq('id', id);
+    if (error) throw error;
+    td.style.background = 'var(--success-light)';
+    setTimeout(() => td.style.background = '', 1000);
+  } catch(e) {
+    showToast('Gagal simpan: '+e.message, 'error');
+    td.style.background = 'var(--danger-light)';
+    setTimeout(() => td.style.background = '', 1500);
+  }
 }
 
 function toggleUploadCard() {
