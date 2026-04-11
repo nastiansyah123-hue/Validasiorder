@@ -1554,9 +1554,9 @@ async function doValidasiHarian() {
 
 // FILTER
 function doFilter() {
-  const f  = document.getElementById('filter-status').value;
-  const fe = document.getElementById('filter-ekspedisi').value;
-  const fp = document.getElementById('filter-pembayaran').value;
+  const f  = document.getElementById('filter-status')?.value || 'all';
+  const fe = document.getElementById('filter-ekspedisi')?.value || 'all';
+  const fp = document.getElementById('filter-pembayaran')?.value || 'all';
   const gradeChecked = [...document.querySelectorAll('.grade-chk:checked')].map(c=>c.value);
   const gf = gradeChecked.length === 0 ? 'all' : gradeChecked;
   const q  = document.getElementById('search-box').value.toLowerCase();
@@ -1582,9 +1582,11 @@ function doFilter() {
 
     // Column filters (Excel-style)
     for (const [key, valSet] of Object.entries(colFilters)) {
-      if (!valSet) continue;
+      if (!valSet || !valSet.size) continue;
       const cfg = COL_FILTER_CONFIG[key];
-      if (cfg && !valSet.has(cfg.getValue(row))) return false;
+      if (!cfg) continue;
+      const rowVal = String(cfg.getValue(row)||'').trim();
+      if (!valSet.has(rowVal)) return false;
     }
 
     // Grade filter
@@ -1596,7 +1598,7 @@ function doFilter() {
     }
 
     // Ekspedisi color filter
-    const feksc = document.getElementById('filter-eks-color')?.value || 'all';
+    const feksc = 'all';
     if (feksc !== 'all') {
       const _eks = extractEkspedisi(row._raw['Pembayaran']||'');
       const _rek = row._rekEkspedisi||'';
