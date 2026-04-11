@@ -1840,15 +1840,24 @@ function initGreeting(email) {
 }
 
 function updateAccSummary() {
-  const kirim  = validatedData.filter(r=>(r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase()==='KIRIM').length;
-  const hold   = validatedData.filter(r=>(r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase()==='HOLD').length;
-  const cancel = validatedData.filter(r=>(r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase()==='CANCEL').length;
-  const elK = document.getElementById('s-kirim');
-  const elH = document.getElementById('s-hold');
-  const elC = document.getElementById('s-cancel');
-  if (elK) elK.textContent = kirim.toLocaleString();
-  if (elH) elH.textContent = hold.toLocaleString();
-  if (elC) elC.textContent = cancel.toLocaleString();
+  const total  = validatedData.length;
+  const kirim  = validatedData.filter(r=>(r._accSPV||r._raw?.['ACC SPV CS']||'').toUpperCase()==='KIRIM').length;
+  const hold   = validatedData.filter(r=>(r._accSPV||r._raw?.['ACC SPV CS']||'').toUpperCase()==='HOLD').length;
+  const cancel = validatedData.filter(r=>(r._accSPV||r._raw?.['ACC SPV CS']||'').toUpperCase()==='CANCEL').length;
+  const dupAll = validatedData.filter(r=>r._isDup).length;
+  const dupTeam= validatedData.filter(r=>r._isDupTeam).length;
+  const rts    = validatedData.filter(r=>r._isRetur).length;
+  const rawan  = validatedData.filter(r=>parseFloat(r._wilayahRawan||0)>=15).length;
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val.toLocaleString(); };
+  set('s-total', total);
+  set('s-kirim', kirim);
+  set('s-hold', hold);
+  set('s-cancel', cancel);
+  set('s-dupall', dupAll);
+  set('s-dupteam', dupTeam);
+  set('s-rts', rts);
+  set('s-rawan', rawan);
 }
 
  function updateResetFilterBtn() {
