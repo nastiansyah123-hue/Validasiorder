@@ -1850,27 +1850,48 @@ function updateAccSummary() {
   if (elC) elC.textContent = cancel.toLocaleString();
 }
 
-function filterByCard(val) {
-  const sel = document.getElementById('filter-status');
-  if (sel) sel.value = val;
+ function filterByCard(val) {
   // Clear search
   const sb = document.getElementById('search-box');
   if (sb) sb.value = '';
-  // Reset ekspedisi & pembayaran filter
-  const fe = document.getElementById('filter-ekspedisi');
-  const fp = document.getElementById('filter-pembayaran');
-  if (fe) fe.value = 'all';
-  if (fp) fp.value = 'all';
-  // Apply filter & scroll to table
-  doFilter();
+
+  // Clear col filters for accspv first
+  delete colFilters['accspv'];
+
+  if (val === 'all') {
+    filteredData = [...validatedData];
+  } else if (val === 'kirim') {
+    filteredData = validatedData.filter(r => (r._accSPV||r._raw?.['ACC SPV CS']||'').toUpperCase() === 'KIRIM');
+  } else if (val === 'hold') {
+    filteredData = validatedData.filter(r => (r._accSPV||r._raw?.['ACC SPV CS']||'').toUpperCase() === 'HOLD');
+  } else if (val === 'cancel') {
+    filteredData = validatedData.filter(r => (r._accSPV||r._raw?.['ACC SPV CS']||'').toUpperCase() === 'CANCEL');
+  } else if (val === 'dupteam') {
+    filteredData = validatedData.filter(r => r._isDupTeam);
+  } else if (val === 'dupall') {
+    filteredData = validatedData.filter(r => r._isDup);
+  } else if (val === 'rts') {
+    filteredData = validatedData.filter(r => r._isRetur);
+  } else if (val === 'rawan') {
+    filteredData = validatedData.filter(r => parseFloat(r._wilayahRawan||0) >= 15);
+  } else {
+    filteredData = [...validatedData];
+  }
+
+  currentPage = 1;
+  renderTable();
+  updateAccSummary();
+
   setTimeout(() => {
     const res = document.getElementById('result-section');
     if (res) res.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 100);
+
   // Highlight active card
   document.querySelectorAll('.sum-card').forEach(c => c.style.outline = '');
-  event.currentTarget.style.outline = '2px solid var(--c-accent)';
+  if (event?.currentTarget) event.currentTarget.style.outline = '2px solid var(--accent)';
 }
+
 
 // ── STATISTIK WILAYAH ────────────────────────────────────────────────────────
 let statAllData = [], statFiltered = [], statPage = 1, statSortCol = 'pct', statSortDir = -1;
