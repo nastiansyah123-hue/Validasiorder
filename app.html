@@ -455,7 +455,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <div class="s-label">Pernah RTS ↗</div>
         <div class="s-value" id="s-rts">—</div>
       </div>
-      <div class="sum-card c-aman" onclick="filterByCard('kirim')" style="cursor:pointer">
+      <div class="sum-card c-aman" onclick="filterByCard('kirim')">
         <div class="s-label">Kirim ↗</div>
         <div class="s-value" id="s-kirim" style="color:var(--success)">—</div>
       </div>
@@ -519,26 +519,26 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
             <thead>
               <tr>
                 <th style="width:36px;text-align:center"><input type="checkbox" id="chk-all" onclick="toggleSelectAll(this)" style="cursor:pointer;width:14px;height:14px"></th>
-                <th data-col="tanggal" data-label="Tanggal" onclick="sortBy('tanggal')">Tanggal</th>
+                <th data-col="tanggal" data-label="Tanggal">Tanggal</th>
                 <th data-label="No">No</th>
-                <th data-col="nama" data-label="Nama" onclick="sortBy('nama')">Nama</th>
-                <th data-col="hp" data-label="No Telpon" onclick="sortBy('hp')">No Telpon</th>
+                <th data-col="nama" data-label="Nama">Nama</th>
+                <th data-col="hp" data-label="No Telpon">No Telpon</th>
                 <th data-label="Alamat">Alamat</th><th data-label="Kelurahan">Kelurahan</th>
                 <th data-label="Kecamatan">Kecamatan</th><th data-label="Kabupaten">Kabupaten</th>
                 <th data-label="Provinsi">Provinsi</th><th data-label="Kode Pos">Kode Pos</th>
                 <th data-label="Jml Pesanan">Jml Pesanan</th><th data-label="Qty">Qty</th>
-                <th data-col="pembayaran" data-label="Pembayaran" onclick="sortBy('pembayaran')">Pembayaran</th>
+                <th data-col="pembayaran" data-label="Pembayaran">Pembayaran</th>
                 <th data-label="Total">Total</th><th data-label="Instruksi">Instruksi</th>
                 <th data-label="Keterangan">Keterangan</th><th data-label="Rincian">Rincian</th>
                 <th data-label="Keluhan">Keluhan</th><th data-label="Real Ongkir">Real Ongkir</th>
                 <th data-label="Cek Ongkir">Cek Ongkir</th>
-                <th data-col="returadsy" data-label="Retur ADSY" onclick="sortBy('returadsy')" style="color:#9333ea;cursor:pointer">Retur ADSY ↕</th>
-                <th data-col="wilayah" data-label="Wil. Rawan" onclick="sortBy('wilayah')" style="cursor:pointer"><span style="display:flex;align-items:center;gap:2px">Wil. Rawan ↕<span class="col-filter-btn" id="cfbtn-wilrawan" onclick="event.stopPropagation();toggleColFilter(event,'wilrawan')" title="Filter">▼</span></span></th>
-                <th data-col="grade" data-label="Grade" onclick="sortBy('grade')"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Grade<span class="col-filter-btn" id="cfbtn-grade" onclick="toggleColFilter(event,'grade')" title="Filter">▼</span></span></th>
-                <th data-col="ekspedisi" data-label="Ekspedisi" onclick="sortBy('ekspedisi')"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Ekspedisi<span class="col-filter-btn" id="cfbtn-ekspedisi" onclick="toggleColFilter(event,'ekspedisi')" title="Filter">▼</span></span></th>
+                <th data-col="returadsy" data-label="Retur ADSY" style="color:#9333ea;cursor:pointer">Retur ADSY</th>
+                <th data-col="wilayah" data-label="Wil. Rawan"><span style="display:flex;align-items:center;gap:2px">Wil. Rawan<span class="col-filter-btn" id="cfbtn-wilrawan" onclick="event.stopPropagation();toggleColFilter(event,'wilrawan')" title="Filter">▼</span></span></th>
+                <th data-col="grade" data-label="Grade"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Grade<span class="col-filter-btn" id="cfbtn-grade" onclick="toggleColFilter(event,'grade')" title="Filter">▼</span></span></th>
+                <th data-col="ekspedisi" data-label="Ekspedisi"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Ekspedisi<span class="col-filter-btn" id="cfbtn-ekspedisi" onclick="toggleColFilter(event,'ekspedisi')" title="Filter">▼</span></span></th>
                 <th data-label="SS Chat">SS Chat</th>
-                <th data-col="dupteam" data-label="Duplikat Team" onclick="sortBy('dupteam')" style="cursor:pointer">Duplikat Team ↕</th>
-                <th data-col="dupall" data-label="Duplikat All Team" onclick="sortBy('dupall')" style="color:#dc2626;cursor:pointer">Duplikat All Team ↕</th>
+                <th data-col="dupteam" data-label="Duplikat Team">Duplikat Team</th>
+                <th data-col="dupall" data-label="Duplikat All Team" style="color:#dc2626;cursor:pointer">Duplikat All Team</th>
                 <th data-label="ACC SPV CS"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">ACC SPV CS<span class="col-filter-btn" id="cfbtn-accspv" onclick="toggleColFilter(event,'accspv')" title="Filter">▼</span></span></th>
               <th data-label="Noted">Noted</th>
                 <th data-label="ACC SPV OP">ACC SPV OP</th>
@@ -788,10 +788,10 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <table>
           <thead>
             <tr>
-              <th onclick="sortStat('kodepos')" style="cursor:pointer">Kode Pos ↕</th>
-              <th onclick="sortStat('total')" style="cursor:pointer">Total Orderan ↕</th>
-              <th onclick="sortStat('retur')" style="cursor:pointer">Pernah RTS ↕</th>
-              <th onclick="sortStat('pct')" style="cursor:pointer">% RTS ↕</th>
+              <th onclick="sortStat('kodepos')">Kode Pos</th>
+              <th onclick="sortStat('total')">Total Orderan</th>
+              <th onclick="sortStat('retur')">Pernah RTS</th>
+              <th onclick="sortStat('pct')">% RTS</th>
               <th>Status Wilayah</th>
             </tr>
           </thead>
@@ -4627,7 +4627,7 @@ function toggleColFilter(e, key) {
       ${allVals.map(v => `
         <div class="col-filter-item">
           <input type="checkbox" class="cf-chk-${key}" value="${v.replace(/"/g,'&quot;')}" ${selected.has(v)?'checked':''} onchange="updateColFilterAll('${key}')">
-          <label style="cursor:pointer">${v}</label>
+          <label>${v}</label>
         </div>`).join('')}
     </div>
     <div class="col-filter-footer">
