@@ -563,7 +563,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
                 <th data-label="Keluhan">Keluhan</th><th data-label="Real Ongkir">Real Ongkir</th>
                 <th data-label="Cek Ongkir">Cek Ongkir</th>
                 <th data-col="returadsy" data-label="Retur ADSY" onclick="sortBy('returadsy')" style="color:#9333ea;cursor:pointer">Retur ADSY ↕</th>
-                <th data-col="wilayah" data-label="Wil. Rawan" onclick="sortBy('wilayah')" style="cursor:pointer">Wil. Rawan ↕</th>
+                <th data-col="wilayah" data-label="Wil. Rawan" onclick="sortBy('wilayah')" style="cursor:pointer"><span style="display:flex;align-items:center;gap:2px">Wil. Rawan ↕<span class="col-filter-btn" id="cfbtn-wilrawan" onclick="event.stopPropagation();toggleColFilter(event,'wilrawan')" title="Filter">▼</span></span></th>
                 <th data-col="grade" data-label="Grade" onclick="sortBy('grade')"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Grade<span class="col-filter-btn" id="cfbtn-grade" onclick="toggleColFilter(event,'grade')" title="Filter">▼</span></span></th>
                 <th data-col="ekspedisi" data-label="Ekspedisi" onclick="sortBy('ekspedisi')"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Ekspedisi<span class="col-filter-btn" id="cfbtn-ekspedisi" onclick="toggleColFilter(event,'ekspedisi')" title="Filter">▼</span></span></th>
                 <th data-label="SS Chat">SS Chat</th>
@@ -774,8 +774,8 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
               <tr>
                 <th>Tanggal</th><th>Sesi</th><th>Validator</th>
                 <th>No</th><th>Nama</th><th>HP</th><th>Kode Pos</th><th>Kabupaten</th>
-                <th>Jumlah</th><th>Pembayaran</th><th>Ekspedisi</th><th>Resi</th>
-                <th>Grade</th><th>Status Validasi</th><th>RTS Reason</th><th>RTS Count</th>
+                <th>Jumlah</th><th>Pembayaran</th><th><span style="display:flex;align-items:center;gap:4px">Ekspedisi<span class="col-filter-btn" id="cfbtn-ekspedisi" onclick="toggleColFilter(event,'ekspedisi')" title="Filter">▼</span></span></th><th>Resi</th>
+                <th><span style="display:flex;align-items:center;gap:4px">Grade<span class="col-filter-btn" id="cfbtn-grade" onclick="toggleColFilter(event,'grade')" title="Filter">▼</span></span></th><th>Status Validasi</th><th>RTS Reason</th><th>RTS Count</th>
                 <th>Wilayah Rawan</th><th>Rek. Ekspedisi</th>
                 <th>ACC SPV CS</th><th>SS Chat</th>
               </tr>
@@ -5213,5 +5213,19 @@ function updateThemeToggle(theme) {
     </div>
   </div>
 
+</body>
+</html<th><span style="display:flex;align-items:center;gap:4px">Wil. Rawan<span class="col-filter-btn" id="cfbtn-wilrawan" onclick="toggleColFilter(event,'wilrawan')" title="Filter">▼</span></span></th>tml lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ValidasiOrder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/import.js"></script>
+<script src="js/validation.js"></script>
+<script src="js/export.js"></script>
 </body>
 </html>
