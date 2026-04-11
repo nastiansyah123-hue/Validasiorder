@@ -4471,6 +4471,9 @@ async function checkAndRestoreDraft() {
         updateAccSummary();
         updateGradeFilterOptions();
         renderTable();
+
+        const resultSection = document.getElementById('result-section');
+        if (resultSection) resultSection.style.display = 'grid';
         
         const btnDash = document.getElementById('btn-save-dashboard');
         const btnOngkir = document.getElementById('btn-cek-ongkir');
