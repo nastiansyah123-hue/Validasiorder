@@ -1856,9 +1856,8 @@ function updateAccSummary() {
   if (!btn) return;
   const hasColFilter = Object.keys(colFilters).length > 0;
   const hasSearch = (document.getElementById('search-box')?.value||'') !== '';
-  const hasCardFilter = filteredData.length < validatedData.length;
-  btn.style.display = (hasColFilter || hasSearch || hasCardFilter) ? 'inline-flex' : 'none';
-  if (hasColFilter || hasSearch || hasCardFilter) {
+  btn.style.display = (hasColFilter || hasSearch) ? 'inline-flex' : 'none';
+  if (hasColFilter || hasSearch) {
     btn.textContent = '✕ Reset Filter (' + filteredData.length + '/' + validatedData.length + ')';
   }
 }
