@@ -4727,6 +4727,7 @@ function applyColFilter(key) {
 
   closeColFilter();
   doFilter();
+  updateResetFilterBtn();
 }
 
 function clearColFilter(key) {
@@ -4735,6 +4736,7 @@ function clearColFilter(key) {
   if (btn) btn.classList.remove('active');
   closeColFilter();
   doFilter();
+  updateResetFilterBtn();
 }
 
 function closeColFilter() {
