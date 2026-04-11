@@ -240,6 +240,18 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
 .mood-opt .mood-e{font-size:30px}
 .mood-opt .mood-l{font-size:10px;color:var(--muted);font-family:var(--mono)}
 
+/* COLUMN FILTER DROPDOWN */
+.col-filter-btn { cursor:pointer; font-size:10px; margin-left:4px; color:var(--muted); user-select:none; }
+.col-filter-btn.active { color:var(--accent); }
+.col-filter-menu { position:fixed; background:var(--bg); border:1px solid var(--border-strong); border-radius:10px; padding:6px; z-index:9999; min-width:180px; max-height:280px; overflow-y:auto; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
+.col-filter-menu input { width:100%; padding:5px 8px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text); font-size:12px; margin-bottom:6px; }
+.col-filter-item { display:flex; align-items:center; gap:8px; padding:5px 8px; cursor:pointer; border-radius:6px; font-size:12px; }
+.col-filter-item:hover { background:var(--hover); }
+.col-filter-item input[type=checkbox] { cursor:pointer; }
+.col-filter-footer { padding:6px 8px; border-top:1px solid var(--border); margin-top:4px; display:flex; gap:6px; }
+.col-filter-footer button { flex:1; padding:5px; border-radius:6px; font-size:11px; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); }
+.col-filter-footer button.apply { background:var(--accent); color:#fff; border-color:var(--accent); }
+
 /* FULLSCREEN MODE */
 body.fullscreen-mode .sidebar,
 body.fullscreen-mode .topbar,
@@ -552,12 +564,12 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
                 <th data-label="Cek Ongkir">Cek Ongkir</th>
                 <th data-col="returadsy" data-label="Retur ADSY" onclick="sortBy('returadsy')" style="color:#9333ea;cursor:pointer">Retur ADSY ↕</th>
                 <th data-col="wilayah" data-label="Wil. Rawan" onclick="sortBy('wilayah')" style="cursor:pointer">Wil. Rawan ↕</th>
-                <th data-col="grade" data-label="Grade" onclick="sortBy('grade')">Grade</th>
-                <th data-col="ekspedisi" data-label="Ekspedisi" onclick="sortBy('ekspedisi')">Ekspedisi</th>
+                <th data-col="grade" data-label="Grade" onclick="sortBy('grade')"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Grade<span class="col-filter-btn" id="cfbtn-grade" onclick="toggleColFilter(event,'grade')" title="Filter">▼</span></span></th>
+                <th data-col="ekspedisi" data-label="Ekspedisi" onclick="sortBy('ekspedisi')"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Ekspedisi<span class="col-filter-btn" id="cfbtn-ekspedisi" onclick="toggleColFilter(event,'ekspedisi')" title="Filter">▼</span></span></th>
                 <th data-label="SS Chat">SS Chat</th>
                 <th data-col="dupteam" data-label="Duplikat Team" onclick="sortBy('dupteam')" style="cursor:pointer">Duplikat Team ↕</th>
                 <th data-col="dupall" data-label="Duplikat All Team" onclick="sortBy('dupall')" style="color:#dc2626;cursor:pointer">Duplikat All Team ↕</th>
-                <th data-label="ACC SPV CS">ACC SPV CS</th>
+                <th data-label="ACC SPV CS"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">ACC SPV CS<span class="col-filter-btn" id="cfbtn-accspv" onclick="toggleColFilter(event,'accspv')" title="Filter">▼</span></span></th>
               <th data-label="Noted">Noted</th>
                 <th data-label="ACC SPV OP">ACC SPV OP</th>
               <th data-label="Rek. Ekspedisi" style="color:var(--accent)">Rek. Ekspedisi</th>
@@ -1596,6 +1608,13 @@ function doFilter() {
       :f==='grade-kosong'?(!gradeVal||gradeVal==='-')
       :true;
     if (!mf) return false;
+
+    // Column filters (Excel-style)
+    for (const [key, valSet] of Object.entries(colFilters)) {
+      if (!valSet) continue;
+      const cfg = COL_FILTER_CONFIG[key];
+      if (cfg && !valSet.has(cfg.getValue(row))) return false;
+    }
 
     // Grade filter
     if (gf !== 'all') {
@@ -4583,6 +4602,138 @@ async function saveAOCell(input, col, id) {
   }
 }
 
+
+// ── COLUMN FILTER (Excel-style) ───────────────────────────────────────────────
+let colFilters = {}; // {key: Set of selected values} or null = all
+let activeColFilterMenu = null;
+
+const COL_FILTER_CONFIG = {
+  ekspedisi: { label: 'Ekspedisi', getValue: row => extractEkspedisi(row._raw['Pembayaran']||'') || '(kosong)' },
+  grade    : { label: 'Grade',     getValue: row => (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim() || '(kosong)' },
+  wilrawan : { label: 'Wil. Rawan',getValue: row => {
+    const pct = parseFloat(row._wilayahRawan)||0;
+    if (row._wilayahRawan === null || row._wilayahRawan === undefined) return '(tidak ada data)';
+    if (pct === 0) return '✓ Aman (0%)';
+    if (pct < 15)  return `Aman (${pct}%)`;
+    if (pct < 30)  return `Waspada (${pct}%)`;
+    return `Rawan (${pct}%)`;
+  }},
+  accspv   : { label: 'ACC SPV CS', getValue: row => (row._accSPV||row._raw['ACC SPV CS']||'').trim() || '(belum)' },
+  cs       : { label: 'CS',         getValue: row => {
+    const ins = row._raw['Instruksi Pengiriman']||'';
+    return ins.split('/')[0].replace(/Pengirim\s+CS\s+/i,'').replace(/Pengirim\s+/i,'').replace(/CS\s+/i,'').trim() || '(kosong)';
+  }}
+};
+
+function toggleColFilter(e, key) {
+  e.stopPropagation();
+  // Close if same menu open
+  if (activeColFilterMenu === key) { closeColFilter(); return; }
+  closeColFilter();
+  activeColFilterMenu = key;
+
+  const btn = document.getElementById('cfbtn-' + key);
+  const rect = btn.getBoundingClientRect();
+  const cfg  = COL_FILTER_CONFIG[key];
+
+  // Get unique values from validatedData
+  const allVals = [...new Set(validatedData.map(row => cfg.getValue(row)))].sort();
+  const selected = colFilters[key] || new Set(allVals);
+
+  const menu = document.createElement('div');
+  menu.className = 'col-filter-menu';
+  menu.id = 'col-filter-menu-' + key;
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
+
+  menu.innerHTML = `
+    <input type="text" placeholder="Cari..." oninput="searchColFilter(this,'${key}')" />
+    <div id="cf-items-${key}">
+      <div class="col-filter-item">
+        <input type="checkbox" id="cf-all-${key}" ${selected.size === allVals.length ? 'checked' : ''} onchange="toggleColFilterAll(this,'${key}',${JSON.stringify(allVals).replace(/"/g,'&quot;')})">
+        <label for="cf-all-${key}" style="cursor:pointer;font-weight:600">(Pilih Semua)</label>
+      </div>
+      ${allVals.map(v => `
+        <div class="col-filter-item">
+          <input type="checkbox" class="cf-chk-${key}" value="${v.replace(/"/g,'&quot;')}" ${selected.has(v)?'checked':''} onchange="updateColFilterAll('${key}')">
+          <label style="cursor:pointer">${v}</label>
+        </div>`).join('')}
+    </div>
+    <div class="col-filter-footer">
+      <button onclick="clearColFilter('${key}')">Reset</button>
+      <button class="apply" onclick="applyColFilter('${key}')">Terapkan</button>
+    </div>`;
+
+  document.body.appendChild(menu);
+  btn.classList.add('active');
+}
+
+function searchColFilter(input, key) {
+  const q = input.value.toLowerCase();
+  document.querySelectorAll(`.cf-chk-${key}`).forEach(chk => {
+    const item = chk.closest('.col-filter-item');
+    item.style.display = chk.value.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function toggleColFilterAll(chkAll, key, vals) {
+  const allVals = typeof vals === 'string' ? JSON.parse(vals) : vals;
+  document.querySelectorAll(`.cf-chk-${key}`).forEach(c => c.checked = chkAll.checked);
+}
+
+function updateColFilterAll(key) {
+  const allChks = document.querySelectorAll(`.cf-chk-${key}`);
+  const allChecked = [...allChks].every(c => c.checked);
+  const allChk = document.getElementById(`cf-all-${key}`);
+  if (allChk) allChk.checked = allChecked;
+  allChk.indeterminate = !allChecked && [...allChks].some(c => c.checked);
+}
+
+function applyColFilter(key) {
+  const checked = [...document.querySelectorAll(`.cf-chk-${key}:checked`)].map(c => c.value);
+  const cfg = COL_FILTER_CONFIG[key];
+  const allVals = [...new Set(validatedData.map(row => cfg.getValue(row)))];
+  
+  if (checked.length === allVals.length) {
+    delete colFilters[key]; // all selected = no filter
+  } else {
+    colFilters[key] = new Set(checked);
+  }
+
+  // Update button state
+  const btn = document.getElementById('cfbtn-' + key);
+  if (btn) btn.classList.toggle('active', !!colFilters[key]);
+
+  closeColFilter();
+  doFilter();
+}
+
+function clearColFilter(key) {
+  delete colFilters[key];
+  const btn = document.getElementById('cfbtn-' + key);
+  if (btn) btn.classList.remove('active');
+  closeColFilter();
+  doFilter();
+}
+
+function closeColFilter() {
+  const menu = document.getElementById('col-filter-menu-' + activeColFilterMenu);
+  if (menu) menu.remove();
+  if (activeColFilterMenu) {
+    // Don't remove active class if filter is applied
+    const btn = document.getElementById('cfbtn-' + activeColFilterMenu);
+    if (btn && !colFilters[activeColFilterMenu]) btn.classList.remove('active');
+  }
+  activeColFilterMenu = null;
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', function(e) {
+  if (activeColFilterMenu && !e.target.closest('.col-filter-menu') && !e.target.closest('.col-filter-btn')) {
+    closeColFilter();
+  }
+});
+
 function toggleUploadCard() {
   const body = document.getElementById('upload-body');
   const btn  = document.getElementById('btn-toggle-upload');
@@ -4738,7 +4889,8 @@ function renderTable() {
   row._kpExists === false ? '<span style="font-size:10px">kode pos tidak ada</span>' :
   row._kpLowSample ? '<span style="font-size:10px">data kurang</span>' : '—'
 }</td>
-      ${td(row._raw['GradeRekomendasi']||row._raw['Grade']||row._raw['grade'])}
+      <td style="font-size:12px;font-family:monospace">${(function(){const gv=(row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim();const bad=!gv||gv==='-'||/^[DE]/i.test(gv);const waBtn=bad?`<a onclick="bukaWAGrade(${_rowIdx})" style="cursor:pointer;background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;margin-right:4px;font-weight:600">WA</a>`:'';
+return waBtn+(gv||'—');})()} </td>
       <td style="font-family:monospace;font-size:12px;font-weight:500;${(function(){
   const usedEks = extractEkspedisi(row._raw['Pembayaran']||row._raw['pembayaran']);
   if (!usedEks || !row._rekEkspedisi) return '';
