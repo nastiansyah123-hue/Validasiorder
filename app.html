@@ -536,7 +536,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
                 <th data-col="wilayah" data-label="Wil. Rawan"><span style="display:flex;align-items:center;gap:2px">Wil. Rawan<span class="col-filter-btn" id="cfbtn-wilrawan" onclick="event.stopPropagation();toggleColFilter(event,'wilrawan')" title="Filter">▼</span></span></th>
                 <th data-col="grade" data-label="Grade"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Grade<span class="col-filter-btn" id="cfbtn-grade" onclick="toggleColFilter(event,'grade')" title="Filter">▼</span></span></th>
                 <th data-col="ekspedisi" data-label="Ekspedisi"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">Ekspedisi<span class="col-filter-btn" id="cfbtn-ekspedisi" onclick="toggleColFilter(event,'ekspedisi')" title="Filter">▼</span></span></th>
-                <th data-label="SS Chat">SS Chat</th>
+                <th data-label="SS Chat"><span style="display:flex;align-items:center;gap:2px">SS Chat<span class="col-filter-btn" id="cfbtn-sschat" onclick="event.stopPropagation();toggleColFilter(event,'sschat')" title="Filter">▼</span></span></th>
                 <th data-col="dupteam" data-label="Duplikat Team">Duplikat Team</th>
                 <th data-col="dupall" data-label="Duplikat All Team" style="color:#dc2626;cursor:pointer">Duplikat All Team</th>
                 <th data-label="ACC SPV CS"><span style="display:flex;align-items:center;gap:4px;justify-content:space-between">ACC SPV CS<span class="col-filter-btn" id="cfbtn-accspv" onclick="toggleColFilter(event,'accspv')" title="Filter">▼</span></span></th>
@@ -4590,6 +4590,7 @@ const COL_FILTER_CONFIG = {
     return `Rawan (${pct}%)`;
   }},
   accspv   : { label: 'ACC SPV CS', getValue: row => (row._accSPV||row._raw['ACC SPV CS']||'').trim() || '(belum)' },
+  sschat   : { label: 'SS Chat', getValue: row => row._ssChatDone ? 'Ada' : 'Belum' },
   cs       : { label: 'CS',         getValue: row => {
     const ins = row._raw['Instruksi Pengiriman']||'';
     return ins.split('/')[0].replace(/Pengirim\s+CS\s+/i,'').replace(/Pengirim\s+/i,'').replace(/CS\s+/i,'').trim() || '(kosong)';
