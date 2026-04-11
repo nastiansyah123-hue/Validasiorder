@@ -483,20 +483,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
 
     <div class="action-bar">
-        <select class="filter-select" id="filter-status" onchange="doFilter()">
-          <option value="all">Semua baris</option>
-          <option value="selected">Yang Dicentang ✓</option>
-          <option value="dupteam">Duplikat Team</option>
-          <option value="dupall">Duplikat All Team</option>
-          <option value="rts">Hanya Pernah RTS</option>
-          <option value="kirim">Kirim</option>
-          <option value="hold">Hold</option>
-          <option value="cancel">Cancel</option>
-          <option value="holdcancel">Hold / Cancel</option>
-          <option value="ok">Belum Diputuskan</option>
-          <option value="grade-ada">Grade Ada</option>
-          <option value="grade-kosong">Grade Kosong</option>
-        </select>
+        
         <div style="position:relative" id="grade-dropdown-wrap">
           <button class="filter-select" id="grade-dropdown-btn" onclick="toggleGradeDropdown()" 
             style="cursor:pointer;text-align:left;min-width:130px;display:flex;justify-content:space-between;align-items:center;gap:6px">
@@ -511,11 +498,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           </div>
         </div>
         
-        <select class="filter-select" id="filter-pembayaran" onchange="doFilter()">
-          <option value="all">Semua Pembayaran</option>
-          <option value="COD">COD</option>
-          <option value="TRANSFER">Transfer</option>
-        </select>
+        
         <input class="search-input" id="search-box" type="text" placeholder="Cari nama / HP / resi / alamat..." oninput="doFilter()" />
         <span class="spacer"></span>
         <button class="btn-secondary" id="btn-cek-ongkir" onclick="cekOngkirBatch()" style="display:none">🚚 Cek Ongkir</button>
