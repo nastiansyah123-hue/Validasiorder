@@ -1543,6 +1543,8 @@ async function doValidasiHarian() {
     document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
     startDraftAutoSave();
     await saveDraft();
+    // Auto kirim WA untuk duplikat dan grade buruk
+    await kirimAutoWA(validatedData);
     document.getElementById('btn-cek-ongkir').style.display = 'inline-flex';
 
   } catch(e) {
@@ -4394,6 +4396,157 @@ Terimakasih 🙏`;
   window.open(url, '_blank');
 }
 
+
+
+// ── AUTO WA VIA FONNTE ────────────────────────────────────────────────────────
+async function kirimAutoWA(validatedRows) {
+  if (!validatedRows.length) return;
+
+  // Load data_cs
+  const { data: csData } = await sb.from('data_cs').select('nama,nomor_wa').eq('aktif', true);
+  const csMap = {};
+  (csData||[]).forEach(c => { csMap[c.nama.toLowerCase().trim()] = c.nomor_wa; });
+
+  const toSend = [];
+
+  validatedRows.forEach((row, idx) => {
+    const instruksi = row._raw['Instruksi Pengiriman']||'';
+    const csName = (instruksi.split('/')[0]||'')
+      .replace(/Pengirim\s+CS\s+/i,'').replace(/Pengirim\s+/i,'').replace(/CS\s+/i,'').trim();
+    const noWA = csMap[csName.toLowerCase()];
+
+    // Duplikat all team
+    if (row._isDup && row._matches?.length) {
+      const dupInfo = row._matches.map(m =>
+        '• ' + (m.nama||'—') + (m.tanggal?' ('+m.tanggal+')':'') + (m.cs?' · CS: '+m.cs:'')
+      ).join('\n');
+
+      const pesan = `Halo ${csName} 👋
+Ada orderan DUPLIKAT yang perlu dikonfirmasi:
+
+👤 Nama Customer: ${row.nama||'—'}
+📱 No HP: ${row.hp||'—'}
+📦 Produk: ${row._raw['Jumlah Pesanan']||'—'}
+📅 Pernah order:
+${dupInfo}
+
+Mohon segera upload SS Costumer Klik Iklan sebagai bukti .
+Terima kasih 🙏`;
+
+      toSend.push({ csName, noWA, pesan, type: 'duplikat', nama: row.nama });
+    }
+
+    // Grade buruk
+    const grade = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim();
+    const isBadGrade = !grade || grade === '-' || /^[DE]/i.test(grade);
+    if (isBadGrade) {
+      const pesan = `Halo ${csName} 👋
+Orderan berikut memiliki grade rendah yang perlu diperhatikan:
+
+👤 Nama: ${row.nama||'—'}
+📱 HP: ${row.hp||'—'}
+📊 Grade: ${grade||'Kosong'}
+
+Mohon Kirimkan konfirmasi SS Costumer Berniat Beli.
+Terimakasih 🙏`;
+
+      toSend.push({ csName, noWA, pesan, type: 'grade', nama: row.nama });
+    }
+  });
+
+  if (!toSend.length) return;
+
+  // Show progress modal
+  showWAProgressModal(toSend.length);
+
+  let berhasil = 0, gagal = 0;
+  const gagalList = [];
+
+  for (let i = 0; i < toSend.length; i++) {
+    const item = toSend[i];
+    updateWAProgress(i+1, toSend.length, item.csName);
+
+    if (!item.noWA) {
+      gagal++;
+      gagalList.push({ csName: item.csName, nama: item.nama, type: item.type, reason: 'Nomor WA tidak ditemukan' });
+      continue;
+    }
+
+    try {
+      const r = await fetch('/api/fonnte', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: item.noWA, message: item.pesan })
+      });
+      const d = await r.json();
+      if (d.status) berhasil++;
+      else { gagal++; gagalList.push({ csName: item.csName, nama: item.nama, type: item.type, reason: d.reason||'Gagal' }); }
+    } catch(e) {
+      gagal++;
+      gagalList.push({ csName: item.csName, nama: item.nama, type: item.type, reason: e.message });
+    }
+
+    // Delay 500ms antar pesan
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  showWAResult(berhasil, gagal, gagalList);
+}
+
+function showWAProgressModal(total) {
+  let modal = document.getElementById('wa-progress-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'wa-progress-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2000;display:flex;align-items:center;justify-content:center';
+    modal.innerHTML = `<div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:400px;width:90%;text-align:center">
+      <div style="font-size:15px;font-weight:700;margin-bottom:0.5rem">📤 Mengirim WA...</div>
+      <div id="wa-progress-text" style="font-size:12px;color:var(--muted);margin-bottom:1rem">Mempersiapkan...</div>
+      <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
+        <div id="wa-progress-bar" style="height:100%;background:var(--accent);border-radius:4px;width:0%;transition:width 0.3s"></div>
+      </div>
+      <div id="wa-progress-count" style="font-size:11px;color:var(--muted);margin-top:8px">0/${total}</div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+}
+
+function updateWAProgress(current, total, csName) {
+  const pct = Math.round((current/total)*100);
+  const bar = document.getElementById('wa-progress-bar');
+  const text = document.getElementById('wa-progress-text');
+  const count = document.getElementById('wa-progress-count');
+  if (bar) bar.style.width = pct + '%';
+  if (text) text.textContent = 'Mengirim ke CS ' + csName + '...';
+  if (count) count.textContent = current + '/' + total;
+}
+
+function showWAResult(berhasil, gagal, gagalList) {
+  const modal = document.getElementById('wa-progress-modal');
+  if (!modal) return;
+  modal.innerHTML = `<div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:480px;width:90%;max-height:80vh;overflow-y:auto">
+    <div style="font-size:15px;font-weight:700;margin-bottom:1rem">📊 Hasil Pengiriman WA</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem">
+      <div style="background:#14532d;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:#4ade80">${berhasil}</div>
+        <div style="font-size:11px;color:#86efac">Berhasil</div>
+      </div>
+      <div style="background:#450a0a;border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:#f87171">${gagal}</div>
+        <div style="font-size:11px;color:#fca5a5">Gagal</div>
+      </div>
+    </div>
+    ${gagalList.length ? `
+    <div style="font-size:11px;font-weight:700;color:var(--muted);font-family:monospace;text-transform:uppercase;margin-bottom:6px">Detail Gagal</div>
+    ${gagalList.map(g => `<div style="font-size:12px;padding:6px 10px;background:var(--bg2);border-radius:8px;margin-bottom:4px">
+      <b>${g.csName}</b> — ${g.nama} (${g.type})<br>
+      <span style="color:var(--danger);font-size:11px">${g.reason}</span>
+    </div>`).join('')}` : ''}
+    <button onclick="document.getElementById('wa-progress-modal').style.display='none'" 
+      class="btn-primary" style="width:100%;margin-top:1rem;justify-content:center">Tutup</button>
+  </div>`;
+}
 
 // ── DRAFT VALIDASI ───────────────────────────────────────────────────────────
 let draftSesiId = null;
