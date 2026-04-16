@@ -34,7 +34,7 @@ function processFile(file, type, onSuccess) {
       if (ext === 'csv') {
         data = csvToArray(e.target.result);
       } else if (['xlsx','xls'].includes(ext)) {
-        const wb   = XLSX.read(e.target.result, { type: 'array' });
+        const wb   = XLSX.read(e.target.result, { type: 'array', cellDates: true, dateNF: 'dd/mm/yyyy' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rng  = rangeEl ? rangeEl.value.trim() : '';
         const opts = rng ? { range: rng, defval: '' } : { defval: '' };
