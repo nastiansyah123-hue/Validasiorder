@@ -764,6 +764,27 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       </div>
     </div>
 
+
+    <!-- Data Validator Config -->
+    <div class="card" style="margin-top:1rem;max-width:700px" id="card-validator-config">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div>
+          <div class="card-title">Konfigurasi Validator</div>
+          <div class="card-desc">Kelola API key Fonnte per validator untuk kirim WA otomatis</div>
+        </div>
+        <button class="btn-primary" onclick="showAddValidator()" style="font-size:12px">+ Tambah Validator</button>
+      </div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Nama</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Email</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Fonnte Key</th>
+          <th style="width:100px;padding:8px 12px;border-bottom:1px solid var(--border)"></th>
+        </tr></thead>
+        <tbody id="tbody-validator"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--muted)">Memuat...</td></tr></tbody>
+      </table>
+    </div>
+
   </div>
 
   <!-- PAGE: STATISTIK WILAYAH -->
@@ -1126,6 +1147,9 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   await loadEkspedisiCount();
   await loadEkspedisiCache();
 
+  // Load validator fonnte key
+  await loadCurrentValidatorKey();
+
   // Check for unsaved draft
   await checkAndRestoreDraft();
   
@@ -1206,7 +1230,7 @@ function switchPage(name) {
   });
   if (name === 'statistik') loadStatistik();
   if (name === 'allorderan') initAllOrderan();
-  if (name === 'master') loadCSData();
+  if (name === 'master') { loadCSData(); loadValidatorConfig(); }
 
   if (name === 'dashboard') initDashboard();
   const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan'};
@@ -4247,6 +4271,95 @@ async function saveAOUpdate() {
   badge.classList.remove('show');
 }
 
+
+// ── VALIDATOR CONFIG ──────────────────────────────────────────────────────────
+let validatorData = [];
+let editingValidatorId = null;
+let currentFonnteKey = null; // API key of logged-in validator
+
+async function loadValidatorConfig() {
+  const { data } = await sb.from('validator_config').select('*').order('nama');
+  validatorData = data || [];
+  renderValidatorTable();
+}
+
+function renderValidatorTable() {
+  const tbody = document.getElementById('tbody-validator');
+  if (!tbody) return;
+  if (!validatorData.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--muted)">Belum ada data validator</td></tr>';
+    return;
+  }
+  tbody.innerHTML = validatorData.map(v => `
+    <tr style="border-bottom:0.5px solid var(--border)">
+      <td style="padding:8px 12px;font-size:13px;font-weight:600">${v.nama}</td>
+      <td style="padding:8px 12px;font-size:12px;color:var(--muted)">${v.email}</td>
+      <td style="padding:8px 12px;font-family:monospace;font-size:11px;color:var(--muted)">${v.fonnte_key ? v.fonnte_key.slice(0,8)+'...' : '—'}</td>
+      <td style="padding:8px 12px;display:flex;gap:6px">
+        <button onclick="editValidator(${v.id})" style="background:none;border:1px solid var(--border);padding:3px 8px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--muted)">✏️</button>
+        <button onclick="deleteValidator(${v.id})" style="background:none;border:1px solid var(--border);padding:3px 8px;border-radius:6px;cursor:pointer;font-size:11px;color:var(--danger)">🗑</button>
+      </td>
+    </tr>`).join('');
+}
+
+function showAddValidator() {
+  editingValidatorId = null;
+  document.getElementById('validator-modal-title').textContent = 'Tambah Validator';
+  document.getElementById('validator-nama-input').value = '';
+  document.getElementById('validator-email-input').value = '';
+  document.getElementById('validator-key-input').value = '';
+  document.getElementById('validator-modal').style.display = 'flex';
+}
+
+function editValidator(id) {
+  const v = validatorData.find(x => x.id === id);
+  if (!v) return;
+  editingValidatorId = id;
+  document.getElementById('validator-modal-title').textContent = 'Edit Validator';
+  document.getElementById('validator-nama-input').value = v.nama;
+  document.getElementById('validator-email-input').value = v.email;
+  document.getElementById('validator-key-input').value = v.fonnte_key || '';
+  document.getElementById('validator-modal').style.display = 'flex';
+}
+
+async function saveValidator() {
+  const nama      = document.getElementById('validator-nama-input').value.trim();
+  const email     = document.getElementById('validator-email-input').value.trim();
+  const fonnteKey = document.getElementById('validator-key-input').value.trim();
+  if (!nama || !email) { showToast('Nama dan email wajib diisi', 'error'); return; }
+
+  try {
+    if (editingValidatorId) {
+      const { error } = await sb.from('validator_config').update({ nama, email, fonnte_key: fonnteKey }).eq('id', editingValidatorId);
+      if (error) throw error;
+      showToast('Validator berhasil diupdate!', 'success');
+    } else {
+      const { error } = await sb.from('validator_config').insert({ nama, email, fonnte_key: fonnteKey });
+      if (error) throw error;
+      showToast('Validator berhasil ditambahkan!', 'success');
+    }
+    document.getElementById('validator-modal').style.display = 'none';
+    await loadValidatorConfig();
+  } catch(e) { showToast('Error: '+e.message, 'error'); }
+}
+
+async function deleteValidator(id) {
+  if (!confirm('Hapus validator ini?')) return;
+  const { error } = await sb.from('validator_config').delete().eq('id', id);
+  if (error) { showToast('Gagal hapus: '+error.message, 'error'); return; }
+  showToast('Validator dihapus', 'info');
+  await loadValidatorConfig();
+}
+
+async function loadCurrentValidatorKey() {
+  try {
+    const email = document.getElementById('user-email')?.textContent;
+    if (!email) return;
+    const { data } = await sb.from('validator_config').select('fonnte_key').eq('email', email).eq('aktif', true).limit(1);
+    currentFonnteKey = data?.[0]?.fonnte_key || null;
+  } catch(e) { console.warn('Error load validator key:', e); }
+}
+
 // ── DATA CS ──────────────────────────────────────────────────────────────────
 let csData = []; // cache {id, nama, nomor_wa, aktif}
 let editingCSId = null;
@@ -4473,10 +4586,15 @@ Terimakasih 🙏`;
     }
 
     try {
+      if (!currentFonnteKey) {
+        gagal++;
+        gagalList.push({ csName: item.csName, nama: item.nama, type: item.type, reason: 'API key Fonnte tidak ditemukan. Hubungi admin.' });
+        continue;
+      }
       const r = await fetch('/api/fonnte', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target: item.noWA, message: item.pesan })
+        body: JSON.stringify({ target: item.noWA, message: item.pesan, fonnte_key: currentFonnteKey })
       });
       const d = await r.json();
       if (d.status) berhasil++;
@@ -5351,6 +5469,29 @@ function updateThemeToggle(theme) {
   updateThemeToggle(saved);
 })();
 </script>
+  <!-- Add/Edit Validator Modal -->
+  <div id="validator-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:420px;width:90%">
+      <div style="font-size:15px;font-weight:700;margin-bottom:1rem" id="validator-modal-title">Tambah Validator</div>
+      <div style="margin-bottom:0.75rem">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Nama Validator</label>
+        <input type="text" id="validator-nama-input" class="search-input" placeholder="contoh: Budi" style="width:100%" />
+      </div>
+      <div style="margin-bottom:0.75rem">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Email</label>
+        <input type="email" id="validator-email-input" class="search-input" placeholder="contoh: budi@email.com" style="width:100%" />
+      </div>
+      <div style="margin-bottom:1rem">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Fonnte API Key</label>
+        <input type="text" id="validator-key-input" class="search-input" placeholder="contoh: G1tWuDNrxXXXXXXX" style="width:100%;font-family:monospace" />
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="document.getElementById('validator-modal').style.display='none'" class="btn-secondary" style="flex:1">Batal</button>
+        <button onclick="saveValidator()" class="btn-primary" style="flex:1;justify-content:center">Simpan</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Add/Edit CS Modal -->
   <div id="cs-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
     <div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:400px;width:90%">
