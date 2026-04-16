@@ -644,8 +644,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div id="status-ekspedisi-save" class="drop-status" style="margin-top:8px"></div>
   </div>
 
-    <!-- Data CS & Nomor WA -->
-    <div class="card" style="margin-top:1.5rem;max-width:700px" id="card-data-cs">
+    <!-- Data CS & Validator Config -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.5rem">
+    <div class="card" id="card-data-cs">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <div>
           <div class="card-title">Data CS & Nomor WA</div>
@@ -766,7 +767,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
 
 
     <!-- Data Validator Config -->
-    <div class="card" style="margin-top:1rem;max-width:700px" id="card-validator-config">
+    <div class="card" id="card-validator-config">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <div>
           <div class="card-title">Konfigurasi Validator</div>
@@ -784,6 +785,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <tbody id="tbody-validator"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--muted)">Memuat...</td></tr></tbody>
       </table>
     </div>
+    </div><!-- end grid -->
 
   </div>
 
