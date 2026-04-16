@@ -651,6 +651,26 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <div>
           <div class="card-title">Data CS & Nomor WA</div>
           <div class="card-desc">Kelola nama dan nomor WA CS untuk tombol WA notifikasi duplikat</div>
+    <!-- Data Validator Config -->
+    <div class="card" id="card-validator-config">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div>
+          <div class="card-title">Konfigurasi Validator</div>
+          <div class="card-desc">Kelola API key Fonnte per validator untuk kirim WA otomatis</div>
+        </div>
+        <button class="btn-primary" onclick="showAddValidator()" style="font-size:12px">+ Tambah Validator</button>
+      </div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Nama</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Email</th>
+          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Fonnte Key</th>
+          <th style="width:100px;padding:8px 12px;border-bottom:1px solid var(--border)"></th>
+        </tr></thead>
+        <tbody id="tbody-validator"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--muted)">Memuat...</td></tr></tbody>
+      </table>
+    </div>
+    </div><!-- end grid -->
         </div>
         <button class="btn-primary" onclick="showAddCS()" style="font-size:12px">+ Tambah CS</button>
       </div>
@@ -766,26 +786,6 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
 
 
-    <!-- Data Validator Config -->
-    <div class="card" id="card-validator-config">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <div>
-          <div class="card-title">Konfigurasi Validator</div>
-          <div class="card-desc">Kelola API key Fonnte per validator untuk kirim WA otomatis</div>
-        </div>
-        <button class="btn-primary" onclick="showAddValidator()" style="font-size:12px">+ Tambah Validator</button>
-      </div>
-      <table style="width:100%;font-size:12px;border-collapse:collapse">
-        <thead><tr>
-          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Nama</th>
-          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Email</th>
-          <th style="text-align:left;padding:8px 12px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:monospace;text-transform:uppercase">Fonnte Key</th>
-          <th style="width:100px;padding:8px 12px;border-bottom:1px solid var(--border)"></th>
-        </tr></thead>
-        <tbody id="tbody-validator"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--muted)">Memuat...</td></tr></tbody>
-      </table>
-    </div>
-    </div><!-- end grid -->
 
   </div>
 
