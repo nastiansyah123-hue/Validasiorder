@@ -4307,12 +4307,25 @@ function renderValidatorTable() {
     </tr>`).join('');
 }
 
-function showAddValidator() {
+async function showAddValidator() {
   editingValidatorId = null;
   document.getElementById('validator-modal-title').textContent = 'Tambah Validator';
   document.getElementById('validator-nama-input').value = '';
-  // email handled by dropdown
   document.getElementById('validator-key-input').value = '';
+
+  const sel = document.getElementById('validator-user-select');
+  sel.innerHTML = '<option value="">-- Pilih User --</option>';
+  try {
+    const { data } = await sb.from('user_list').select('email,nama');
+    (data||[]).forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.email;
+      opt.textContent = (u.nama||u.email.split('@')[0]) + ' (' + u.email + ')';
+      opt.dataset.nama = u.nama || u.email.split('@')[0];
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.warn('Error load users:', e); }
+
   document.getElementById('validator-modal').style.display = 'flex';
 }
 
