@@ -167,6 +167,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .search-input{padding:7px 11px;border:1px solid var(--border-strong);border-radius:8px;font-size:12px;background:var(--surface);color:var(--text);font-family:var(--font);outline:none;width:220px}
 .search-input:focus,.filter-select:focus{border-color:var(--accent)}
 .spacer{flex:1}
+/* Date range picker */
+.drp-shortcut{padding:9px 14px;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);border-radius:6px;margin:2px 6px;transition:all 0.15s}
+.drp-shortcut:hover{background:var(--accent-light);color:var(--accent)}
+.drp-shortcut.active{background:var(--accent-light);color:var(--accent);font-weight:700}
+.drp-day{height:28px;width:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;font-size:12px;margin:auto;transition:all 0.12s}
+.drp-day:hover:not(.empty):not(.other-month){background:var(--accent-light);color:var(--accent)}
+.drp-day.today{font-weight:700;color:var(--accent)}
+.drp-day.selected{background:var(--accent);color:#fff;border-radius:6px}
+.drp-day.in-range{background:var(--accent-light);color:var(--accent);border-radius:0}
+.drp-day.range-start{background:var(--accent);color:#fff;border-radius:6px 0 0 6px}
+.drp-day.range-end{background:var(--accent);color:#fff;border-radius:0 6px 6px 0}
+.drp-day.range-start.range-end{border-radius:6px}
+.drp-day.other-month{color:var(--border-strong);cursor:default}
+.drp-day.empty{cursor:default}
 
 /* TABLE */
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow)}
@@ -754,34 +768,62 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <!-- Filter tanggal -->
     <div class="card" style="margin-bottom:1rem">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:6px">
-          <div>
-            <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">DARI</label>
-            <input type="date" id="db-date-from" class="search-input" style="width:150px" />
-          </div>
-          <div style="margin-top:18px;color:var(--muted);font-size:13px">—</div>
-          <div>
-            <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">SAMPAI</label>
-            <input type="date" id="db-date-to" class="search-input" style="width:150px" />
+        <!-- Hidden date inputs (used by loadDashboard) -->
+        <input type="hidden" id="db-date-from" />
+        <input type="hidden" id="db-date-to" />
+        <!-- Custom date range picker -->
+        <div style="position:relative" id="drp-wrap">
+          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">PERIODE</label>
+          <button id="drp-btn" onclick="toggleDRP()" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border:1.5px solid var(--border-strong);border-radius:8px;background:var(--surface);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:500;color:var(--text);white-space:nowrap">
+            <span style="font-size:15px">📅</span>
+            <span id="drp-label">Pilih Tanggal</span>
+            <span style="font-size:10px;color:var(--muted)">▼</span>
+          </button>
+          <div id="drp-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:var(--surface);border:1.5px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow-md);min-width:340px;overflow:hidden">
+            <div style="display:flex">
+              <!-- Shortcuts -->
+              <div style="width:130px;background:var(--bg);border-right:1px solid var(--border);padding:8px 0">
+                <div class="drp-shortcut" onclick="drpShortcut('today')">Hari Ini</div>
+                <div class="drp-shortcut" onclick="drpShortcut('yesterday')">Kemarin</div>
+                <div class="drp-shortcut" onclick="drpShortcut('7days')">7 Hari Terakhir</div>
+                <div class="drp-shortcut" onclick="drpShortcut('thismonth')">Bulan Ini</div>
+                <div class="drp-shortcut" onclick="drpShortcut('lastmonth')">Bulan Lalu</div>
+              </div>
+              <!-- Calendar -->
+              <div style="flex:1;padding:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                  <button onclick="drpNavMonth(-1)" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 6px;border-radius:6px;color:var(--text)">‹</button>
+                  <span id="drp-month-label" style="font-size:13px;font-weight:700"></span>
+                  <button onclick="drpNavMonth(1)" style="background:none;border:none;cursor:pointer;font-size:16px;padding:2px 6px;border-radius:6px;color:var(--text)">›</button>
+                </div>
+                <div id="drp-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:12px"></div>
+              </div>
+            </div>
+            <!-- Range display + actions -->
+            <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <span id="drp-range-display" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
+              <div style="display:flex;gap:6px">
+                <button onclick="drpReset()" style="padding:5px 14px;border-radius:7px;border:1.5px solid var(--border-strong);background:none;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted)">Reset</button>
+                <button onclick="drpApply()" style="padding:5px 14px;border-radius:7px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:12px;font-weight:700">Terapkan</button>
+              </div>
+            </div>
           </div>
         </div>
         <div id="db-user-filter-wrap">
           <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">VALIDATOR</label>
-          <select id="db-user-filter" class="filter-select">
+          <select id="db-user-filter" class="filter-select" onchange="loadDashboard()">
             <option value="all">Semua</option>
           </select>
         </div>
         <div>
           <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">TEAM</label>
-          <select id="db-team-filter" class="filter-select">
+          <select id="db-team-filter" class="filter-select" onchange="loadDashboard()">
             <option value="all">Semua Team</option>
             <option value="Ghazi">Ghazi</option>
             <option value="Herba">Herba</option>
             <option value="Zaydan">Zaydan</option>
           </select>
         </div>
-        <button class="btn-primary" onclick="loadDashboard()" style="margin-top:18px">Tampilkan</button>
-        <button class="btn-secondary" onclick="setTodayFilter()" style="margin-top:18px;font-size:12px">Hari Ini</button>
         <button class="btn-secondary" onclick="switchDashboardTab('resi')" id="btn-db-resi" style="margin-top:18px;font-size:12px">📝 Input Resi</button>
         <span class="loading-badge" id="loading-dashboard">memuat...</span>
       </div>
@@ -2886,19 +2928,186 @@ async function cekKodepos() {
 let dbAllDetail = [], dbFilteredDetail = [], dbPage = 1;
 const DB_PAGE_SIZE = 100;
 
+// ── DATE RANGE PICKER ─────────────────────────────────────────────────────────
+let _drpFrom = null, _drpTo = null, _drpSelecting = null, _drpHover = null;
+let _drpCurYear, _drpCurMonth;
+
+function fmtDate(d) {
+  if (!d) return '';
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtDateDisplay(d) {
+  if (!d) return '';
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+
+function toggleDRP() {
+  const panel = document.getElementById('drp-panel');
+  if (panel.style.display === 'none') { drpOpen(); } else { drpClose(); }
+}
+function drpOpen() {
+  const panel = document.getElementById('drp-panel');
+  panel.style.display = 'block';
+  const now = new Date();
+  _drpCurYear  = _drpFrom ? _drpFrom.getFullYear() : now.getFullYear();
+  _drpCurMonth = _drpFrom ? _drpFrom.getMonth()    : now.getMonth();
+  drpRenderCalendar();
+  drpRenderRange();
+}
+function drpClose() {
+  document.getElementById('drp-panel').style.display = 'none';
+}
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('drp-wrap');
+  if (wrap && !wrap.contains(e.target)) drpClose();
+});
+
+function drpNavMonth(delta) {
+  _drpCurMonth += delta;
+  if (_drpCurMonth > 11) { _drpCurMonth = 0; _drpCurYear++; }
+  if (_drpCurMonth < 0)  { _drpCurMonth = 11; _drpCurYear--; }
+  drpRenderCalendar();
+}
+
+function drpRenderCalendar() {
+  const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const DAYS   = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  document.getElementById('drp-month-label').textContent = MONTHS[_drpCurMonth] + ' ' + _drpCurYear;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const firstDay = new Date(_drpCurYear, _drpCurMonth, 1).getDay();
+  const daysInMonth = new Date(_drpCurYear, _drpCurMonth+1, 0).getDate();
+
+  let html = DAYS.map(d=>`<div style="font-size:10px;color:var(--muted);font-weight:700;text-align:center;padding:4px 0">${d}</div>`).join('');
+
+  for (let i = 0; i < firstDay; i++) html += `<div class="drp-day empty"></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(_drpCurYear, _drpCurMonth, d);
+    dt.setHours(0,0,0,0);
+    const iso = fmtDate(dt);
+    let cls = 'drp-day';
+
+    const from = _drpFrom ? new Date(_drpFrom).setHours(0,0,0,0) : null;
+    const to   = (_drpTo || _drpHover) ? new Date(_drpTo||_drpHover).setHours(0,0,0,0) : null;
+    const ts   = dt.getTime();
+
+    if (dt.getTime() === today.getTime()) cls += ' today';
+    if (from && to) {
+      const lo = Math.min(from, to), hi = Math.max(from, to);
+      if (ts === lo && ts === hi) cls += ' selected';
+      else if (ts === lo) cls += ' range-start';
+      else if (ts === hi) cls += ' range-end';
+      else if (ts > lo && ts < hi) cls += ' in-range';
+    } else if (from && ts === from) cls += ' selected';
+
+    html += `<div class="${cls}" onclick="drpDayClick('${iso}')" onmouseenter="drpDayHover('${iso}')">${d}</div>`;
+  }
+
+  document.getElementById('drp-calendar').innerHTML = html;
+}
+
+function drpDayClick(iso) {
+  const dt = new Date(iso); dt.setHours(0,0,0,0);
+  if (!_drpFrom || (_drpFrom && _drpTo)) {
+    _drpFrom = dt; _drpTo = null; _drpSelecting = true;
+  } else {
+    if (dt < _drpFrom) { _drpTo = _drpFrom; _drpFrom = dt; }
+    else               { _drpTo = dt; }
+    _drpSelecting = false;
+    _drpHover = null;
+  }
+  drpRenderCalendar();
+  drpRenderRange();
+}
+
+function drpDayHover(iso) {
+  if (_drpSelecting && _drpFrom && !_drpTo) {
+    _drpHover = new Date(iso);
+    _drpHover.setHours(0,0,0,0);
+    drpRenderCalendar();
+  }
+}
+
+function drpRenderRange() {
+  const el = document.getElementById('drp-range-display');
+  if (_drpFrom && _drpTo) {
+    el.textContent = fmtDateDisplay(_drpFrom) + '  →  ' + fmtDateDisplay(_drpTo);
+  } else if (_drpFrom) {
+    el.textContent = fmtDateDisplay(_drpFrom) + '  →  ...';
+  } else {
+    el.textContent = 'Pilih tanggal mulai';
+  }
+}
+
+function drpShortcut(type) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  document.querySelectorAll('.drp-shortcut').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+  if (type === 'today') {
+    _drpFrom = new Date(now); _drpTo = new Date(now);
+  } else if (type === 'yesterday') {
+    const y = new Date(now); y.setDate(y.getDate()-1);
+    _drpFrom = y; _drpTo = new Date(y);
+  } else if (type === '7days') {
+    const s = new Date(now); s.setDate(s.getDate()-6);
+    _drpFrom = s; _drpTo = new Date(now);
+  } else if (type === 'thismonth') {
+    _drpFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+    _drpTo   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  } else if (type === 'lastmonth') {
+    _drpFrom = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    _drpTo   = new Date(now.getFullYear(), now.getMonth(), 0);
+  }
+  _drpCurYear  = _drpFrom.getFullYear();
+  _drpCurMonth = _drpFrom.getMonth();
+  _drpSelecting = false; _drpHover = null;
+  drpRenderCalendar();
+  drpRenderRange();
+}
+
+function drpReset() {
+  _drpFrom = null; _drpTo = null; _drpSelecting = false; _drpHover = null;
+  document.querySelectorAll('.drp-shortcut').forEach(el => el.classList.remove('active'));
+  const now = new Date();
+  _drpCurYear = now.getFullYear(); _drpCurMonth = now.getMonth();
+  drpRenderCalendar();
+  drpRenderRange();
+  document.getElementById('drp-label').textContent = 'Pilih Tanggal';
+  document.getElementById('db-date-from').value = '';
+  document.getElementById('db-date-to').value   = '';
+}
+
+function drpApply() {
+  if (!_drpFrom) { showToast('Pilih tanggal terlebih dahulu.','error'); return; }
+  const from = _drpFrom;
+  const to   = _drpTo || _drpFrom;
+  document.getElementById('db-date-from').value = fmtDate(from);
+  document.getElementById('db-date-to').value   = fmtDate(to);
+  const label = fmtDateDisplay(from) === fmtDateDisplay(to)
+    ? fmtDateDisplay(from)
+    : fmtDateDisplay(from) + ' — ' + fmtDateDisplay(to);
+  document.getElementById('drp-label').textContent = label;
+  drpClose();
+  loadDashboard();
+}
+
+function drpSetToday() {
+  const now = new Date(); now.setHours(0,0,0,0);
+  _drpFrom = new Date(now); _drpTo = new Date(now);
+  _drpCurYear = now.getFullYear(); _drpCurMonth = now.getMonth();
+  document.getElementById('db-date-from').value = fmtDate(now);
+  document.getElementById('db-date-to').value   = fmtDate(now);
+  document.getElementById('drp-label').textContent = fmtDateDisplay(now);
+}
+
 function setTodayFilter() {
-  const d = new Date(); const today = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  document.getElementById('db-date-from').value = today;
-  document.getElementById('db-date-to').value   = today;
+  drpSetToday();
   loadDashboard();
 }
 
 async function initDashboard() {
-  const d = new Date(); const today = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const fromEl = document.getElementById('db-date-from');
-  const toEl   = document.getElementById('db-date-to');
-  if (!fromEl.value) fromEl.value = today;
-  if (!toEl.value)   toEl.value   = today;
+  drpSetToday();
   // Load user list dari validator_config
   try {
     const { data } = await sb.from('validator_config').select('email, nama').order('nama');
