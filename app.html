@@ -2948,13 +2948,13 @@ async function loadDashboard() {
     const summaryEl = document.getElementById('db-summary');
     summaryEl.style.display = 'grid';
     summaryEl.innerHTML = `
-      <div class="sum-card c-total"><div class="s-label">Total Orderan</div><div class="s-value">${total.toLocaleString()}</div></div>
-      <div class="sum-card c-dupteam"><div class="s-label">Duplikat Team</div><div class="s-value">${dupTeam.toLocaleString()}</div></div>
-      <div class="sum-card c-dupall"><div class="s-label">Duplikat All</div><div class="s-value">${dupAll.toLocaleString()}</div></div>
-      <div class="sum-card c-rts"><div class="s-label">Pernah RTS</div><div class="s-value">${rts.toLocaleString()}</div></div>
-      <div class="sum-card c-aman"><div class="s-label">Kirim</div><div class="s-value" style="color:var(--success)">${kirim.toLocaleString()}</div></div>
-      <div class="sum-card" style="border:1px solid var(--border)"><div class="s-label">Hold</div><div class="s-value" style="color:var(--warn)">${hold.toLocaleString()}</div></div>
-      <div class="sum-card" style="border:1px solid var(--border)"><div class="s-label">Cancel</div><div class="s-value" style="color:var(--danger)">${cancel.toLocaleString()}</div></div>
+      <div class="sum-card c-total" onclick="filterDbByCard('all')" style="cursor:pointer"><div class="s-label">Total Orderan</div><div class="s-value">${total.toLocaleString()}</div></div>
+      <div class="sum-card c-dupteam" onclick="filterDbByCard('DUPLIKAT')" style="cursor:pointer"><div class="s-label">Duplikat Team</div><div class="s-value">${dupTeam.toLocaleString()}</div></div>
+      <div class="sum-card c-dupall" onclick="filterDbByCard('DUPLIKAT')" style="cursor:pointer"><div class="s-label">Duplikat All</div><div class="s-value">${dupAll.toLocaleString()}</div></div>
+      <div class="sum-card c-rts" onclick="filterDbByCard('RTS')" style="cursor:pointer"><div class="s-label">Pernah RTS</div><div class="s-value">${rts.toLocaleString()}</div></div>
+      <div class="sum-card c-aman" onclick="filterDbByCard('KIRIM')" style="cursor:pointer"><div class="s-label">Kirim</div><div class="s-value" style="color:var(--success)">${kirim.toLocaleString()}</div></div>
+      <div class="sum-card" onclick="filterDbByCard('HOLD')" style="cursor:pointer;border:1px solid var(--border)"><div class="s-label">Hold</div><div class="s-value" style="color:var(--warn)">${hold.toLocaleString()}</div></div>
+      <div class="sum-card" onclick="filterDbByCard('CANCEL')" style="cursor:pointer;border:1px solid var(--border)"><div class="s-label">Cancel</div><div class="s-value" style="color:var(--danger)">${cancel.toLocaleString()}</div></div>
     `;
 
     // Sesi list
@@ -3010,6 +3010,14 @@ async function loadDashboard() {
 function filterBySesi(sesiId) {
   dbFilteredDetail = dbAllDetail.filter(r => r.sesi_id === sesiId);
   dbPage = 1; renderDbTable();
+}
+
+function filterDbByCard(status) {
+  const sel = document.getElementById('db-status-filter');
+  if (sel) sel.value = status;
+  filterDbDetail();
+  const detailSection = document.getElementById('db-detail-section');
+  if (detailSection) detailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function filterDbDetail() {
