@@ -2893,12 +2893,11 @@ async function initDashboard() {
   const toEl   = document.getElementById('db-date-to');
   if (!fromEl.value) fromEl.value = today;
   if (!toEl.value)   toEl.value   = today;
-  // Load user list
+  // Load user list dari validator_config
   try {
-    const { data } = await sb.from('validasi_detail').select('user_email').limit(1000);
-    const users = [...new Set((data||[]).map(r=>r.user_email))];
+    const { data } = await sb.from('validator_config').select('email, nama').order('nama');
     const sel = document.getElementById('db-user-filter');
-    sel.innerHTML = '<option value="all">Semua</option>' + users.map(u=>`<option value="${u}">${u}</option>`).join('');
+    sel.innerHTML = '<option value="all">Semua</option>' + (data||[]).filter(v=>v.email).map(v=>`<option value="${v.email}">${v.nama||v.email}</option>`).join('');
   } catch(e) {}
   await loadDashboard();
 }
