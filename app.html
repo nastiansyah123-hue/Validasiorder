@@ -813,13 +813,19 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div id="db-detail-section" style="display:none">
       <div class="action-bar">
         <select class="filter-select" id="db-status-filter" onchange="filterDbDetail()">
-          <option value="all">Semua baris</option>
+          <option value="all">Semua Status</option>
           <option value="DUPLIKAT">Duplikat All Team</option>
           <option value="RTS">Pernah RTS</option>
           <option value="AMAN">Aman</option>
           <option value="KIRIM">Kirim</option>
           <option value="HOLD">Hold</option>
           <option value="CANCEL">Cancel</option>
+        </select>
+        <select class="filter-select" id="db-team-detail-filter" onchange="filterDbDetail()">
+          <option value="all">Semua Team</option>
+          <option value="Ghazi">Ghazi</option>
+          <option value="Herba">Herba</option>
+          <option value="Zaydan">Zaydan</option>
         </select>
         <input class="search-input" id="db-search" type="text" placeholder="Cari nama / HP / resi..." oninput="filterDbDetail()" />
         <span class="spacer"></span>
@@ -3008,8 +3014,9 @@ function filterBySesi(sesiId) {
 }
 
 function filterDbDetail() {
-  const f = document.getElementById('db-status-filter').value;
-  const q = document.getElementById('db-search').value.toLowerCase();
+  const f    = document.getElementById('db-status-filter').value;
+  const team = document.getElementById('db-team-detail-filter')?.value || 'all';
+  const q    = document.getElementById('db-search').value.toLowerCase();
   dbFilteredDetail = dbAllDetail.filter(r => {
     const mf = f==='all'?true
       :f==='DUPLIKAT'?r.duplikat_all
@@ -3020,6 +3027,7 @@ function filterDbDetail() {
       :f==='CANCEL'?(r.acc_spv_cs||'').toUpperCase()==='CANCEL'
       :true;
     if (!mf) return false;
+    if (team !== 'all' && (r.team||'') !== team) return false;
     if (!q) return true;
     return String(r.hp||'').includes(q)||String(r.nama||'').toLowerCase().includes(q)||String(r.resi||'').toLowerCase().includes(q);
   });
