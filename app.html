@@ -388,22 +388,44 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <button onclick="toggleUploadCard()" id="btn-toggle-upload" title="Sembunyikan/Tampilkan" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:6px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'">▲</button>
       </div>
       <div id="upload-body">
-        <div style="margin-bottom:1rem;display:flex;align-items:center;gap:10px">
-    <label style="font-size:13px;font-weight:600">Team:</label>
-    <select id="select-team" class="filter-select" style="width:160px">
-      <option value="">-- Pilih Team --</option>
-      <option value="Ghazi">Ghazi</option>
-      <option value="Herba">Herba</option>
-      <option value="Zaydan">Zaydan</option>
-    </select>
-    <span id="team-warning" style="font-size:11px;color:var(--danger);display:none">⚠ Pilih team dulu!</span>
-  </div>
-  <div class="drop-zone" id="dz-baru">
-          <input type="file" id="file-baru" accept=".csv,.xlsx,.xls" multiple />
-          <div class="drop-zone-icon">📥</div>
-          <div class="drop-zone-text">Drag & drop atau klik — bisa pilih banyak file<br><span>.csv / .xlsx</span></div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:1rem">
+          <!-- Team Ghazi -->
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:start">
+            <div style="padding-top:10px;font-size:13px;font-weight:700;color:var(--accent)">Ghazi</div>
+            <div>
+              <div class="drop-zone" id="dz-ghazi" style="padding:1rem">
+                <input type="file" id="file-ghazi" accept=".csv,.xlsx,.xls" multiple />
+                <div class="drop-zone-icon" style="font-size:18px">📥</div>
+                <div class="drop-zone-text">Drag & drop atau klik<br><span>.csv / .xlsx</span></div>
+              </div>
+              <div id="file-list-ghazi" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+          </div>
+          <!-- Team Herba -->
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:start">
+            <div style="padding-top:10px;font-size:13px;font-weight:700;color:var(--accent)">Herba</div>
+            <div>
+              <div class="drop-zone" id="dz-herba" style="padding:1rem">
+                <input type="file" id="file-herba" accept=".csv,.xlsx,.xls" multiple />
+                <div class="drop-zone-icon" style="font-size:18px">📥</div>
+                <div class="drop-zone-text">Drag & drop atau klik<br><span>.csv / .xlsx</span></div>
+              </div>
+              <div id="file-list-herba" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+          </div>
+          <!-- Team Zaydan -->
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:start">
+            <div style="padding-top:10px;font-size:13px;font-weight:700;color:var(--accent)">Zaydan</div>
+            <div>
+              <div class="drop-zone" id="dz-zaydan" style="padding:1rem">
+                <input type="file" id="file-zaydan" accept=".csv,.xlsx,.xls" multiple />
+                <div class="drop-zone-icon" style="font-size:18px">📥</div>
+                <div class="drop-zone-text">Drag & drop atau klik<br><span>.csv / .xlsx</span></div>
+              </div>
+              <div id="file-list-zaydan" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px"></div>
+            </div>
+          </div>
         </div>
-        <div id="file-list-baru" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
         <div id="status-baru" class="drop-status"></div>
         <div style="margin-top:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <button class="btn-primary" id="btn-validasi" disabled onclick="doValidasiHarian()">Jalankan Validasi</button>
@@ -711,6 +733,15 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
             <option value="all">Semua</option>
           </select>
         </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">TEAM</label>
+          <select id="db-team-filter" class="filter-select">
+            <option value="all">Semua Team</option>
+            <option value="Ghazi">Ghazi</option>
+            <option value="Herba">Herba</option>
+            <option value="Zaydan">Zaydan</option>
+          </select>
+        </div>
         <button class="btn-primary" onclick="loadDashboard()" style="margin-top:18px">Tampilkan</button>
         <button class="btn-secondary" onclick="setTodayFilter()" style="margin-top:18px;font-size:12px">Hari Ini</button>
         <button class="btn-secondary" onclick="switchDashboardTab('resi')" id="btn-db-resi" style="margin-top:18px;font-size:12px">📝 Input Resi</button>
@@ -761,6 +792,8 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <input class="search-input" id="db-search" type="text" placeholder="Cari nama / HP / resi..." oninput="filterDbDetail()" />
         <span class="spacer"></span>
         <button class="btn-secondary" onclick="exportDbCSV()">Export CSV</button>
+        <button class="btn-secondary" onclick="exportDbXLSX()">Export XLSX</button>
+        <button class="btn-secondary" onclick="exportDbKirim()" style="background:#16a34a;color:white;border-color:#16a34a">✅ Export KIRIM</button>
         <span id="db-detail-count" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
       </div>
       <div class="table-wrap">
@@ -1118,17 +1151,18 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   if (dateEl) dateEl.textContent = new Date().toLocaleDateString('id-ID', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
   initGreeting(user.email);
 
-  // Multi-file handler untuk orderan baru
-  const dzBaru = document.getElementById('dz-baru');
-  const fileBaru = document.getElementById('file-baru');
-
-  dzBaru.addEventListener('dragover', e => { e.preventDefault(); dzBaru.classList.add('drag-over'); });
-  dzBaru.addEventListener('dragleave', () => dzBaru.classList.remove('drag-over'));
-  dzBaru.addEventListener('drop', e => {
-    e.preventDefault(); dzBaru.classList.remove('drag-over');
-    handleMultiFiles([...e.dataTransfer.files]);
+  // Multi-file handler per team
+  ['ghazi','herba','zaydan'].forEach(team => {
+    const dz   = document.getElementById('dz-' + team);
+    const input = document.getElementById('file-' + team);
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault(); dz.classList.remove('drag-over');
+      handleTeamFiles([...e.dataTransfer.files], team);
+    });
+    input.addEventListener('change', () => handleTeamFiles([...input.files], team));
   });
-  fileBaru.addEventListener('change', () => handleMultiFiles([...fileBaru.files]));
 
   setupDropzone('dz-order', 'file-order', 'order', (data) => {
     masterOrderParsed = data.map(extractOrderFields);
@@ -1671,56 +1705,72 @@ function doFilter() {
 }
 
 // RENDER TABLE
-let loadedFiles = {}; // filename -> parsed rows
+// loadedFilesPerTeam: { ghazi: {fname: rows}, herba: {fname: rows}, zaydan: {fname: rows} }
+let loadedFilesPerTeam = { ghazi: {}, herba: {}, zaydan: {} };
 
 function clearFiles() {
-  loadedFiles = {};
+  loadedFilesPerTeam = { ghazi: {}, herba: {}, zaydan: {} };
   orderBaruRaw = [];
-  document.getElementById('file-list-baru').innerHTML = '';
+  ['ghazi','herba','zaydan'].forEach(team => {
+    const el = document.getElementById('file-list-' + team);
+    if (el) el.innerHTML = '';
+    const inp = document.getElementById('file-' + team);
+    if (inp) inp.value = '';
+  });
   document.getElementById('status-baru').style.display = 'none';
   document.getElementById('btn-validasi').disabled = true;
   document.getElementById('btn-clear-files').style.display = 'none';
   document.getElementById('step2-ind').className = 'step';
   document.getElementById('step2-sub').textContent = 'belum diupload';
-  document.getElementById('file-baru').value = '';
 }
 
-function handleMultiFiles(files) {
+function handleTeamFiles(files, team) {
   if (!files.length) return;
   files.forEach(file => processFile(file, 'baru-multi', (data, fname) => {
-    loadedFiles[fname] = data.map(extractOrderFields);
-    updateFileList();
+    loadedFilesPerTeam[team][fname] = data.map(r => ({ ...extractOrderFields(r), _uploadTeam: team.charAt(0).toUpperCase() + team.slice(1) }));
+    updateAllFileLists();
   }));
 }
 
-function updateFileList() {
-  // Gabungkan semua file
-  orderBaruRaw = Object.values(loadedFiles).flat();
-  const listEl = document.getElementById('file-list-baru');
-  listEl.innerHTML = Object.entries(loadedFiles).map(([fname, rows]) =>
-(() => {
-      const safeId = encodeURIComponent(fname);
-      return `<div style="display:flex;align-items:center;gap:6px;background:var(--c-success-bg);color:var(--c-success);padding:4px 10px;border-radius:99px;font-size:11px;font-family:monospace">
+function updateAllFileLists() {
+  // Gabungkan semua team
+  orderBaruRaw = [];
+  let totalFiles = 0;
+  ['ghazi','herba','zaydan'].forEach(team => {
+    const teamFiles = loadedFilesPerTeam[team];
+    const listEl = document.getElementById('file-list-' + team);
+    const teamLabel = team.charAt(0).toUpperCase() + team.slice(1);
+    listEl.innerHTML = Object.entries(teamFiles).map(([fname, rows]) => {
+      const safeId = encodeURIComponent(fname + '|' + team);
+      return `<div style="display:flex;align-items:center;gap:6px;background:var(--success-light);color:var(--success);padding:4px 10px;border-radius:99px;font-size:11px;font-family:monospace">
         ✓ ${fname} (${rows.length.toLocaleString()} baris)
-        <span data-fname="${safeId}" onclick="removeFile(decodeURIComponent(this.dataset.fname))" style="cursor:pointer;color:var(--c-danger);font-weight:700;margin-left:4px">✕</span>
+        <span data-key="${safeId}" onclick="removeTeamFile(this.dataset.key)" style="cursor:pointer;color:var(--danger);font-weight:700;margin-left:4px">✕</span>
       </div>`;
-    })()
-  ).join('');
-  document.getElementById('btn-validasi').disabled = orderBaruRaw.length === 0;
-  document.getElementById('btn-clear-files').style.display = orderBaruRaw.length ? 'inline-block' : 'none';
-  if (orderBaruRaw.length) {
+    }).join('');
+    const rows = Object.values(teamFiles).flat();
+    orderBaruRaw.push(...rows);
+    totalFiles += Object.keys(teamFiles).length;
+  });
+
+  const totalRows = orderBaruRaw.length;
+  document.getElementById('btn-validasi').disabled = totalRows === 0;
+  document.getElementById('btn-clear-files').style.display = totalRows ? 'inline-block' : 'none';
+  if (totalRows) {
     document.getElementById('step2-ind').className = 'step done';
-    document.getElementById('step2-sub').textContent = orderBaruRaw.length.toLocaleString() + ' baris (' + Object.keys(loadedFiles).length + ' file)';
+    document.getElementById('step2-sub').textContent = totalRows.toLocaleString() + ' baris (' + totalFiles + ' file)';
     document.getElementById('status-baru').className = 'drop-status ok';
     document.getElementById('status-baru').style.display = 'block';
-    document.getElementById('status-baru').textContent = `✓ Total ${orderBaruRaw.length.toLocaleString()} baris dari ${Object.keys(loadedFiles).length} file`;
+    document.getElementById('status-baru').textContent = `✓ Total ${totalRows.toLocaleString()} baris dari ${totalFiles} file`;
+  } else {
+    document.getElementById('status-baru').style.display = 'none';
   }
 }
 
-function removeFile(fname) {
-  delete loadedFiles[fname];
-  updateFileList();
-  if (!Object.keys(loadedFiles).length) clearFiles();
+function removeTeamFile(key) {
+  const [fname, team] = decodeURIComponent(key).split('|');
+  delete loadedFilesPerTeam[team][fname];
+  updateAllFileLists();
+  if (!orderBaruRaw.length) clearFiles();
 }
 
 const MOODS = [
@@ -2221,7 +2271,8 @@ function setAccSPV(sel) {
 function saveState() {
   try {
     sessionStorage.setItem('vo_validated', JSON.stringify(validatedData));
-    sessionStorage.setItem('vo_files', JSON.stringify(Object.keys(loadedFiles)));
+    const allLoadedFiles = Object.values(loadedFilesPerTeam).flatMap(t => Object.keys(t));
+    sessionStorage.setItem('vo_files', JSON.stringify(allLoadedFiles));
     sessionStorage.setItem('vo_page', currentPage);
     sessionStorage.setItem('vo_pagesize', PAGE_SIZE);
     sessionStorage.setItem('vo_filter', document.getElementById('filter-status')?.value||'all');
@@ -2810,7 +2861,8 @@ async function loadDashboard() {
   try {
     const from  = document.getElementById('db-date-from').value;
     const to    = document.getElementById('db-date-to').value;
-    const uFilter = document.getElementById('db-user-filter').value;
+    const uFilter    = document.getElementById('db-user-filter').value;
+    const teamFilter = document.getElementById('db-team-filter')?.value || 'all';
 
     const isAdmin = window._userRole === 'admin';
     const currentEmail = document.getElementById('user-email').textContent;
@@ -2820,6 +2872,7 @@ async function loadDashboard() {
     } else if (uFilter !== 'all') {
       query = query.eq('user_email', uFilter);
     }
+    if (teamFilter !== 'all') query = query.eq('team', teamFilter);
 
     // Paginate all
     const allData = [];
@@ -3070,15 +3123,47 @@ async function hapusSesi(sesiId) {
   }
 }
 
-function exportDbCSV() {
-  if (!dbFilteredDetail.length) return showToast('Tidak ada data','error');
-  const headers = ['Tanggal','Sesi','Validator','No','Nama','HP','Kode Pos','Kabupaten','Provinsi','Jumlah','Pembayaran','Ekspedisi','Resi','Grade','Status Validasi','RTS Reason','RTS Count','Wilayah Rawan','Rek. Ekspedisi','ACC SPV CS','SS Chat'];
-  const rows = dbFilteredDetail.map(r=>[r.tanggal,r.sesi_id,r.user_email,r.no,r.nama,r.hp,r.kodepos,r.kabupaten,r.provinsi,r.jumlah,r.pembayaran,r.ekspedisi,r.resi,r.grade,r.status_validasi,r.rts_reason,r.rts_count,r.wilayah_rawan,r.rek_ekspedisi,r.acc_spv_cs,r.ss_chat?'Ya':''].map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','));
-  const csv = [headers.join(','),...rows].join('\n');
-  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+const DB_HEADERS = ['Tanggal','Team','Validator','No','Nama','HP','Kode Pos','Kabupaten','Provinsi','Jumlah','Pembayaran','Ekspedisi','Resi','Grade','Status Validasi','RTS Reason','RTS Count','Wilayah Rawan','Rek. Ekspedisi','ACC SPV CS','SS Chat'];
+
+function dbRowToArr(r) {
+  return [r.tanggal,r.team||'',r.user_email,r.no,r.nama,r.hp,r.kodepos,r.kabupaten,r.provinsi,r.jumlah,r.pembayaran,r.ekspedisi,r.resi,r.grade,r.status_validasi,r.rts_reason,r.rts_count,r.wilayah_rawan,r.rek_ekspedisi,r.acc_spv_cs,r.ss_chat?'Ya':''];
+}
+
+function exportDbCSV(data, filename) {
+  const rows = (data||dbFilteredDetail);
+  if (!rows.length) return showToast('Tidak ada data','error');
+  const lines = rows.map(r => dbRowToArr(r).map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(','));
+  const csv = [DB_HEADERS.join(','), ...lines].join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url; a.download='dashboard_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  const a = document.createElement('a');
+  a.href = url; a.download = (filename||'dashboard')+'_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
   URL.revokeObjectURL(url);
+}
+
+function exportDbXLSX(data, filename) {
+  const rows = (data||dbFilteredDetail);
+  if (!rows.length) return showToast('Tidak ada data','error');
+  const sheetData = [DB_HEADERS, ...rows.map(dbRowToArr)];
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+  // Bold header
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const addr = XLSX.utils.encode_cell({r:0, c:C});
+    if (!ws[addr]) continue;
+    ws[addr].s = { font: {bold:true}, fill: {fgColor:{rgb:'E6F1FB'}} };
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dashboard');
+  XLSX.writeFile(wb, (filename||'dashboard')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('XLSX berhasil diexport.', 'success');
+}
+
+function exportDbKirim() {
+  const kirimData = dbAllDetail.filter(r => (r.acc_spv_cs||'').toUpperCase() === 'KIRIM');
+  if (!kirimData.length) return showToast('Tidak ada data KIRIM', 'error');
+  exportDbXLSX(kirimData, 'kirim');
+  showToast(`Export ${kirimData.length} orderan KIRIM berhasil.`, 'success');
 }
 
 // ── SAVE VALIDASI DETAIL ──────────────────────────────────────────────────────
@@ -3147,7 +3232,7 @@ async function saveValidasiDetail() {
         pembayaran  : String(r._raw['Pembayaran']||'').slice(0,100),
         instruksi   : String(r._raw['Instruksi Pengiriman']||r._raw['instruksi']||'').slice(0,200),
         resi        : String(r._raw['Resi']||r._raw['RESI']||'').slice(0,100),
-        team        : document.getElementById('select-team')?.value || '',
+        team        : r._uploadTeam || '',
         update_crm  : '',
         status_akhir: 'ON PROSES',
         sumber      : 'validasi',
@@ -4615,15 +4700,56 @@ Terimakasih 🙏`;
         body: JSON.stringify({ target: item.noWA, message: item.pesan, fonnte_key: currentFonnteKey })
       });
       const d = await r.json();
+      console.log('[Fonnte]', item.csName, item.noWA, d);
       if (d.status) berhasil++;
-      else { gagal++; gagalList.push({ csName: item.csName, nama: item.nama, type: item.type, reason: d.reason||'Gagal' }); }
+      else { gagal++; gagalList.push({ csName: item.csName, nama: item.nama, type: item.type, noWA: item.noWA, pesan: item.pesan, reason: d.reason||'Gagal' }); }
     } catch(e) {
       gagal++;
-      gagalList.push({ csName: item.csName, nama: item.nama, type: item.type, reason: e.message });
+      gagalList.push({ csName: item.csName, nama: item.nama, type: item.type, noWA: item.noWA, pesan: item.pesan, reason: e.message });
     }
 
-    // Delay 500ms antar pesan
-    await new Promise(r => setTimeout(r, 500));
+    // Delay random 3/5/7/9 detik antar pesan agar tidak kena rate limit Fonnte
+    const delays = [3000, 5000, 7000, 9000];
+    const randomDelay = delays[Math.floor(Math.random() * delays.length)];
+    await new Promise(r => setTimeout(r, randomDelay));
+  }
+
+  showWAResult(berhasil, gagal, gagalList);
+}
+
+async function retryGagalWA(gagalItems) {
+  const retryable = gagalItems.filter(g => g.noWA && g.pesan);
+  if (!retryable.length) { showToast('Tidak ada pesan yang bisa dikirim ulang', 'error'); return; }
+
+  showWAProgressModal(retryable.length);
+  let berhasil = 0, gagal = 0;
+  const gagalList = [];
+
+  for (let i = 0; i < retryable.length; i++) {
+    const item = retryable[i];
+    updateWAProgress(i+1, retryable.length, item.csName);
+    try {
+      if (!currentFonnteKey) {
+        gagal++;
+        gagalList.push({ ...item, reason: 'API key Fonnte tidak ditemukan.' });
+        continue;
+      }
+      const r = await fetch('/api/fonnte', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: item.noWA, message: item.pesan, fonnte_key: currentFonnteKey })
+      });
+      const d = await r.json();
+      console.log('[Fonnte retry]', item.csName, item.noWA, d);
+      if (d.status) berhasil++;
+      else { gagal++; gagalList.push({ ...item, reason: d.reason||'Gagal' }); }
+    } catch(e) {
+      gagal++;
+      gagalList.push({ ...item, reason: e.message });
+    }
+    const delays = [3000, 5000, 7000, 9000];
+    const randomDelay = delays[Math.floor(Math.random() * delays.length)];
+    await new Promise(r => setTimeout(r, randomDelay));
   }
 
   showWAResult(berhasil, gagal, gagalList);
@@ -4661,6 +4787,9 @@ function updateWAProgress(current, total, csName) {
 function showWAResult(berhasil, gagal, gagalList) {
   const modal = document.getElementById('wa-progress-modal');
   if (!modal) return;
+  // Simpan gagalList ke variabel global supaya retry bisa akses
+  window._lastGagalWA = gagalList;
+  const retryable = gagalList.filter(g => g.noWA && g.pesan).length;
   modal.innerHTML = `<div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:480px;width:90%;max-height:80vh;overflow-y:auto">
     <div style="font-size:15px;font-weight:700;margin-bottom:1rem">📊 Hasil Pengiriman WA</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem">
@@ -4679,8 +4808,13 @@ function showWAResult(berhasil, gagal, gagalList) {
       <b>${g.csName}</b> — ${g.nama} (${g.type})<br>
       <span style="color:var(--danger);font-size:11px">${g.reason}</span>
     </div>`).join('')}` : ''}
-    <button onclick="document.getElementById('wa-progress-modal').style.display='none'" 
-      class="btn-primary" style="width:100%;margin-top:1rem;justify-content:center">Tutup</button>
+    <div style="display:flex;gap:8px;margin-top:1rem">
+      ${retryable > 0 ? `<button onclick="retryGagalWA(window._lastGagalWA)"
+        style="flex:1;padding:9px;background:#d97706;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">
+        🔁 Kirim Ulang yang Gagal (${retryable})</button>` : ''}
+      <button onclick="document.getElementById('wa-progress-modal').style.display='none'"
+        class="btn-primary" style="flex:1;justify-content:center">Tutup</button>
+    </div>
   </div>`;
 }
 
@@ -4709,7 +4843,7 @@ async function saveDraft() {
       sesiId: draftSesiId,
       validatedData: validatedData,
       gradeMap: gradeMap,
-      files: Object.keys(loadedFiles)
+      files: Object.values(loadedFilesPerTeam).flatMap(t => Object.keys(t))
     };
 
     // Upsert - 1 baris per user
