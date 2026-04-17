@@ -446,12 +446,44 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <button onclick="toggleGradeCard()" id="btn-toggle-grade" title="Sembunyikan/Tampilkan" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);flex-shrink:0;padding:2px 6px;border-radius:6px">▲</button>
       </div>
       <div id="grade-body">
-        <div class="drop-zone" id="dz-grade">
-          <input type="file" id="file-grade" accept=".csv,.xlsx,.xls" />
-          <div class="drop-zone-icon">🎯</div>
-          <div class="drop-zone-text">Upload file Grade dari pihak ketiga<br><span>.csv / .xlsx — kolom: Nomor HP, Grade</span></div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <!-- Grade Ghazi -->
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:start">
+            <div style="padding-top:10px;font-size:13px;font-weight:700;color:var(--accent)">Ghazi</div>
+            <div>
+              <div class="drop-zone" id="dz-grade-ghazi" style="padding:1rem">
+                <input type="file" id="file-grade-ghazi" accept=".csv,.xlsx,.xls" />
+                <div class="drop-zone-icon" style="font-size:18px">🎯</div>
+                <div class="drop-zone-text">File grade Ghazi<br><span>.csv / .xlsx — kolom: Nomor HP, Grade</span></div>
+              </div>
+              <div id="status-grade-ghazi" class="drop-status"></div>
+            </div>
+          </div>
+          <!-- Grade Herba -->
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:start">
+            <div style="padding-top:10px;font-size:13px;font-weight:700;color:var(--accent)">Herba</div>
+            <div>
+              <div class="drop-zone" id="dz-grade-herba" style="padding:1rem">
+                <input type="file" id="file-grade-herba" accept=".csv,.xlsx,.xls" />
+                <div class="drop-zone-icon" style="font-size:18px">🎯</div>
+                <div class="drop-zone-text">File grade Herba<br><span>.csv / .xlsx — kolom: Nomor HP, Grade</span></div>
+              </div>
+              <div id="status-grade-herba" class="drop-status"></div>
+            </div>
+          </div>
+          <!-- Grade Zaydan -->
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:start">
+            <div style="padding-top:10px;font-size:13px;font-weight:700;color:var(--accent)">Zaydan</div>
+            <div>
+              <div class="drop-zone" id="dz-grade-zaydan" style="padding:1rem">
+                <input type="file" id="file-grade-zaydan" accept=".csv,.xlsx,.xls" />
+                <div class="drop-zone-icon" style="font-size:18px">🎯</div>
+                <div class="drop-zone-text">File grade Zaydan<br><span>.csv / .xlsx — kolom: Nomor HP, Grade</span></div>
+              </div>
+              <div id="status-grade-zaydan" class="drop-status"></div>
+            </div>
+          </div>
         </div>
-        <div id="status-grade" class="drop-status"></div>
         <div id="grade-match-info" style="font-size:12px;color:var(--muted);font-family:monospace;margin-top:6px;display:none"></div>
         <div style="margin-top:8px">
           <button class="btn-primary" onclick="applyGradeToTable()" style="font-size:12px;padding:7px 14px" id="btn-apply-grade">Terapkan ke Tabel</button>
@@ -1197,28 +1229,30 @@ let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
   switchPage(lastPage);
 
 
-  // Grade dropzone
-  setupDropzone('dz-grade', 'file-grade', 'grade', (data, fname) => {
-    gradeMap = {};
-    let loaded = 0;
-    data.forEach(row => {
-      // Find HP and Grade columns flexibly
-      const keys = Object.keys(row);
-      const hpKey = keys.find(k => {
-        const kl = k.toLowerCase().replace(/\s/g,'');
-        return kl.includes('phone') || kl.includes('hp') || kl.includes('telp') || kl.includes('nomer') || kl.includes('nomor');
+  // Grade dropzone per team
+  ['ghazi','herba','zaydan'].forEach(team => {
+    setupDropzone('dz-grade-'+team, 'file-grade-'+team, 'grade-'+team, (data, fname) => {
+      const teamKey = team.charAt(0).toUpperCase() + team.slice(1);
+      gradeMapPerTeam[teamKey] = {};
+      let loaded = 0;
+      data.forEach(row => {
+        const keys = Object.keys(row);
+        const hpKey = keys.find(k => {
+          const kl = k.toLowerCase().replace(/\s/g,'');
+          return kl.includes('phone') || kl.includes('hp') || kl.includes('telp') || kl.includes('nomer') || kl.includes('nomor');
+        });
+        const gradeKey = keys.find(k => {
+          const kl = k.toLowerCase().replace(/\s/g,'');
+          return kl.includes('averagescore') || kl.includes('average') || kl.includes('score') || kl.includes('grade');
+        });
+        if (!hpKey || !gradeKey) return;
+        const hp = normalizeHP(row[hpKey]||'');
+        const grade = String(row[gradeKey]||'').trim();
+        if (hp && grade) { gradeMapPerTeam[teamKey][hp] = grade; loaded++; }
       });
-      const gradeKey = keys.find(k => {
-        const kl = k.toLowerCase().replace(/\s/g,'');
-        return kl.includes('averagescore') || kl.includes('average') || kl.includes('score') || kl.includes('grade');
-      });
-      if (!hpKey || !gradeKey) return;
-      const hp = normalizeHP(row[hpKey]||'');
-      const grade = String(row[gradeKey]||'').trim();
-      if (hp && grade) { gradeMap[hp] = grade; loaded++; }
+      setStatus(document.getElementById('status-grade-'+team), 'ok', `✓ ${loaded} data grade ${teamKey} dimuat dari ${fname}`);
+      applyGradeToTable();
     });
-    setStatus(document.getElementById('status-grade'), 'ok', `✓ ${loaded} data grade dimuat dari ${fname}`);
-    applyGradeToTable();
   });
   // Restore previous session data
   restoreState();
@@ -1594,7 +1628,7 @@ async function doValidasiHarian() {
 
     currentPage = 1; renderTable();
     // Auto apply grade if gradeMap has data
-    if (Object.keys(gradeMap).length) applyGradeToTable();
+    if (Object.values(gradeMapPerTeam).some(m => Object.keys(m).length)) applyGradeToTable();
     // Auto collapse upload card setelah validasi selesai
     const uploadBody = document.getElementById('upload-body');
     const toggleBtn  = document.getElementById('btn-toggle-upload');
@@ -2277,8 +2311,8 @@ function saveState() {
     sessionStorage.setItem('vo_pagesize', PAGE_SIZE);
     sessionStorage.setItem('vo_filter', document.getElementById('filter-status')?.value||'all');
     sessionStorage.setItem('vo_search', document.getElementById('search-box')?.value||'');
-    // Save gradeMap
-    if (Object.keys(gradeMap).length) sessionStorage.setItem('vo_grade_map', JSON.stringify(gradeMap));
+    // Save gradeMapPerTeam
+    if (Object.values(gradeMapPerTeam).some(m => Object.keys(m).length)) sessionStorage.setItem('vo_grade_map', JSON.stringify(gradeMapPerTeam));
   } catch(e) { console.warn('saveState error:', e); }
 }
 
@@ -2320,15 +2354,16 @@ function restoreState() {
     document.getElementById('step2-ind').className = 'step done';
     document.getElementById('step2-sub').textContent = validatedData.length.toLocaleString() + ' baris (sesi sebelumnya)';
 
-    // Restore gradeMap
+    // Restore gradeMapPerTeam
     const savedGrade = sessionStorage.getItem('vo_grade_map');
     if (savedGrade) {
-      gradeMap = JSON.parse(savedGrade);
+      gradeMapPerTeam = JSON.parse(savedGrade);
       // Re-apply grades to validatedData
       validatedData.forEach(row => {
-        const hp = normalizeHP(String(row.hp||''));
-        const hpStrip = hp.replace(/^0+/,'');
-        const grade = gradeMap[hp] || gradeMap[hpStrip] || gradeMap['0'+hpStrip] || '';
+        const hp   = normalizeHP(String(row.hp||''));
+        const team = row._uploadTeam || '';
+        const map  = gradeMapPerTeam[team] || {};
+        const grade = map[hp] || map[hp.replace(/^0+/,'')] || '';
         if (grade) { row._grade = grade; row._raw['Grade'] = grade; }
       });
     }
@@ -2371,7 +2406,7 @@ document.addEventListener('keydown', e => {
 });
 
 // ── GRADE UPLOAD ─────────────────────────────────────────────────────────────
-let gradeMap = {}; // hp normalized -> grade value
+let gradeMapPerTeam = { Ghazi: {}, Herba: {}, Zaydan: {} }; // team -> hp -> grade
 
 function toggleGradeCard() {
   const body = document.getElementById('grade-body');
@@ -2382,24 +2417,33 @@ function toggleGradeCard() {
 }
 
 function applyGradeToTable() {
-  if (!Object.keys(gradeMap).length || !validatedData.length) return;
+  const hasGrade = Object.values(gradeMapPerTeam).some(m => Object.keys(m).length > 0);
+  if (!hasGrade || !validatedData.length) return;
   let matched = 0;
-  // Build normalized gradeMap — normalize all keys first
-  const normalizedGradeMap = {};
-  Object.entries(gradeMap).forEach(([k, v]) => {
-    const norm = normalizeHP(k);
-    if (norm) normalizedGradeMap[norm] = v;
+
+  // Normalize semua key per team
+  const normalizedPerTeam = {};
+  Object.entries(gradeMapPerTeam).forEach(([team, map]) => {
+    normalizedPerTeam[team] = {};
+    Object.entries(map).forEach(([k, v]) => {
+      const norm = normalizeHP(k);
+      if (norm) normalizedPerTeam[team][norm] = v;
+    });
   });
 
   validatedData.forEach(row => {
-    const hp = normalizeHP(String(row.hp||''));
-    const grade = normalizedGradeMap[hp] || '';
+    const hp   = normalizeHP(String(row.hp||''));
+    const team = row._uploadTeam || '';
+    // Cari grade dari team yang sesuai, fallback ke semua team
+    const teamMap = normalizedPerTeam[team] || {};
+    const grade = teamMap[hp] || '';
     if (grade) {
       row._grade = grade;
       row._raw['Grade'] = grade;
       matched++;
     }
   });
+
   filteredData = [...validatedData];
   doFilter();
   const info = document.getElementById('grade-match-info');
@@ -2410,11 +2454,9 @@ function applyGradeToTable() {
   }
   if (matched > 0) {
     showToast(`${matched} grade berhasil dicocokkan!`, 'success');
-    // Auto collapse grade card
     const gradeBody = document.getElementById('grade-body');
     const gradeBtn  = document.getElementById('btn-toggle-grade');
     if (gradeBody) { gradeBody.style.display='none'; gradeBtn.textContent='▼'; }
-    // Update grade filter options
     updateGradeFilterOptions();
   }
   saveState();
@@ -4842,7 +4884,7 @@ async function saveDraft() {
     const draftData = {
       sesiId: draftSesiId,
       validatedData: validatedData,
-      gradeMap: gradeMap,
+      gradeMap: gradeMapPerTeam,
       files: Object.values(loadedFilesPerTeam).flatMap(t => Object.keys(t))
     };
 
@@ -4895,7 +4937,7 @@ async function checkAndRestoreDraft() {
     if (restore) {
       const d = draft.data;
       validatedData = d.validatedData || [];
-      gradeMap = d.gradeMap || {};
+      gradeMapPerTeam = d.gradeMap || { Ghazi: {}, Herba: {}, Zaydan: {} };
       draftSesiId = d.sesiId;
       
       if (validatedData.length) {
