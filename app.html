@@ -3387,14 +3387,52 @@ async function editSesi(sesiId) {
 }
 
 async function hapusSesi(sesiId) {
-  if (!confirm('Hapus semua data sesi ini? Tidak bisa dibatalkan.')) return;
+  const juga = confirm(
+    'Hapus sesi ini dari Dashboard?\n\n' +
+    'Klik OK  → Hapus dashboard + hapus data KIRIM di All Orderan (sumber: validasi)\n' +
+    'Klik Batal → Tidak jadi hapus'
+  );
+  if (!juga) return;
+
+  const hapusOrderan = confirm(
+    'Hapus juga data orderan KIRIM dari sesi ini di All Orderan?\n\n' +
+    'OK     = Ya, hapus keduanya\n' +
+    'Batal  = Hapus dashboard saja'
+  );
+
   try {
+    // 1. Ambil HP dari sesi ini yang status KIRIM
+    if (hapusOrderan) {
+      const { data: sesiRows, error: errFetch } = await sb
+        .from('validasi_detail')
+        .select('hp')
+        .eq('sesi_id', sesiId);
+      if (errFetch) throw errFetch;
+
+      const hpList = [...new Set((sesiRows || []).map(r => r.hp).filter(Boolean))];
+      if (hpList.length) {
+        // Hapus dari all_orderan hanya yang sumber='validasi' dan HP-nya ada di sesi ini
+        for (let i = 0; i < hpList.length; i += 500) {
+          const batch = hpList.slice(i, i + 500);
+          const { error: errDel } = await sb
+            .from('all_orderan')
+            .delete()
+            .eq('sumber', 'validasi')
+            .in('hp', batch);
+          if (errDel) throw errDel;
+        }
+        showToast(`Data All Orderan (sumber: validasi) untuk ${hpList.length} HP berhasil dihapus.`, 'info');
+      }
+    }
+
+    // 2. Hapus dari validasi_detail
     const { error } = await sb.from('validasi_detail').delete().eq('sesi_id', sesiId);
     if (error) throw error;
-    showToast('Sesi berhasil dihapus.', 'success');
+
+    showToast('Sesi berhasil dihapus dari Dashboard.', 'success');
     await loadDashboard();
   } catch(e) {
-    showToast('Gagal hapus: '+e.message, 'error');
+    showToast('Gagal hapus: ' + e.message, 'error');
   }
 }
 
