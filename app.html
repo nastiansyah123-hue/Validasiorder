@@ -4954,12 +4954,15 @@ function showWAChoiceModal() {
   const existing = document.getElementById('wa-choice-modal');
   if (existing) existing.remove();
 
-  const retryable  = (window._lastGagalWA || []).filter(g => g.noWA && g.pesan);
-  const gradeCount = validatedData.filter(r => isBadGradeRow(r)).length;
-  const dupCount   = validatedData.filter(r => r._isDup && r._matches?.length).length;
-  const filterCount = filteredData.filter(r => r._isDup && r._matches?.length || isBadGradeRow(r)).length;
+  const retryable    = (window._lastGagalWA || []).filter(g => g.noWA && g.pesan);
+  const gradeCount   = validatedData.filter(r => isBadGradeRow(r)).length;
+  const dupCount     = validatedData.filter(r => r._isDup && r._matches?.length).length;
+  const filterCount  = filteredData.filter(r => (r._isDup && r._matches?.length) || isBadGradeRow(r)).length;
+  const selectedRows = validatedData.filter(r => r._selected);
+  const selectedCount = selectedRows.filter(r => (r._isDup && r._matches?.length) || isBadGradeRow(r)).length;
 
   const btnStyle = 'width:100%;padding:11px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:opacity 0.15s';
+  const disabledStyle = btnStyle + ';background:#f3f4f6;color:#9ca3af;cursor:not-allowed;border:1px solid var(--border)';
   const countBadge = (n, color) => `<span style="font-size:11px;font-family:monospace;background:${color}22;color:${color};padding:2px 8px;border-radius:99px;flex-shrink:0">${n} baris</span>`;
 
   const modal = document.createElement('div');
@@ -4972,21 +4975,27 @@ function showWAChoiceModal() {
       <div style="display:flex;flex-direction:column;gap:8px">
 
         <button onclick="closeWAChoiceModal(); kirimAutoWA(validatedData,'grade')"
-          ${gradeCount===0?'disabled style="'+btnStyle+';background:#f3f4f6;color:#9ca3af;cursor:not-allowed;border:1px solid var(--border)"':'style="'+btnStyle+';background:var(--warn-light);color:var(--warn);border:1px solid var(--warn)"'}>
+          ${gradeCount===0 ? `disabled style="${disabledStyle}"` : `style="${btnStyle};background:var(--warn-light);color:var(--warn);border:1px solid var(--warn)"`}>
           <span>📊 WA Grade<br><span style="font-size:11px;font-weight:400;opacity:0.8">Notifikasi CS untuk customer grade buruk</span></span>
           ${countBadge(gradeCount,'#d97706')}
         </button>
 
         <button onclick="closeWAChoiceModal(); kirimAutoWA(validatedData,'duplikat')"
-          ${dupCount===0?'disabled style="'+btnStyle+';background:#f3f4f6;color:#9ca3af;cursor:not-allowed;border:1px solid var(--border)"':'style="'+btnStyle+';background:var(--danger-light);color:var(--danger);border:1px solid var(--danger)"'}>
+          ${dupCount===0 ? `disabled style="${disabledStyle}"` : `style="${btnStyle};background:var(--danger-light);color:var(--danger);border:1px solid var(--danger)"`}>
           <span>👥 WA Duplikat All Team<br><span style="font-size:11px;font-weight:400;opacity:0.8">Notifikasi CS untuk orderan duplikat antar tim</span></span>
           ${countBadge(dupCount,'#dc2626')}
         </button>
 
         <button onclick="closeWAChoiceModal(); kirimAutoWA(filteredData,'both')"
-          ${filterCount===0?'disabled style="'+btnStyle+';background:#f3f4f6;color:#9ca3af;cursor:not-allowed;border:1px solid var(--border)"':'style="'+btnStyle+';background:var(--accent-light);color:var(--accent);border:1px solid var(--accent)"'}>
-          <span>🔍 By Filter Aktif<br><span style="font-size:11px;font-weight:400;opacity:0.8">Grade + Duplikat dari data yang terfilter di tabel</span></span>
+          ${filterCount===0 ? `disabled style="${disabledStyle}"` : `style="${btnStyle};background:var(--accent-light);color:var(--accent);border:1px solid var(--accent)"`}>
+          <span>🔍 By Filter Tabel<br><span style="font-size:11px;font-weight:400;opacity:0.8">Grade + Duplikat dari data yang tampil di tabel (sesuai filter/search)</span></span>
           ${countBadge(filterCount,'#4f46e5')}
+        </button>
+
+        <button onclick="closeWAChoiceModal(); kirimAutoWA(validatedData.filter(r=>r._selected),'both')"
+          ${selectedCount===0 ? `disabled style="${disabledStyle}"` : `style="${btnStyle};background:var(--success-light);color:var(--success);border:1px solid var(--success)"`}>
+          <span>☑️ By Baris Dipilih<br><span style="font-size:11px;font-weight:400;opacity:0.8">Grade + Duplikat dari baris yang di-centang di tabel</span></span>
+          ${countBadge(selectedCount,'#16a34a')}
         </button>
 
         ${retryable.length > 0 ? `
