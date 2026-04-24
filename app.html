@@ -5279,9 +5279,11 @@ async function checkAndRestoreDraft() {
         
         const btnDash = document.getElementById('btn-save-dashboard');
         const btnOngkir = document.getElementById('btn-cek-ongkir');
+        const btnKirimWA = document.getElementById('btn-kirim-wa');
         if (btnDash) btnDash.style.display = 'inline-flex';
         if (btnOngkir) btnOngkir.style.display = 'inline-flex';
-        
+        if (btnKirimWA) btnKirimWA.style.display = 'inline-flex';
+
         showToast('Draft berhasil dipulihkan — ' + validatedData.length + ' baris', 'success');
         startDraftAutoSave();
       }
