@@ -578,6 +578,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <span id="ongkir-text" style="color:var(--muted)">0/0</span>
         </div>
         <button class="btn-secondary" id="btn-save-dashboard" onclick="saveValidasiDetail()" style="display:none">💾 Simpan ke Dashboard</button>
+        <button class="btn-secondary" id="btn-kirim-wa" onclick="manualKirimWA()" style="display:none">📤 Kirim WA</button>
         <button class="btn-secondary" id="btn-fullscreen" onclick="toggleFullscreen()" title="Layar Penuh">⛶ Layar Penuh</button>
         <button class="btn-secondary" onclick="exportCSV(filteredData)">Export CSV</button>
         <button class="btn-secondary" onclick="exportXLSX(filteredData)">Export XLSX</button>
@@ -1695,6 +1696,7 @@ async function doValidasiHarian() {
     saveState();
     updateGradeFilterOptions();
     document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
+    document.getElementById('btn-kirim-wa').style.display = 'inline-flex';
     startDraftAutoSave();
     await saveDraft();
     // Auto kirim WA untuk duplikat dan grade buruk
@@ -2433,6 +2435,8 @@ function restoreState() {
     const btnOngkir = document.getElementById('btn-cek-ongkir');
     if (btnDash) btnDash.style.display = 'inline-flex';
     if (btnOngkir) btnOngkir.style.display = 'inline-flex';
+    const btnKirimWA = document.getElementById('btn-kirim-wa');
+    if (btnKirimWA) btnKirimWA.style.display = 'inline-flex';
     showToast('Data sesi sebelumnya dipulihkan.', 'info');
     return true;
   } catch(e) { console.warn('restoreState error:', e); return false; }
@@ -3368,6 +3372,7 @@ async function editSesi(sesiId) {
     document.getElementById('result-section').style.display  = 'block';
     document.getElementById('btn-save-dashboard').style.display = 'inline-flex';
     document.getElementById('btn-cek-ongkir').style.display = 'inline-flex';
+    document.getElementById('btn-kirim-wa').style.display = 'inline-flex';
     updateAccSummary();
     saveState();
     renderTable();
@@ -4926,6 +4931,56 @@ Terimakasih 🙏`;
 }
 
 
+
+// ── MANUAL KIRIM WA (tombol di action bar) ────────────────────────────────────
+async function manualKirimWA() {
+  if (!validatedData.length) { showToast('Jalankan validasi dulu', 'error'); return; }
+
+  if (!currentFonnteKey) {
+    const key = prompt('API key Fonnte belum dikonfigurasi untuk akun ini.\nMasukkan API key Fonnte kamu (atau hubungi admin untuk mengatur di Data Validator):');
+    if (!key || !key.trim()) { showToast('Pengiriman dibatalkan — API key tidak diisi', 'error'); return; }
+    currentFonnteKey = key.trim();
+  }
+
+  const retryable = (window._lastGagalWA || []).filter(g => g.noWA && g.pesan);
+  if (retryable.length > 0) {
+    showWAChoiceModal(retryable);
+  } else {
+    await kirimAutoWA(validatedData);
+  }
+}
+
+function showWAChoiceModal(retryable) {
+  const existing = document.getElementById('wa-choice-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'wa-choice-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:1.75rem;max-width:400px;width:90%;box-shadow:var(--shadow-md)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:0.5rem">📤 Kirim WA</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:1.5rem;line-height:1.6">
+        Ada <b style="color:var(--danger)">${retryable.length} pesan yang gagal</b> dikirim sebelumnya.<br>
+        Mau kirim ulang yang gagal saja, atau kirim semua dari awal?
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="document.getElementById('wa-choice-modal').remove(); retryGagalWA(window._lastGagalWA)"
+          style="padding:10px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-align:left">
+          🔁 Kirim Ulang yang Gagal <span style="font-size:11px;opacity:0.85">(${retryable.length} pesan)</span>
+        </button>
+        <button onclick="document.getElementById('wa-choice-modal').remove(); window._lastGagalWA=[]; kirimAutoWA(validatedData)"
+          style="padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border-strong);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-align:left">
+          📤 Kirim Semua dari Awal <span style="font-size:11px;color:var(--muted)">(termasuk yang sudah berhasil)</span>
+        </button>
+        <button onclick="document.getElementById('wa-choice-modal').remove()"
+          style="padding:8px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer">
+          Batal
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
 
 // ── AUTO WA VIA FONNTE ────────────────────────────────────────────────────────
 async function kirimAutoWA(validatedRows) {
