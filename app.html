@@ -1700,7 +1700,7 @@ async function doValidasiHarian() {
     startDraftAutoSave();
     await saveDraft();
     // Auto kirim WA untuk duplikat dan grade buruk
-    await kirimAutoWA(validatedData);
+    await kirimAutoWA(validatedData, 'both');
     document.getElementById('btn-cek-ongkir').style.display = 'inline-flex';
 
   } catch(e) {
@@ -4933,6 +4933,11 @@ Terimakasih 🙏`;
 
 
 // ── MANUAL KIRIM WA (tombol di action bar) ────────────────────────────────────
+function isBadGradeRow(row) {
+  const grade = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim();
+  return !grade || grade === '-' || /^[DE]/i.test(grade);
+}
+
 async function manualKirimWA() {
   if (!validatedData.length) { showToast('Jalankan validasi dulu', 'error'); return; }
 
@@ -4942,39 +4947,58 @@ async function manualKirimWA() {
     currentFonnteKey = key.trim();
   }
 
-  const retryable = (window._lastGagalWA || []).filter(g => g.noWA && g.pesan);
-  if (retryable.length > 0) {
-    showWAChoiceModal(retryable);
-  } else {
-    await kirimAutoWA(validatedData);
-  }
+  showWAChoiceModal();
 }
 
-function showWAChoiceModal(retryable) {
+function showWAChoiceModal() {
   const existing = document.getElementById('wa-choice-modal');
   if (existing) existing.remove();
+
+  const retryable  = (window._lastGagalWA || []).filter(g => g.noWA && g.pesan);
+  const gradeCount = validatedData.filter(r => isBadGradeRow(r)).length;
+  const dupCount   = validatedData.filter(r => r._isDup && r._matches?.length).length;
+  const filterCount = filteredData.filter(r => r._isDup && r._matches?.length || isBadGradeRow(r)).length;
+
+  const btnStyle = 'width:100%;padding:11px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px;transition:opacity 0.15s';
+  const countBadge = (n, color) => `<span style="font-size:11px;font-family:monospace;background:${color}22;color:${color};padding:2px 8px;border-radius:99px;flex-shrink:0">${n} baris</span>`;
 
   const modal = document.createElement('div');
   modal.id = 'wa-choice-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;display:flex;align-items:center;justify-content:center';
   modal.innerHTML = `
-    <div style="background:var(--surface);border-radius:16px;padding:1.75rem;max-width:400px;width:90%;box-shadow:var(--shadow-md)">
-      <div style="font-size:15px;font-weight:700;margin-bottom:0.5rem">📤 Kirim WA</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:1.5rem;line-height:1.6">
-        Ada <b style="color:var(--danger)">${retryable.length} pesan yang gagal</b> dikirim sebelumnya.<br>
-        Mau kirim ulang yang gagal saja, atau kirim semua dari awal?
-      </div>
+    <div style="background:var(--surface);border-radius:16px;padding:1.75rem;max-width:420px;width:92%;box-shadow:var(--shadow-md)">
+      <div style="font-size:15px;font-weight:700;margin-bottom:0.25rem">📤 Kirim WA Notifikasi</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:1.25rem">Pilih tipe pengiriman</div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button onclick="document.getElementById('wa-choice-modal').remove(); retryGagalWA(window._lastGagalWA)"
-          style="padding:10px;background:var(--accent);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-align:left">
-          🔁 Kirim Ulang yang Gagal <span style="font-size:11px;opacity:0.85">(${retryable.length} pesan)</span>
+
+        <button onclick="closeWAChoiceModal(); kirimAutoWA(validatedData,'grade')"
+          ${gradeCount===0?'disabled style="'+btnStyle+';background:#f3f4f6;color:#9ca3af;cursor:not-allowed;border:1px solid var(--border)"':'style="'+btnStyle+';background:var(--warn-light);color:var(--warn);border:1px solid var(--warn)"'}>
+          <span>📊 WA Grade<br><span style="font-size:11px;font-weight:400;opacity:0.8">Notifikasi CS untuk customer grade buruk</span></span>
+          ${countBadge(gradeCount,'#d97706')}
         </button>
-        <button onclick="document.getElementById('wa-choice-modal').remove(); window._lastGagalWA=[]; kirimAutoWA(validatedData)"
-          style="padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border-strong);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;text-align:left">
-          📤 Kirim Semua dari Awal <span style="font-size:11px;color:var(--muted)">(termasuk yang sudah berhasil)</span>
+
+        <button onclick="closeWAChoiceModal(); kirimAutoWA(validatedData,'duplikat')"
+          ${dupCount===0?'disabled style="'+btnStyle+';background:#f3f4f6;color:#9ca3af;cursor:not-allowed;border:1px solid var(--border)"':'style="'+btnStyle+';background:var(--danger-light);color:var(--danger);border:1px solid var(--danger)"'}>
+          <span>👥 WA Duplikat All Team<br><span style="font-size:11px;font-weight:400;opacity:0.8">Notifikasi CS untuk orderan duplikat antar tim</span></span>
+          ${countBadge(dupCount,'#dc2626')}
         </button>
-        <button onclick="document.getElementById('wa-choice-modal').remove()"
-          style="padding:8px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer">
+
+        <button onclick="closeWAChoiceModal(); kirimAutoWA(filteredData,'both')"
+          ${filterCount===0?'disabled style="'+btnStyle+';background:#f3f4f6;color:#9ca3af;cursor:not-allowed;border:1px solid var(--border)"':'style="'+btnStyle+';background:var(--accent-light);color:var(--accent);border:1px solid var(--accent)"'}>
+          <span>🔍 By Filter Aktif<br><span style="font-size:11px;font-weight:400;opacity:0.8">Grade + Duplikat dari data yang terfilter di tabel</span></span>
+          ${countBadge(filterCount,'#4f46e5')}
+        </button>
+
+        ${retryable.length > 0 ? `
+        <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+        <button onclick="closeWAChoiceModal(); retryGagalWA(window._lastGagalWA)"
+          style="${btnStyle};background:var(--dup-light);color:var(--dup);border:1px solid var(--dup)">
+          <span>🔁 Kirim Ulang yang Gagal<br><span style="font-size:11px;font-weight:400;opacity:0.8">Dari pengiriman sebelumnya</span></span>
+          ${countBadge(retryable.length,'#9333ea')}
+        </button>` : ''}
+
+        <button onclick="closeWAChoiceModal()"
+          style="padding:8px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;margin-top:2px">
           Batal
         </button>
       </div>
@@ -4982,8 +5006,13 @@ function showWAChoiceModal(retryable) {
   document.body.appendChild(modal);
 }
 
+function closeWAChoiceModal() {
+  const m = document.getElementById('wa-choice-modal');
+  if (m) m.remove();
+}
+
 // ── AUTO WA VIA FONNTE ────────────────────────────────────────────────────────
-async function kirimAutoWA(validatedRows) {
+async function kirimAutoWA(validatedRows, mode = 'both') {
   if (!validatedRows.length) return;
 
   // Load data_cs
@@ -4993,14 +5022,14 @@ async function kirimAutoWA(validatedRows) {
 
   const toSend = [];
 
-  validatedRows.forEach((row, idx) => {
+  validatedRows.forEach((row) => {
     const instruksi = row._raw['Instruksi Pengiriman']||'';
     const csName = (instruksi.split('/')[0]||'')
       .replace(/Pengirim\s+CS\s+/i,'').replace(/Pengirim\s+/i,'').replace(/CS\s+/i,'').trim();
     const noWA = csMap[csName.toLowerCase()];
 
     // Duplikat all team
-    if (row._isDup && row._matches?.length) {
+    if ((mode === 'duplikat' || mode === 'both') && row._isDup && row._matches?.length) {
       const dupInfo = row._matches.map(m =>
         '• ' + (m.nama||'—') + (m.tanggal?' ('+m.tanggal+')':'') + (m.cs?' · CS: '+m.cs:'')
       ).join('\n');
@@ -5021,9 +5050,8 @@ Terima kasih 🙏`;
     }
 
     // Grade buruk
-    const grade = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim();
-    const isBadGrade = !grade || grade === '-' || /^[DE]/i.test(grade);
-    if (isBadGrade) {
+    if ((mode === 'grade' || mode === 'both') && isBadGradeRow(row)) {
+      const grade = (row._grade||row._raw['GradeRekomendasi']||row._raw['Grade']||'').trim();
       const pesan = `Halo ${csName} 👋
 Orderan berikut memiliki grade rendah yang perlu diperhatikan:
 
