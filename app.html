@@ -307,6 +307,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-master" onclick="switchPage('master')">
       <span class="nav-icon">🗄️</span> Data Master
     </div>
+    <div class="nav-item" id="nav-updateResi" onclick="switchPage('updateResi')">
+      <span class="nav-icon">📦</span> Update Resi
+    </div>
     <div class="nav-section">Info</div>
     <div class="nav-item" id="nav-statistik" onclick="switchPage('statistik')">
       <span class="nav-icon">📊</span> Statistik Wilayah
@@ -1108,6 +1111,69 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
+  <!-- PAGE: UPDATE RESI -->
+  <div class="page" id="page-updateResi">
+    <div class="page-header">
+      <div class="page-title">Update Resi</div>
+      <div class="page-sub">Upload file HP + Resi untuk update nomor resi ke database</div>
+    </div>
+
+    <div class="card" style="max-width:600px">
+      <div class="card-title">Upload File Resi</div>
+      <div class="card-desc" style="margin-bottom:1rem">File CSV/XLSX dengan kolom <b>HP</b> dan <b>Resi</b>. Resi akan dicocokkan ke <b>all_orderan</b> berdasarkan nomor HP.</div>
+      <div class="drop-zone" id="dz-update-resi">
+        <input type="file" id="file-update-resi" accept=".csv,.xlsx,.xls" />
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">Upload file resi<br><span>.csv / .xlsx — kolom: HP + Resi</span></div>
+      </div>
+      <div id="ur-preview-info" style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:8px"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+        <button class="btn-primary" id="btn-save-update-resi" disabled onclick="saveUpdateResi()" style="font-size:13px">💾 Simpan Resi ke Database</button>
+        <span class="loading-badge" id="loading-update-resi">menyimpan...</span>
+      </div>
+    </div>
+
+    <div id="ur-result-section" style="display:none;margin-top:1.5rem;max-width:900px">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:1rem;flex-wrap:wrap">
+        <div style="background:var(--success-light,#dcfce7);color:#15803d;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:600">
+          ✓ Berhasil: <span id="ur-summary-berhasil">0</span>
+        </div>
+        <div style="background:var(--warn-light,#fef9c3);color:#b45309;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:600">
+          ✗ Gagal: <span id="ur-summary-gagal">0</span>
+        </div>
+      </div>
+
+      <div id="ur-gagal-section" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:600;color:var(--text)">Daftar Gagal</span>
+          <span style="font-size:11px;color:var(--muted)">— Edit HP/Resi langsung lalu simpan ulang</span>
+          <span class="spacer"></span>
+          <button class="btn-secondary" onclick="selectAllGagalResi(true)" style="font-size:12px">Pilih Semua</button>
+          <button class="btn-secondary" onclick="selectAllGagalResi(false)" style="font-size:12px">Batal Pilih</button>
+          <button class="btn-primary" onclick="retryGagalResi()" style="font-size:12px">🔄 Simpan yang Dipilih</button>
+          <span class="loading-badge" id="loading-retry-resi">menyimpan...</span>
+          <button class="btn-secondary" onclick="downloadGagalResi()" style="font-size:12px">⬇ Download CSV Gagal</button>
+        </div>
+        <div class="table-wrap">
+          <div class="table-scroll" style="max-height:400px">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:140px">HP</th>
+                  <th style="width:170px">Resi</th>
+                  <th>Nama</th>
+                  <th>Alasan Gagal</th>
+                  <th style="width:40px">✓</th>
+                </tr>
+              </thead>
+              <tbody id="ur-gagal-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- PAGE: PANDUAN -->
   <div class="page" id="page-panduan">
     <div class="page-header">
@@ -1353,7 +1419,7 @@ function switchPage(name) {
   }
   // Save current page
   sessionStorage.setItem('vo_current_page', name);
-  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan','updateResi'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
@@ -1362,9 +1428,9 @@ function switchPage(name) {
   if (name === 'statistik') loadStatistik();
   if (name === 'allorderan') initAllOrderan();
   if (name === 'master') { loadCSData(); loadValidatorConfig(); }
-
+  if (name === 'updateResi') initUpdateResi();
   if (name === 'dashboard') initDashboard();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan'};
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan', updateResi:'Update Resi'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -5075,17 +5141,26 @@ Terimakasih 🙏`;
     }
   });
 
-  if (!toSend.length) return;
+  // Dedup — satu CS tidak dapat pesan yang sama untuk customer yang sama
+  const seen = new Set();
+  const toSendDedup = toSend.filter(item => {
+    const key = `${item.type}|${item.csName.toLowerCase()}|${item.noWA}|${(item.nama||'').toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  if (!toSendDedup.length) { showToast('Tidak ada pesan yang perlu dikirim', 'info'); return; }
 
   // Show progress modal
-  showWAProgressModal(toSend.length);
+  showWAProgressModal(toSendDedup.length);
 
   let berhasil = 0, gagal = 0;
   const gagalList = [];
 
-  for (let i = 0; i < toSend.length; i++) {
-    const item = toSend[i];
-    updateWAProgress(i+1, toSend.length, item.csName);
+  for (let i = 0; i < toSendDedup.length; i++) {
+    const item = toSendDedup[i];
+    updateWAProgress(i+1, toSendDedup.length, item.csName);
 
     if (!item.noWA) {
       gagal++;
@@ -6035,6 +6110,229 @@ function updateThemeToggle(theme) {
   document.documentElement.setAttribute('data-theme', saved);
   updateThemeToggle(saved);
 })();
+
+// ── UPDATE RESI ───────────────────────────────────────────────────────────────
+let updateResiParsed = [];
+let updateResiGagal  = [];
+let updateResiDropzoneInit = false;
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function initUpdateResi() {
+  if (updateResiDropzoneInit) return;
+  updateResiDropzoneInit = true;
+  setupDropzone('dz-update-resi', 'file-update-resi', 'update-resi', (data, fname) => {
+    updateResiParsed = data.map(row => {
+      const keys = Object.keys(row);
+      const hpKey   = keys.find(k => { const kl=k.toLowerCase().replace(/\s/g,''); return kl.includes('hp')||kl.includes('telp')||kl.includes('nomor')||kl.includes('phone'); });
+      const resiKey = keys.find(k => { const kl=k.toLowerCase(); return kl.includes('resi')||kl.includes('awb')||kl.includes('tracking'); });
+      let resiVal = resiKey ? row[resiKey] : '';
+      if (typeof resiVal === 'number') resiVal = Math.round(resiVal).toString();
+      return { hp: String(row[hpKey]||'').trim(), resi: String(resiVal||'').trim() };
+    }).filter(r => r.hp);
+
+    document.getElementById('ur-preview-info').textContent = `✓ ${updateResiParsed.length} baris dimuat dari ${fname}`;
+    document.getElementById('btn-save-update-resi').disabled = !updateResiParsed.length;
+    document.getElementById('ur-result-section').style.display = 'none';
+  });
+}
+
+async function saveUpdateResi() {
+  if (!updateResiParsed.length) return showToast('Upload file resi dulu!', 'error');
+  const badge = document.getElementById('loading-update-resi');
+  const btn   = document.getElementById('btn-save-update-resi');
+  badge.classList.add('show');
+  btn.disabled = true;
+
+  try {
+    // Group by normalized HP (satu HP bisa muncul lebih dari sekali di file)
+    const hpMap = {};
+    for (const row of updateResiParsed) {
+      const hpNorm = normalizeHP(row.hp);
+      if (!hpNorm) continue;
+      if (!hpMap[hpNorm]) hpMap[hpNorm] = row;
+    }
+
+    const hpListNorm = Object.keys(hpMap);
+    // DB stores HP without leading 0 (e.g. '8xxx')
+    const hpListDB = hpListNorm.map(h => h.replace(/^0/, ''));
+
+    // Fetch semua record yang HP-nya ada di file — batch 500
+    const allMatches = [];
+    const BATCH = 500;
+    for (let i = 0; i < hpListDB.length; i += BATCH) {
+      const { data, error } = await sb.from('all_orderan')
+        .select('id,hp,resi,nama')
+        .in('hp', hpListDB.slice(i, i + BATCH));
+      if (error) throw error;
+      if (data) allMatches.push(...data);
+    }
+
+    // Index: normalizedHP -> [records]
+    const dbIndex = {};
+    for (const rec of allMatches) {
+      const hpNorm = normalizeHP(String(rec.hp||''));
+      if (!hpNorm) continue;
+      if (!dbIndex[hpNorm]) dbIndex[hpNorm] = [];
+      dbIndex[hpNorm].push(rec);
+    }
+
+    let berhasil = 0;
+    const gagal  = [];
+
+    for (const [hpNorm, fileRow] of Object.entries(hpMap)) {
+      const { hp: hpRaw, resi: resiValue } = fileRow;
+
+      if (!resiValue) {
+        gagal.push({ hp: hpRaw, resi: '', alasan: 'Resi kosong di file', nama: '' });
+        continue;
+      }
+
+      const dbRecs = dbIndex[hpNorm] || [];
+
+      if (!dbRecs.length) {
+        gagal.push({ hp: hpRaw, resi: resiValue, alasan: 'HP tidak ditemukan', nama: '' });
+        continue;
+      }
+
+      // Tentukan target update
+      let targets;
+      if (dbRecs.length === 1) {
+        targets = dbRecs;
+      } else {
+        const emptyRecs = dbRecs.filter(r => !r.resi);
+        if (!emptyRecs.length) {
+          gagal.push({ hp: hpRaw, resi: resiValue, alasan: 'HP duplikat, semua sudah ada resi', nama: dbRecs.map(r=>r.nama||'').join(', ') });
+          continue;
+        }
+        targets = emptyRecs;
+      }
+
+      for (const rec of targets) {
+        const { error } = await sb.from('all_orderan').update({ resi: resiValue }).eq('id', rec.id);
+        if (error) {
+          gagal.push({ hp: hpRaw, resi: resiValue, alasan: 'Gagal simpan: '+error.message, nama: rec.nama||'' });
+        } else {
+          berhasil++;
+        }
+      }
+    }
+
+    updateResiGagal = gagal;
+    renderUpdateResiResult(berhasil, gagal);
+    showToast(`✓ ${berhasil} resi berhasil${gagal.length ? ', '+gagal.length+' gagal' : ''}`, berhasil > 0 ? 'success' : 'error');
+
+  } catch(e) {
+    showToast('Error: '+e.message, 'error');
+  }
+
+  badge.classList.remove('show');
+  btn.disabled = false;
+}
+
+function renderUpdateResiResult(berhasil, gagal) {
+  document.getElementById('ur-result-section').style.display = '';
+  document.getElementById('ur-summary-berhasil').textContent = berhasil;
+  document.getElementById('ur-summary-gagal').textContent    = gagal.length;
+
+  const gagalSection = document.getElementById('ur-gagal-section');
+  if (!gagal.length) { gagalSection.style.display = 'none'; return; }
+
+  gagalSection.style.display = '';
+  document.getElementById('ur-gagal-tbody').innerHTML = gagal.map((row, i) => `
+    <tr id="ur-row-${i}">
+      <td><input class="ur-edit-hp" data-idx="${i}" value="${escHtml(row.hp)}"
+        style="width:120px;padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:var(--mono)" /></td>
+      <td><input class="ur-edit-resi" data-idx="${i}" value="${escHtml(row.resi)}"
+        style="width:150px;padding:4px 6px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-family:var(--mono)" /></td>
+      <td style="font-size:12px;color:var(--muted)">${escHtml(row.nama)}</td>
+      <td style="font-size:11px;color:var(--warn)">${escHtml(row.alasan)}</td>
+      <td style="text-align:center"><input type="checkbox" class="ur-row-check" data-idx="${i}" checked style="cursor:pointer" /></td>
+    </tr>`).join('');
+}
+
+function selectAllGagalResi(state) {
+  document.querySelectorAll('.ur-row-check').forEach(c => c.checked = state);
+}
+
+async function retryGagalResi() {
+  const checked = [...document.querySelectorAll('.ur-row-check:checked')];
+  if (!checked.length) return showToast('Pilih baris yang ingin disimpan ulang!', 'error');
+
+  const badge = document.getElementById('loading-retry-resi');
+  badge.classList.add('show');
+
+  let berhasil = 0;
+  const stillGagal = [];
+
+  for (const chk of checked) {
+    const i   = parseInt(chk.dataset.idx);
+    const row = document.getElementById('ur-row-'+i);
+    const hp   = row.querySelector('.ur-edit-hp').value.trim();
+    const resi = row.querySelector('.ur-edit-resi').value.trim();
+    const orig = updateResiGagal[i] || {};
+
+    if (!hp)   { stillGagal.push({...orig, hp, resi, alasan:'HP kosong'}); continue; }
+    if (!resi) { stillGagal.push({...orig, hp, resi, alasan:'Resi kosong'}); continue; }
+
+    const hpNorm = normalizeHP(hp);
+    const hpDB   = hpNorm.replace(/^0/,'');
+
+    const { data, error: fetchErr } = await sb.from('all_orderan')
+      .select('id,hp,resi,nama').eq('hp', hpDB);
+
+    if (fetchErr || !data || !data.length) {
+      stillGagal.push({...orig, hp, resi, alasan: fetchErr ? 'Error: '+fetchErr.message : 'HP tidak ditemukan'});
+      continue;
+    }
+
+    const targets = data.length === 1 ? data : data.filter(r => !r.resi);
+    if (!targets.length) {
+      stillGagal.push({...orig, hp, resi, alasan:'HP duplikat, semua sudah ada resi', nama:data.map(r=>r.nama||'').join(', ')});
+      continue;
+    }
+
+    let ok = true;
+    for (const rec of targets) {
+      const { error } = await sb.from('all_orderan').update({ resi }).eq('id', rec.id);
+      if (error) { ok=false; stillGagal.push({...orig, hp, resi, alasan:'Gagal simpan: '+error.message, nama:rec.nama||''}); break; }
+    }
+    if (ok) berhasil++;
+  }
+
+  // Unchecked rows tetap ada di gagal list
+  const uncheckedIdxs = new Set([...document.querySelectorAll('.ur-row-check:not(:checked)')].map(c=>parseInt(c.dataset.idx)));
+  uncheckedIdxs.forEach(i => stillGagal.push(updateResiGagal[i]));
+
+  updateResiGagal = stillGagal;
+  const prevBerhasil = parseInt(document.getElementById('ur-summary-berhasil').textContent) || 0;
+  renderUpdateResiResult(prevBerhasil + berhasil, stillGagal);
+
+  badge.classList.remove('show');
+  showToast(`✓ ${berhasil} berhasil disimpan ulang${stillGagal.length?' — '+stillGagal.length+' masih gagal':''}`, berhasil>0?'success':'error');
+}
+
+function downloadGagalResi() {
+  if (!updateResiGagal.length) return;
+  const rows = updateResiGagal.map((r, i) => {
+    const rowEl = document.getElementById('ur-row-'+i);
+    return {
+      HP   : rowEl ? rowEl.querySelector('.ur-edit-hp').value.trim()   : r.hp,
+      Resi : rowEl ? rowEl.querySelector('.ur-edit-resi').value.trim() : r.resi,
+      Nama : r.nama||'',
+      Alasan: r.alasan
+    };
+  });
+  const headers = ['HP','Resi','Nama','Alasan'];
+  const lines = [
+    headers.join(','),
+    ...rows.map(r => headers.map(h=>`"${String(r[h]||'').replace(/"/g,'""')}"`).join(','))
+  ];
+  const blob = new Blob(['﻿'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  triggerDownload(blob, `gagal_update_resi_${today()}.csv`);
+}
 </script>
   <!-- Add/Edit Validator Modal -->
   <div id="validator-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
