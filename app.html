@@ -6210,14 +6210,16 @@ async function saveUpdateResi() {
         targets = emptyRecs;
       }
 
+      let hpBerhasil = false;
       for (const rec of targets) {
         const { error } = await sb.from('all_orderan').update({ resi: resiValue }).eq('id', rec.id);
         if (error) {
           gagal.push({ hp: hpRaw, resi: resiValue, alasan: 'Gagal simpan: '+error.message, nama: rec.nama||'' });
         } else {
-          berhasil++;
+          hpBerhasil = true;
         }
       }
+      if (hpBerhasil) berhasil++;
     }
 
     updateResiGagal = gagal;
