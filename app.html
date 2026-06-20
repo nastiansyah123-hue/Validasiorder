@@ -1616,14 +1616,20 @@ async function doValidasiHarian() {
     // 2. Query Supabase HANYA untuk HP yang ada di orderan baru (jauh lebih cepat)
     badge.textContent = `mengecek ${hpList.length} nomor HP di database...`;
     const allOrderan = [];
-    const batchSize = 500;
+    const batchSize = 100;
     for (let i = 0; i < hpListAll.length; i += batchSize) {
       const batch = hpListAll.slice(i, i + batchSize);
-      const { data, error } = await sb.from('all_orderan')
-        .select('hp,resi,nama,tanggal,status_akhir,cs,adv,kodepos')
-        .in('hp', batch);
-      if (error) throw error;
-      if (data) allOrderan.push(...data);
+      let from = 0;
+      while (true) {
+        const { data, error } = await sb.from('all_orderan')
+          .select('hp,resi,nama,tanggal,status_akhir,cs,adv,kodepos,team')
+          .in('hp', batch)
+          .range(from, from + 999);
+        if (error) throw error;
+        if (data) allOrderan.push(...data);
+        if (!data || data.length < 1000) break;
+        from += 1000;
+      }
       badge.textContent = `mengecek HP... ${Math.min(i+batchSize, hpListAll.length)}/${hpListAll.length}`;
     }
 
@@ -1694,7 +1700,10 @@ async function doValidasiHarian() {
       }
 
       const hpNorm = normalizeHP(row.hp);
-      const isDupTeam = hpNorm && hpCountBaru[hpNorm] > 1;
+      // Duplikat team: sama-hari (file gabungan) ATAU historis dari tim berbeda
+      const isDupTeamSameDay = hpNorm && hpCountBaru[hpNorm] > 1;
+      const isDupTeamHistoris = matches.some(m => m.team && m.team !== (row._uploadTeam || ''));
+      const isDupTeam = isDupTeamSameDay || isDupTeamHistoris;
       const _status = isDup && (rtsInfo||isRetur) ? 'DUPLIKAT+RTS' : isDup ? 'DUPLIKAT' : isRetur ? 'RTS' : 'AMAN';
 
       // Wilayah rawan dari kodepos
@@ -3390,8 +3399,10 @@ async function editSesi(sesiId) {
     validatedData = data.map(r => ({
       hp        : r.hp||'',
       nama      : r.nama||'',
+      tanggal   : r.tanggal||'',
       resi      : r.resi||'',
       kodepos   : r.kodepos||'',
+      _uploadTeam: r.team||'',
       _status   : r.status_validasi||'AMAN',
       _isDup    : !!r.duplikat_all,
       _isDupTeam: !!r.duplikat_team,
@@ -3417,7 +3428,9 @@ async function editSesi(sesiId) {
         'Provinsi'           : r.provinsi||'',
         'Jumlah Pesanan'     : r.jumlah||'',
         'Pembayaran'         : r.pembayaran||'',
+        'Instruksi Pengiriman': r.instruksi||'',
         'Keterangan'         : r.keterangan||'',
+        'Resi'               : r.resi||'',
         'Grade'              : r.grade||'',
         'Ekspedisi'          : r.ekspedisi||'',
         'ACC SPV CS'         : r.acc_spv_cs||'',
@@ -3577,6 +3590,7 @@ async function saveValidasiDetail() {
     keterangan    : String(row._raw['Keterangan']||'').slice(0,200),
     grade         : String(row._grade||row._raw['Grade']||'').slice(0,20),
     ekspedisi     : extractEkspedisi(row._raw['Pembayaran']||''),
+    team          : row._uploadTeam||'',
     status_validasi: row._status||'AMAN',
     duplikat_team : !!row._isDupTeam,
     duplikat_all  : !!row._isDup,
@@ -3589,6 +3603,7 @@ async function saveValidasiDetail() {
     ss_chat       : !!row._ssChatDone,
   }));
 
+  // 1. Simpan ke validasi_detail
   try {
     for (let i=0; i<rows.length; i+=500) {
       const { error } = await sb.from('validasi_detail').insert(rows.slice(i,i+500));
@@ -3597,15 +3612,21 @@ async function saveValidasiDetail() {
     }
     showToast(`✓ ${rows.length} baris tersimpan ke Dashboard!`, 'success');
     await deleteDraft();
+  } catch(e) {
+    showToast('Gagal simpan Dashboard: '+e.message, 'error');
+    badge.classList.remove('show'); badge.textContent='memproses...';
+    return;
+  }
 
-    // Simpan yang KIRIM ke all_orderan
+  // 2. Simpan yang KIRIM ke all_orderan (error terpisah agar tidak tertutup toast dashboard)
+  try {
     const kirimRows = validatedData
       .filter(r => (r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase() === 'KIRIM')
       .map(r => ({
         no          : String(r._raw['No']||r._raw['no']||'').slice(0,100),
-        tanggal     : String(r._raw['Tanggal']||r._raw['tanggal']||'').slice(0,50),
+        tanggal     : String(r.tanggal||r._raw['Tanggal']||r._raw['tanggal']||'').slice(0,50),
         nama        : String(r.nama||'').slice(0,200),
-        hp          : String(r.hp||''),
+        hp          : normalizeHP(String(r.hp||'')),
         alamat      : String(r._raw['Alamat']||'').slice(0,300),
         kelurahan   : String(r.kelurahan||r._raw['Kelurahan']||r._raw['"Kelurahan"']||'').slice(0,100),
         kecamatan   : String(r.kecamatan||r._raw['Kecamatan']||r._raw['"Kecamatan"']||'').slice(0,100),
@@ -3621,41 +3642,73 @@ async function saveValidasiDetail() {
         status_akhir: 'ON PROSES',
         sumber      : 'validasi',
         retur       : '0',
-          cs          : (String(r._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim().slice(0,50),
+        cs          : (String(r._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim().slice(0,50),
         adv         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[1]||'').replace(/Adv\.\s*/i,'').trim().slice(0,50),
         adm         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,50),
       }));
 
-    if (kirimRows.length) {
-      // Dedup check - ambil HP yang sudah ada di all_orderan dari tanggal yang sama
-      const hpTanggalList = kirimRows.map(r => r.hp + '|' + (r.tanggal||'').slice(0,10));
-      const hpList = [...new Set(kirimRows.map(r => r.hp))];
-      const { data: existing } = await sb.from('all_orderan')
-        .select('hp,tanggal')
-        .eq('sumber','validasi')
-        .in('hp', hpList);
-      
-      const existingSet = new Set((existing||[]).map(r => r.hp + '|' + (r.tanggal||'').slice(0,10)));
-      const newRows = kirimRows.filter(r => !existingSet.has(r.hp + '|' + (r.tanggal||'').slice(0,10)));
-      
-      if (newRows.length) {
-        for (let i=0; i<newRows.length; i+=500) {
-          const { error } = await sb.from('all_orderan').insert(newRows.slice(i,i+500));
-          if (error) throw error;
-        }
-        showToast(`✓ ${newRows.length} orderan KIRIM masuk ke Data Master!`, 'success');
-      } else {
-        showToast('Semua orderan sudah tersimpan sebelumnya (tidak ada duplikat)', 'info');
-      }
-      if (kirimRows.length - newRows.length > 0) {
-        showToast(`${kirimRows.length - newRows.length} orderan dilewati (sudah ada)`, 'info');
-      }
-      // Reload master count
-      await loadOrderanCount();
+    console.log('[ALL_ORDERAN] kirimRows:', kirimRows.length, 'dari', validatedData.length, 'total');
+    if (!kirimRows.length) {
+      console.warn('[ALL_ORDERAN] Tidak ada row KIRIM — skip save all_orderan');
+      badge.classList.remove('show'); badge.textContent='memproses...';
+      return;
     }
 
+    badge.textContent = 'mengecek duplikat Data Master...';
+
+    // Dedup check dengan pagination supaya tidak kepotong limit 1000 baris
+    const hpList = [...new Set(kirimRows.map(r => r.hp))];
+    const existingAll = [];
+    const dedupBatch = 100;
+    for (let i = 0; i < hpList.length; i += dedupBatch) {
+      const batch = hpList.slice(i, i + dedupBatch);
+      let from = 0;
+      while (true) {
+        const { data: ex } = await sb.from('all_orderan')
+          .select('hp,tanggal')
+          .eq('sumber','validasi')
+          .in('hp', batch)
+          .range(from, from + 999);
+        if (ex) existingAll.push(...ex);
+        if (!ex || ex.length < 1000) break;
+        from += 1000;
+      }
+    }
+
+    // Dedup: hanya blokir kalau HP + tanggal SAMA (dan tanggal tidak kosong)
+    // Kalau tanggal kosong → selalu allow (hindari over-blocking)
+    const existingSet = new Set(
+      existingAll
+        .filter(r => r.tanggal)
+        .map(r => r.hp + '|' + (r.tanggal||'').slice(0,10))
+    );
+    const seenInBatch = new Set();
+    const newRows = kirimRows.filter(r => {
+      if (seenInBatch.has(r.hp)) return false; // cegah HP dobel dalam 1 batch
+      seenInBatch.add(r.hp);
+      if (!r.tanggal) return true; // tanggal kosong → selalu simpan
+      return !existingSet.has(r.hp + '|' + r.tanggal.slice(0,10));
+    });
+    console.log('[ALL_ORDERAN] existing di DB:', existingAll.length, '| kirimRows:', kirimRows.length, '| newRows (akan disimpan):', newRows.length);
+    if (newRows.length) console.log('[ALL_ORDERAN] sample row:', JSON.stringify(newRows[0]));
+
+    if (newRows.length) {
+      badge.textContent = `menyimpan ${newRows.length} orderan ke Data Master...`;
+      for (let i=0; i<newRows.length; i+=500) {
+        const { error } = await sb.from('all_orderan').insert(newRows.slice(i,i+500));
+        if (error) throw error;
+      }
+      showToast(`✓ ${newRows.length} orderan KIRIM masuk ke Data Master!`, 'success');
+    } else {
+      showToast('Semua orderan sudah tersimpan sebelumnya (tidak ada duplikat)', 'info');
+    }
+    if (kirimRows.length - newRows.length > 0) {
+      showToast(`${kirimRows.length - newRows.length} orderan dilewati (sudah ada)`, 'info');
+    }
+    await loadOrderanCount();
   } catch(e) {
-    showToast('Gagal simpan: '+e.message, 'error');
+    console.error('all_orderan save error:', e);
+    showToast('⚠️ Gagal simpan ke Data Master: '+e.message, 'error');
   }
   badge.classList.remove('show'); badge.textContent='memproses...';
 }
