@@ -142,6 +142,17 @@ tr.row-both { background: linear-gradient(90deg, var(--c-dup-bg) 50%, var(--c-wa
 .toast.info    { background:#1a5fb4; }
 @keyframes slideIn { from { transform:translateX(100px); opacity:0; } to { transform:translateX(0); opacity:1; } }
 
+/* ── CS INPUT PAGE ── */
+.csi-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-family:monospace;font-weight:700;white-space:nowrap}
+.csi-dup  {background:#fee2e2;color:#dc2626}
+.csi-rts  {background:#fef3c7;color:#d97706}
+.csi-wt   {background:#ede9fe;color:#7c3aed}
+.csi-rawan{background:#fef9c3;color:#92400e}
+.csi-acc-sel{padding:5px 8px;border:1.5px solid var(--c-border-strong);border-radius:7px;font-size:12px;background:var(--c-surface);color:var(--c-text);font-family:var(--font);cursor:pointer;outline:none;min-width:130px}
+.csi-acc-sel:focus{border-color:var(--c-accent)}
+.csi-noted-inp{padding:5px 8px;border:1.5px solid var(--c-border-strong);border-radius:7px;font-size:12px;background:var(--c-surface);color:var(--c-text);font-family:var(--font);outline:none;width:100%;min-width:160px}
+.csi-noted-inp:focus{border-color:var(--c-accent)}
+
 /* ── RESPONSIVE ── */
 @media (max-width:768px) {
   .import-grid   { grid-template-columns:1fr; }
