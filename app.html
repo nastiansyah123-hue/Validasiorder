@@ -310,6 +310,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-updateResi" onclick="switchPage('updateResi')">
       <span class="nav-icon">📦</span> Update Resi
     </div>
+    <div class="nav-item" id="nav-csinput" onclick="switchPage('csinput')">
+      <span class="nav-icon">📱</span> CS Input
+    </div>
     <div class="nav-section">Info</div>
     <div class="nav-item" id="nav-statistik" onclick="switchPage('statistik')">
       <span class="nav-icon">📊</span> Statistik Wilayah
@@ -1174,6 +1177,60 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
+  <!-- PAGE: CS INPUT -->
+  <div class="page" id="page-csinput">
+    <div class="page-header">
+      <div class="page-title">CS Input</div>
+      <div class="page-sub">ACC orderan dari CS Input langsung — hasil validasi sudah otomatis dihitung</div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="action-bar" style="margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <input type="date" id="csi-tanggal" class="filter-select" style="width:150px">
+      <select id="csi-cs-filter" class="filter-select" style="min-width:160px">
+        <option value="">Semua CS</option>
+      </select>
+      <button class="btn-primary" id="btn-csi-ambil" onclick="loadCsInputOrders()">🔍 Ambil Data</button>
+      <span class="loading-badge" id="loading-csi">memuat...</span>
+      <span class="spacer"></span>
+      <span id="csi-info" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+    </div>
+
+    <div id="csi-status" class="drop-status" style="margin-bottom:10px;display:none"></div>
+
+    <!-- Tabel -->
+    <div class="table-wrap" id="csi-table-wrap" style="display:none">
+      <div class="table-scroll" style="max-height:calc(100vh - 320px)">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Waktu</th>
+              <th>Nama Customer</th>
+              <th>No HP</th>
+              <th>Jumlah Pesanan</th>
+              <th>Pembayaran</th>
+              <th>CS</th>
+              <th>Validasi</th>
+              <th style="min-width:140px">ACC SPV</th>
+              <th style="min-width:180px">Noted</th>
+            </tr>
+          </thead>
+          <tbody id="csi-tbody">
+            <tr><td colspan="10" class="empty-state">Belum ada data</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span id="csi-save-info" style="font-size:12px;color:var(--muted)">—</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="loading-badge" id="loading-csi-save">menyimpan...</span>
+          <button class="btn-primary" id="btn-csi-simpan" onclick="saveCsInputAcc()" style="font-size:13px">💾 Simpan Semua ACC</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- PAGE: PANDUAN -->
   <div class="page" id="page-panduan">
     <div class="page-header">
@@ -1419,7 +1476,7 @@ function switchPage(name) {
   }
   // Save current page
   sessionStorage.setItem('vo_current_page', name);
-  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan','updateResi'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan','updateResi','csinput'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
@@ -1430,7 +1487,8 @@ function switchPage(name) {
   if (name === 'master') { loadCSData(); loadValidatorConfig(); }
   if (name === 'updateResi') initUpdateResi();
   if (name === 'dashboard') initDashboard();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan', updateResi:'Update Resi'};
+  if (name === 'csinput') initCsInputPage();
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan', updateResi:'Update Resi', csinput:'CS Input'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -3710,7 +3768,253 @@ async function saveValidasiDetail() {
     console.error('all_orderan save error:', e);
     showToast('⚠️ Gagal simpan ke Data Master: '+e.message, 'error');
   }
+
   badge.classList.remove('show'); badge.textContent='memproses...';
+}
+
+// ── CS INPUT ──────────────────────────────────────────────────────────────────
+let csInputRows = []; // data loaded dari orderan_masuk
+
+async function initCsInputPage() {
+  // Set default tanggal = hari ini
+  const tglEl = document.getElementById('csi-tanggal');
+  if (tglEl && !tglEl.value) {
+    tglEl.value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+  }
+  // Load daftar CS untuk filter
+  try {
+    const { data } = await sb.from('cs_profiles').select('id, nama').eq('aktif', true).order('nama');
+    const sel = document.getElementById('csi-cs-filter');
+    if (sel && data) {
+      const existing = Array.from(sel.options).map(o => o.value);
+      data.forEach(u => {
+        if (!existing.includes(u.id)) {
+          const opt = document.createElement('option');
+          opt.value = u.id;
+          opt.textContent = u.nama;
+          sel.appendChild(opt);
+        }
+      });
+    }
+  } catch(_) {}
+}
+
+async function loadCsInputOrders() {
+  const tanggal = document.getElementById('csi-tanggal').value;
+  const csId    = document.getElementById('csi-cs-filter').value;
+  if (!tanggal) { showToast('Pilih tanggal dulu', 'warn'); return; }
+
+  const badge    = document.getElementById('loading-csi');
+  const statusEl = document.getElementById('csi-status');
+  const btn      = document.getElementById('btn-csi-ambil');
+
+  btn.disabled = true;
+  badge.classList.add('show');
+  statusEl.style.display = 'none';
+  document.getElementById('csi-table-wrap').style.display = 'none';
+
+  try {
+    let query = sb.from('orderan_masuk')
+      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, pembayaran, instruksi_pengiriman, keterangan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan')
+      .eq('tanggal', tanggal)
+      .order('created_at', { ascending: true });
+
+    if (csId) query = query.eq('cs_id', csId);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    csInputRows = data || [];
+
+    if (!csInputRows.length) {
+      statusEl.textContent = `Tidak ada orderan di tanggal ${tanggal}${csId ? ' untuk CS ini' : ''}.`;
+      statusEl.className = 'drop-status err';
+      statusEl.style.display = 'block';
+      return;
+    }
+
+    renderCsInputTable(csInputRows);
+    updateCsiSaveInfo();
+    document.getElementById('csi-table-wrap').style.display = 'block';
+    document.getElementById('csi-info').textContent = `${csInputRows.length} order`;
+
+  } catch(e) {
+    statusEl.textContent = '✗ Gagal: ' + e.message;
+    statusEl.className = 'drop-status err';
+    statusEl.style.display = 'block';
+    showToast('Gagal ambil data: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    badge.classList.remove('show');
+  }
+}
+
+function renderCsInputTable(rows) {
+  const tbody = document.getElementById('csi-tbody');
+  tbody.innerHTML = rows.map((r, i) => {
+    const waktu = new Date(r.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+    const flags = [];
+    if (r.is_dup_today)      flags.push('<span class="csi-badge csi-dup">DUP HARI INI</span>');
+    if (r.is_dup_all)        flags.push('<span class="csi-badge csi-dup">DUP ALL</span>');
+    if (r.is_rts)            flags.push('<span class="csi-badge csi-rts">RTS</span>');
+    if (r.is_wajib_transfer) flags.push('<span class="csi-badge csi-wt">WAJIB TF</span>');
+    if (r.is_wilayah_rawan)  flags.push('<span class="csi-badge csi-rawan">RAWAN</span>');
+
+    const accVal = (r.acc_spv || '').toUpperCase();
+    const rowCls = accVal === 'KIRIM' ? 'style="background:rgba(22,163,74,.06)"'
+      : accVal === 'HOLD'   ? 'style="background:rgba(217,119,6,.06)"'
+      : accVal === 'CANCEL' ? 'style="background:rgba(220,38,38,.06)"' : '';
+
+    return `<tr id="csi-row-${r.id}" ${rowCls}>
+      <td style="color:var(--muted);font-family:monospace;font-size:11px">${i+1}</td>
+      <td style="font-family:monospace;font-size:11px">${waktu}</td>
+      <td style="font-weight:500">${r.nama||'—'}</td>
+      <td style="font-family:monospace;font-size:12px">${r.hp||'—'}</td>
+      <td style="font-size:12px">${r.jumlah_pesanan||'—'}</td>
+      <td style="font-size:12px">${r.pembayaran||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${r.cs_nama||'—'}</td>
+      <td style="display:flex;gap:3px;flex-wrap:wrap;min-width:80px">${flags.join('') || '<span style="color:var(--success);font-size:11px">✓ Aman</span>'}</td>
+      <td>
+        <select class="csi-acc-sel" data-id="${r.id}" onchange="onCsiAccChange(this)">
+          <option value="">— Belum —</option>
+          <option value="KIRIM"  ${accVal==='KIRIM' ?'selected':''}>✅ Kirim</option>
+          <option value="HOLD"   ${accVal==='HOLD'  ?'selected':''}>⏸ Hold</option>
+          <option value="CANCEL" ${accVal==='CANCEL'?'selected':''}>❌ Cancel</option>
+        </select>
+      </td>
+      <td>
+        <input type="text" class="csi-noted-inp" data-id="${r.id}" value="${(r.noted||'').replace(/"/g,'&quot;')}" placeholder="Catatan SPV..." oninput="onCsiNotedChange(this)">
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function onCsiAccChange(sel) {
+  const id  = sel.dataset.id;
+  const val = sel.value;
+  const row = csInputRows.find(r => r.id === id);
+  if (row) row._accSpv = val;
+  // Update row background
+  const tr = document.getElementById('csi-row-' + id);
+  if (tr) {
+    tr.style.background = val === 'KIRIM'  ? 'rgba(22,163,74,.06)'
+      : val === 'HOLD'   ? 'rgba(217,119,6,.06)'
+      : val === 'CANCEL' ? 'rgba(220,38,38,.06)' : '';
+  }
+  updateCsiSaveInfo();
+}
+
+function onCsiNotedChange(inp) {
+  const id  = inp.dataset.id;
+  const row = csInputRows.find(r => r.id === id);
+  if (row) row._noted = inp.value;
+}
+
+function updateCsiSaveInfo() {
+  const diAcc   = csInputRows.filter(r => r._accSpv || r.acc_spv).length;
+  const kirim   = csInputRows.filter(r => (r._accSpv||r.acc_spv||'').toUpperCase() === 'KIRIM').length;
+  const belum   = csInputRows.length - diAcc;
+  document.getElementById('csi-save-info').textContent =
+    `${csInputRows.length} order · ${kirim} KIRIM · ${belum} belum di-ACC`;
+}
+
+async function saveCsInputAcc() {
+  const toSave = csInputRows.filter(r => r._accSpv || r.acc_spv);
+  if (!toSave.length) { showToast('Belum ada yang di-ACC', 'warn'); return; }
+
+  const badge = document.getElementById('loading-csi-save');
+  const btn   = document.getElementById('btn-csi-simpan');
+  btn.disabled = true;
+  badge.classList.add('show');
+
+  try {
+    // 1. Update acc_spv + noted di orderan_masuk
+    badge.textContent = `update acc_spv (${toSave.length} order)...`;
+    for (const row of toSave) {
+      const accVal   = (row._accSpv || row.acc_spv || '').toUpperCase();
+      const notedVal = (row._noted  !== undefined ? row._noted : row.noted) || '';
+      await sb.from('orderan_masuk')
+        .update({ acc_spv: accVal, noted: notedVal || null })
+        .eq('id', row.id);
+    }
+
+    // 2. Insert KIRIM ke all_orderan
+    const kirimRows = toSave.filter(r => (r._accSpv||r.acc_spv||'').toUpperCase() === 'KIRIM');
+    if (kirimRows.length) {
+      badge.textContent = `cek duplikat all_orderan...`;
+
+      // Dedup: cek HP + tanggal yang sudah ada
+      const hpList = [...new Set(kirimRows.map(r => {
+        let hp = (r.hp||'').replace(/\D/g,'');
+        if (hp.startsWith('0')) hp = hp.slice(1);
+        return hp;
+      }))];
+      const { data: existing } = await sb.from('all_orderan')
+        .select('hp,tanggal')
+        .eq('sumber','cs_input')
+        .in('hp', hpList);
+
+      const existingSet = new Set((existing||[]).filter(r=>r.tanggal).map(r=>r.hp+'|'+r.tanggal.slice(0,10)));
+
+      const newRows = kirimRows
+        .filter(r => {
+          let hp = (r.hp||'').replace(/\D/g,'');
+          if (hp.startsWith('0')) hp = hp.slice(1);
+          const key = hp + '|' + (r.tanggal||'').slice(0,10);
+          return !existingSet.has(key);
+        })
+        .map(r => {
+          let hp = (r.hp||'').replace(/\D/g,'');
+          if (hp.startsWith('0')) hp = hp.slice(1);
+          return {
+            no          : r.no || '',
+            tanggal     : r.tanggal || '',
+            nama        : r.nama || '',
+            hp          : hp,
+            alamat      : r.alamat || '',
+            kelurahan   : r.kelurahan || '',
+            kecamatan   : r.kecamatan || '',
+            kabupaten   : r.kabupaten || '',
+            provinsi    : r.provinsi || '',
+            kodepos     : r.kodepos || '',
+            jumlah      : r.jumlah_pesanan || '',
+            pembayaran  : r.pembayaran || '',
+            instruksi   : r.instruksi_pengiriman || '',
+            resi        : '',
+            team        : '',
+            update_crm  : '',
+            status_akhir: 'ON PROSES',
+            retur       : '0',
+            sumber      : 'cs_input',
+            cs          : r.cs_nama || '',
+            adv         : '',
+            adm         : '',
+          };
+        });
+
+      if (newRows.length) {
+        badge.textContent = `simpan ${newRows.length} ke all_orderan...`;
+        for (let i = 0; i < newRows.length; i += 500) {
+          const { error } = await sb.from('all_orderan').insert(newRows.slice(i, i+500));
+          if (error) throw error;
+        }
+        showToast(`✓ ${newRows.length} orderan KIRIM masuk ke Data Master!`, 'success');
+      } else {
+        showToast('Semua orderan KIRIM sudah ada di Data Master', 'info');
+      }
+    }
+
+    // 3. Refresh tabel
+    showToast(`✓ ${toSave.length} order berhasil disimpan`, 'success');
+    await loadCsInputOrders();
+
+  } catch(e) {
+    showToast('Gagal simpan: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    badge.textContent = 'menyimpan...';
+    badge.classList.remove('show');
+  }
 }
 
 // ── CEK ONGKIR MENGANTAR ─────────────────────────────────────────────────────
