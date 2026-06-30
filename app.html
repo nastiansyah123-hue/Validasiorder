@@ -3852,38 +3852,52 @@ async function loadCsInputOrders() {
 function renderCsInputTable(rows) {
   const tbody = document.getElementById('csi-tbody');
   tbody.innerHTML = rows.map((r, i) => {
-    const waktu = new Date(r.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+    const waktu  = new Date(r.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+
+    // Badge validasi — pakai class yang sama seperti hasil validasi harian
     const flags = [];
-    if (r.is_dup_today)      flags.push('<span class="csi-badge csi-dup">DUP HARI INI</span>');
-    if (r.is_dup_all)        flags.push('<span class="csi-badge csi-dup">DUP ALL</span>');
-    if (r.is_rts)            flags.push('<span class="csi-badge csi-rts">RTS</span>');
-    if (r.is_wajib_transfer) flags.push('<span class="csi-badge csi-wt">WAJIB TF</span>');
-    if (r.is_wilayah_rawan)  flags.push('<span class="csi-badge csi-rawan">RAWAN</span>');
+    if (r.is_dup_today)      flags.push('<span class="badge badge-dup">DUP HARI INI</span>');
+    if (r.is_dup_all)        flags.push('<span class="badge badge-dup">DUP ALL</span>');
+    if (r.is_rts)            flags.push('<span class="badge badge-rts">PERNAH RTS</span>');
+    if (r.is_wajib_transfer) flags.push('<span class="badge badge-rts" style="background:#ede9fe;color:#7c3aed">WAJIB TF</span>');
+    if (r.is_wilayah_rawan)  flags.push('<span class="badge badge-rts" style="background:#fef9c3;color:#92400e">RAWAN</span>');
+    const flagHtml = flags.length ? flags.join(' ') : '<span class="badge badge-ok">AMAN</span>';
 
+    // Row color — sama seperti row-dup / row-rts
+    const hasDup = r.is_dup_today || r.is_dup_all;
+    const hasRts = r.is_rts || r.is_wajib_transfer;
+    const rowCls = hasDup && hasRts ? 'row-both' : hasDup ? 'row-dup' : hasRts ? 'row-rts' : '';
+
+    // ACC SPV select — style persis ValidasiOrder
     const accVal = (r.acc_spv || '').toUpperCase();
-    const rowCls = accVal === 'KIRIM' ? 'style="background:rgba(22,163,74,.06)"'
-      : accVal === 'HOLD'   ? 'style="background:rgba(217,119,6,.06)"'
-      : accVal === 'CANCEL' ? 'style="background:rgba(220,38,38,.06)"' : '';
+    const accBg  = accVal==='KIRIM'?'#dcfce7':accVal==='HOLD'?'#fef3c7':accVal==='CANCEL'?'#fee2e2':'var(--bg)';
+    const accClr = accVal==='KIRIM'?'#16a34a':accVal==='HOLD'?'#d97706':accVal==='CANCEL'?'#dc2626':'var(--text)';
+    const accBdr = accVal==='KIRIM'?'#16a34a':accVal==='HOLD'?'#d97706':accVal==='CANCEL'?'#dc2626':'var(--border-strong)';
 
-    return `<tr id="csi-row-${r.id}" ${rowCls}>
-      <td style="color:var(--muted);font-family:monospace;font-size:11px">${i+1}</td>
-      <td style="font-family:monospace;font-size:11px">${waktu}</td>
-      <td style="font-weight:500">${r.nama||'—'}</td>
+    return `<tr class="${rowCls}" id="csi-row-${r.id}">
+      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${i+1}</td>
+      <td style="font-family:monospace;font-size:12px">${waktu}</td>
+      <td style="font-weight:600">${r.nama||'—'}</td>
       <td style="font-family:monospace;font-size:12px">${r.hp||'—'}</td>
       <td style="font-size:12px">${r.jumlah_pesanan||'—'}</td>
       <td style="font-size:12px">${r.pembayaran||'—'}</td>
       <td style="font-size:12px;color:var(--muted)">${r.cs_nama||'—'}</td>
-      <td style="display:flex;gap:3px;flex-wrap:wrap;min-width:80px">${flags.join('') || '<span style="color:var(--success);font-size:11px">✓ Aman</span>'}</td>
+      <td>${flagHtml}</td>
       <td>
-        <select class="csi-acc-sel" data-id="${r.id}" onchange="onCsiAccChange(this)">
-          <option value="">— Belum —</option>
+        <select class="acc-spv-sel" data-id="${r.id}" onchange="onCsiAccChange(this)"
+          style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid ${accBdr};background:${accBg};color:${accClr};font-family:monospace;cursor:pointer">
+          <option value="">— pilih —</option>
           <option value="KIRIM"  ${accVal==='KIRIM' ?'selected':''}>✅ Kirim</option>
           <option value="HOLD"   ${accVal==='HOLD'  ?'selected':''}>⏸ Hold</option>
           <option value="CANCEL" ${accVal==='CANCEL'?'selected':''}>❌ Cancel</option>
         </select>
       </td>
       <td>
-        <input type="text" class="csi-noted-inp" data-id="${r.id}" value="${(r.noted||'').replace(/"/g,'&quot;')}" placeholder="Catatan SPV..." oninput="onCsiNotedChange(this)">
+        <input type="text" class="noted-input" data-id="${r.id}"
+          value="${(r.noted||'').replace(/"/g,'&quot;')}"
+          placeholder="tulis catatan..."
+          oninput="onCsiNotedChange(this)"
+          style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:monospace;width:150px">
       </td>
     </tr>`;
   }).join('');
@@ -3894,13 +3908,10 @@ function onCsiAccChange(sel) {
   const val = sel.value;
   const row = csInputRows.find(r => r.id === id);
   if (row) row._accSpv = val;
-  // Update row background
-  const tr = document.getElementById('csi-row-' + id);
-  if (tr) {
-    tr.style.background = val === 'KIRIM'  ? 'rgba(22,163,74,.06)'
-      : val === 'HOLD'   ? 'rgba(217,119,6,.06)'
-      : val === 'CANCEL' ? 'rgba(220,38,38,.06)' : '';
-  }
+  // Warna dropdown — sama persis setAccSPV ValidasiOrder
+  sel.style.background  = val==='KIRIM'?'#dcfce7':val==='HOLD'?'#fef3c7':val==='CANCEL'?'#fee2e2':'var(--bg)';
+  sel.style.color       = val==='KIRIM'?'#16a34a':val==='HOLD'?'#d97706':val==='CANCEL'?'#dc2626':'var(--text)';
+  sel.style.borderColor = val==='KIRIM'?'#16a34a':val==='HOLD'?'#d97706':val==='CANCEL'?'#dc2626':'var(--border-strong)';
   updateCsiSaveInfo();
 }
 
