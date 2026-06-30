@@ -3290,7 +3290,7 @@ async function loadDashboard() {
 
     // Juga load dari orderan_masuk (CS Input) — hanya saat Semua atau non-admin
     if (isAdmin && uFilter === 'all') {
-      let csQuery = sb.from('orderan_masuk').select('*').gte('tanggal', from).lte('tanggal', to).order('created_at', { ascending:false });
+      let csQuery = sb.from('orderan_masuk').select('*').gte('tanggal', from).lte('tanggal', to).not('acc_spv', 'is', null).neq('acc_spv', '').order('created_at', { ascending:false });
       const csAllRows = [];
       let csFrom = 0;
       while (true) {
