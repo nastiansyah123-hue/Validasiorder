@@ -3276,7 +3276,7 @@ async function loadDashboard() {
     }
     if (teamFilter !== 'all') query = query.eq('team', teamFilter);
 
-    // Paginate all
+    // Paginate validasi_detail
     const allData = [];
     let qFrom = 0;
     while (true) {
@@ -3286,6 +3286,62 @@ async function loadDashboard() {
       allData.push(...data);
       if (data.length < 1000) break;
       qFrom += 1000;
+    }
+
+    // Juga load dari orderan_masuk (CS Input) — hanya saat Semua atau non-admin
+    if (isAdmin && uFilter === 'all') {
+      let csQuery = sb.from('orderan_masuk').select('*').gte('tanggal', from).lte('tanggal', to).order('created_at', { ascending:false });
+      const csAllRows = [];
+      let csFrom = 0;
+      while (true) {
+        const { data: csData, error: csErr } = await csQuery.range(csFrom, csFrom+999);
+        if (csErr) break;
+        if (!csData||!csData.length) break;
+        csAllRows.push(...csData);
+        if (csData.length < 1000) break;
+        csFrom += 1000;
+      }
+      // Normalize ke shape validasi_detail
+      const csNormalized = csAllRows.map(r => {
+        const hasDup = r.is_dup_all || r.is_dup_today;
+        const hasRts = r.is_rts || r.is_wajib_transfer;
+        let statusVal = 'AMAN';
+        if (hasDup && hasRts) statusVal = 'DUPLIKAT+RTS';
+        else if (hasDup)      statusVal = 'DUPLIKAT';
+        else if (hasRts)      statusVal = 'RTS';
+        return {
+          _source      : 'cs_input',
+          sesi_id      : 'cs_input_' + (r.tanggal||'').slice(0,10) + '_' + (r.cs_nama||'CS'),
+          tanggal      : (r.tanggal||'').slice(0,10),
+          user_email   : '[CS] ' + (r.cs_nama||'—'),
+          no           : r.no || '',
+          nama         : r.nama || '',
+          hp           : r.hp || '',
+          kodepos      : r.kodepos || '',
+          kabupaten    : r.kabupaten || '',
+          jumlah       : r.jumlah_pesanan || '',
+          pembayaran   : r.pembayaran || '',
+          ekspedisi    : '',
+          resi         : '',
+          grade        : '',
+          status_validasi: statusVal,
+          duplikat_all : !!(r.is_dup_all),
+          duplikat_team: !!(r.is_dup_today),
+          pernah_rts   : !!(r.is_rts),
+          rts_reason   : r.is_wajib_transfer ? 'WAJIB TF' : (r.is_rts ? 'RTS' : ''),
+          rts_count    : 0,
+          wilayah_rawan: r.is_wilayah_rawan ? 'Ya' : '',
+          rek_ekspedisi: '',
+          acc_spv_cs   : r.acc_spv || '',
+          ss_chat      : false,
+          noted        : r.noted || '',
+          team         : '',
+          created_at   : r.created_at,
+        };
+      });
+      allData.push(...csNormalized);
+      // Urutkan gabungan by created_at desc
+      allData.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
     }
 
     dbAllDetail = allData;
@@ -3316,7 +3372,7 @@ async function loadDashboard() {
     const sesiMap = {};
     allData.forEach(r => {
       const key = r.sesi_id || r.tanggal;
-      if (!sesiMap[key]) sesiMap[key] = { sesi_id:key, tanggal:r.tanggal, user:r.user_email, count:0, kirim:0, hold:0, cancel:0 };
+      if (!sesiMap[key]) sesiMap[key] = { sesi_id:key, tanggal:r.tanggal, user:r.user_email, count:0, kirim:0, hold:0, cancel:0, isCsInput: r._source==='cs_input' };
       sesiMap[key].count++;
       if ((r.acc_spv_cs||'').toUpperCase()==='KIRIM')  sesiMap[key].kirim++;
       if ((r.acc_spv_cs||'').toUpperCase()==='HOLD')   sesiMap[key].hold++;
@@ -3338,17 +3394,20 @@ async function loadDashboard() {
           <th style="padding:8px 12px;font-size:10px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border)"></th>
         </tr></thead>
         <tbody>${sesiList.map(s=>`
-          <tr style="border-bottom:0.5px solid var(--border)">
+          <tr style="border-bottom:0.5px solid var(--border);${s.isCsInput?'background:var(--accent-light)':''}">
             <td style="padding:9px 12px">${s.tanggal}</td>
-            <td style="padding:9px 12px;font-family:monospace;font-size:11px">${s.user}</td>
+            <td style="padding:9px 12px;font-family:monospace;font-size:11px">
+              ${s.isCsInput?'<span style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:4px;font-weight:700;margin-right:4px">CS</span>':''}${s.user}
+            </td>
             <td style="padding:9px 12px;text-align:right;font-weight:600">${s.count}</td>
             <td style="padding:9px 12px;text-align:right;color:var(--success)">${s.kirim}</td>
             <td style="padding:9px 12px;text-align:right;color:var(--warn)">${s.hold}</td>
             <td style="padding:9px 12px;text-align:right;color:var(--danger)">${s.cancel}</td>
             <td style="padding:9px 12px;display:flex;gap:6px">
               <button class="btn-secondary" style="font-size:11px" onclick="filterBySesi('${s.sesi_id}')">Detail</button>
+              ${s.isCsInput?'':`
               <button class="btn-secondary" style="font-size:11px;color:var(--accent);border-color:var(--accent)" onclick="editSesi('${s.sesi_id}')">✏️ Edit</button>
-              <button class="btn-secondary btn-danger" style="font-size:11px" onclick="hapusSesi('${s.sesi_id}')">Hapus</button>
+              <button class="btn-secondary btn-danger" style="font-size:11px" onclick="hapusSesi('${s.sesi_id}')">Hapus</button>`}
             </td>
           </tr>`).join('')}
         </tbody>
@@ -3408,10 +3467,12 @@ function renderDbTable() {
     const statusColor = s => s==='DUPLIKAT'||s==='DUPLIKAT+RTS'?'var(--danger)':s==='RTS'?'var(--warn)':'var(--success)';
     tbody.innerHTML = pageData.map(r => {
       const rowBg = r.duplikat_all?'background:#fee2e2':r.pernah_rts?'background:#fef3c7':r.duplikat_team?'background:#dbeafe':'';
+      const accClr = (r.acc_spv_cs||'').toUpperCase()==='KIRIM'?'var(--success)':(r.acc_spv_cs||'').toUpperCase()==='HOLD'?'var(--warn)':'var(--danger)';
+      const srcBadge = r._source==='cs_input'?'<span style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:4px;font-weight:700">CS</span>':'';
       return `<tr style="${rowBg}">
         <td style="font-family:monospace;font-size:11px">${r.tanggal||''}</td>
-        <td style="font-family:monospace;font-size:10px">${(r.sesi_id||'').slice(0,16)}</td>
-        <td style="font-size:11px">${(r.user_email||'').split('@')[0]}</td>
+        <td style="font-family:monospace;font-size:10px">${srcBadge} ${r._source==='cs_input'?(r.user_email||''):(r.sesi_id||'').slice(0,16)}</td>
+        <td style="font-size:11px">${r._source==='cs_input'?(r.user_email||''):(r.user_email||'').split('@')[0]}</td>
         <td style="font-family:monospace;font-size:11px">${r.no||''}</td>
         <td>${r.nama||''}</td>
         <td style="font-family:monospace">${r.hp||''}</td>
@@ -3426,8 +3487,8 @@ function renderDbTable() {
         <td style="font-size:11px;color:var(--warn)">${r.rts_reason||''}</td>
         <td style="text-align:center;font-family:monospace">${r.rts_count||0}</td>
         <td style="font-size:11px">${r.wilayah_rawan||''}</td>
-        <td style="font-size:11px">${r.rek_ekspedisi||''}</td>
-        <td style="font-family:monospace;font-size:11px;color:${(r.acc_spv_cs||'').toUpperCase()==='KIRIM'?'var(--success)':(r.acc_spv_cs||'').toUpperCase()==='HOLD'?'var(--warn)':'var(--danger)'}">${r.acc_spv_cs||''}</td>
+        <td style="font-size:11px">${r._source==='cs_input'?(r.noted||''):(r.rek_ekspedisi||'')}</td>
+        <td style="font-family:monospace;font-size:11px;color:${accClr}">${r.acc_spv_cs||''}</td>
         <td style="text-align:center">${r.ss_chat?'✓':''}</td>
       </tr>`;
     }).join('');
