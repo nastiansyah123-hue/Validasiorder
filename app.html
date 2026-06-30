@@ -3747,9 +3747,9 @@ async function saveValidasiDetail() {
         nama        : String(r.nama||'').slice(0,200),
         hp          : normalizeHP(String(r.hp||'')),
         alamat      : String(r._raw['Alamat']||'').slice(0,300),
-        kelurahan   : String(r.kelurahan||r._raw['Kelurahan']||r._raw['"Kelurahan"']||'').slice(0,100),
-        kecamatan   : String(r.kecamatan||r._raw['Kecamatan']||r._raw['"Kecamatan"']||'').slice(0,100),
-        kabupaten   : String(r.kabupaten||r._raw['Kabupaten']||r._raw['"Kabupaten"']||'').slice(0,100),
+        kelurahan   : String(r.kelurahan||r._raw['Kelurahan']||r._raw['kelurahan']||r._raw['Kel']||r._raw['Kel.']||r._raw['Kelurahan/Desa']||r._raw['Desa/Kelurahan']||r._raw['Desa']||'').slice(0,100),
+        kecamatan   : String(r.kecamatan||r._raw['Kecamatan']||r._raw['kecamatan']||r._raw['Kec']||r._raw['Kec.']||r._raw['Kecamatan/Desa']||'').slice(0,100),
+        kabupaten   : String(r.kabupaten||r._raw['Kabupaten']||r._raw['kabupaten']||r._raw['Kabupaten/Kota']||r._raw['Kab/Kota']||r._raw['Kab.']||r._raw['Kota/Kabupaten']||r._raw['Kota']||'').slice(0,100),
         provinsi    : String(r.provinsi||r._raw['Provinsi']||r._raw['"Provinsi"']||'').slice(0,100),
         kodepos     : String(r._raw['Kode Pos']||r.kodepos||'').slice(0,20),
         jumlah      : String(r._raw['Jumlah Pesanan']||'').slice(0,200),
@@ -4076,7 +4076,45 @@ async function saveCsInputAcc() {
       }
     }
 
-    // 3. Refresh tabel
+    // 3. Kirim notif WA ke tiap CS
+    if (currentFonnteKey) {
+      badge.textContent = 'kirim notif WA ke CS...';
+
+      // Group by cs_nama
+      const csGroup = {};
+      toSave.forEach(r => {
+        const nama = r.cs_nama || '—';
+        if (!csGroup[nama]) csGroup[nama] = { kirim:0, hold:0, cancel:0, belum:0 };
+        const acc = (r._accSpv || r.acc_spv || '').toUpperCase();
+        if      (acc === 'KIRIM')  csGroup[nama].kirim++;
+        else if (acc === 'HOLD')   csGroup[nama].hold++;
+        else if (acc === 'CANCEL') csGroup[nama].cancel++;
+        else                       csGroup[nama].belum++;
+      });
+
+      for (const [nama, stat] of Object.entries(csGroup)) {
+        if (stat.kirim + stat.hold + stat.cancel === 0) continue;
+        const noWA = await getCSWA(nama);
+        if (!noWA) continue;
+
+        const lines = [`✅ *Halo ${nama}!*`, `Orderanmu hari ini sudah di-ACC validator:`, ''];
+        if (stat.kirim)  lines.push(`✅ *KIRIM*  : ${stat.kirim} order`);
+        if (stat.hold)   lines.push(`⏸ *HOLD*   : ${stat.hold} order`);
+        if (stat.cancel) lines.push(`❌ *CANCEL* : ${stat.cancel} order`);
+        if (stat.belum)  lines.push(`⏳ Belum di-ACC: ${stat.belum} order`);
+        lines.push('', 'Cek CS Input untuk detail.');
+
+        try {
+          await fetch('/api/fonnte', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target: noWA, message: lines.join('\n'), fonnte_key: currentFonnteKey })
+          });
+        } catch(e) { console.warn('Gagal notif WA ke', nama, e); }
+      }
+    }
+
+    // 4. Refresh tabel
     showToast(`✓ ${toSave.length} order berhasil disimpan`, 'success');
     await loadCsInputOrders();
 
