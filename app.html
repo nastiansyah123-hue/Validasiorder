@@ -6715,8 +6715,11 @@ async function saveUpdateResi() {
     }
 
     const hpListNorm = Object.keys(hpMap);
-    // DB stores HP without leading 0 (e.g. '8xxx')
-    const hpListDB = hpListNorm.map(h => h.replace(/^0/, ''));
+    // DB may store HP with OR without leading 0 — query both variants
+    const hpListDB = [...new Set([
+      ...hpListNorm,
+      ...hpListNorm.map(h => '0' + h)
+    ])];
 
     // Fetch semua record yang HP-nya ada di file — batch 500
     const allMatches = [];
