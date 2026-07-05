@@ -147,6 +147,7 @@ function extractOrderFields(row) {
     csa     : getCol(row, 'CS', 'CSA', 'csa', 'cs'),
     dv      : getCol(row, 'ADV', 'DV', 'adv', 'dv'),
     adm     : getCol(row, 'ADM', 'adm'),
+    keluhan : getCol(row, 'Keluhan', 'keluhan', 'KELUHAN'),
     _raw    : row,
   };
 }
