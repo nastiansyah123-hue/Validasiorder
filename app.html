@@ -1588,7 +1588,8 @@ async function saveOrderanMaster() {
       kabupaten:r.kabupaten, provinsi:r.provinsi, kodepos:r.kodepos,
       jumlah:r.jumlah, pembayaran:r.pembayaran, instruksi:r.instruksi,
       resi:r.resi||null, team:r.team, update_crm:r.updateCRM,
-      status_akhir:r.statusAkhir, retur:r.retur, cs:r.csa, adv:r.dv, adm:r.adm
+      status_akhir:r.statusAkhir, retur:r.retur, cs:r.csa, adv:r.dv, adm:r.adm,
+      keluhan:r.keluhan||null
     }));
 
     let saved = 0;
@@ -4129,6 +4130,7 @@ async function saveCsInputAcc() {
             cs          : r.cs_nama || '',
             adv         : '',
             adm         : '',
+            keluhan     : r.keluhan || '',
           };
         });
 
