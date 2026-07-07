@@ -1113,11 +1113,11 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
               <th>Provinsi</th><th>Kode Pos</th><th>Jumlah</th><th>Pembayaran</th>
               <th>Instruksi</th><th>Resi</th><th>Team</th><th>Update CRM</th>
               <th>Status Akhir</th><th>Retur</th><th>CS</th><th>ADV</th><th>ADM</th>
-              <th>Sumber</th>
+              <th>Keluhan</th><th>Sumber</th>
             </tr>
           </thead>
           <tbody id="ao-tbody">
-            <tr><td colspan="22" class="empty-state">Klik menu untuk memuat data</td></tr>
+            <tr><td colspan="23" class="empty-state">Klik menu untuk memuat data</td></tr>
           </tbody>
         </table>
       </div>
@@ -5465,7 +5465,7 @@ async function saveAOPatch() {
     });
 
     // Bangun daftar updates — hanya isi kolom yang kosong
-    const PATCH_FIELDS = ['alamat','kelurahan','kecamatan','kabupaten','provinsi','kodepos','jumlah','pembayaran','instruksi','cs','adv','adm'];
+    const PATCH_FIELDS = ['alamat','kelurahan','kecamatan','kabupaten','provinsi','kodepos','jumlah','pembayaran','instruksi','cs','adv','adm','keluhan'];
     const updates = [];
     let skipped = 0;
 
@@ -6218,10 +6218,10 @@ async function checkAndRestoreDraft() {
 let aoData = [], aoFiltered = [], aoPage = 1;
 const AO_COLS = ['no','tanggal','nama','hp','alamat','kelurahan','kecamatan','kabupaten',
   'provinsi','kodepos','jumlah','pembayaran','instruksi','resi','team','update_crm',
-  'status_akhir','retur','cs','adv','adm','sumber'];
+  'status_akhir','retur','cs','adv','adm','keluhan','sumber'];
 const AO_LABELS = ['No','Tanggal','Nama','HP','Alamat','Kelurahan','Kecamatan','Kabupaten',
   'Provinsi','Kode Pos','Jumlah','Pembayaran','Instruksi','Resi','Team','Update CRM',
-  'Status Akhir','Retur','CS','ADV','ADM','Sumber'];
+  'Status Akhir','Retur','CS','ADV','ADM','Keluhan','Sumber'];
 
 let aoInitDone = false;
 let aoLoadGen  = 0; // generation counter — cegah race condition
@@ -6297,7 +6297,7 @@ function renderAO() {
   const rows  = aoFiltered.slice(start, start+PS);
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="22" class="empty-state">Tidak ada data</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="23" class="empty-state">Tidak ada data</td></tr>';
     return;
   }
 
