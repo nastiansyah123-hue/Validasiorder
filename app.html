@@ -6189,8 +6189,8 @@ async function loadAO() {
         .order('id', { ascending: false })
         .range(from, from+999);
       if (sumber !== 'all') query = query.eq('sumber', sumber);
-      if (tglStart) query = query.gte('created_at', tglStart);
-      if (tglEnd)   query = query.lte('created_at', tglEnd + 'T23:59:59');
+      if (tglStart) query = query.gte('tanggal', tglStart);
+      if (tglEnd)   query = query.lte('tanggal', tglEnd);
       const { data, error } = await query;
       if (error) throw error;
       if (!data?.length) break;
@@ -6200,10 +6200,8 @@ async function loadAO() {
     }
 
     aoData = all;
-    aoFiltered = [...aoData];
     aoPage = 1;
-    document.getElementById('ao-count').textContent = aoData.length.toLocaleString() + ' baris';
-    renderAO();
+    filterAO(); // re-apply search + checkbox "hanya kosong" setelah reload
   } catch(e) { showToast('Error: '+e.message, 'error'); }
   badge.classList.remove('show');
 }
