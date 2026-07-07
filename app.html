@@ -5493,6 +5493,23 @@ async function saveAOPatch() {
             hasChange = true;
           }
         }
+        // Auto-parse cs/adv/adm dari instruksi jika instruksi baru terisi dan cs/adv/adm masih kosong
+        const newInstruksi = upd.instruksi || String(row.instruksi||'');
+        if (newInstruksi) {
+          if (!String(row.cs||'').trim() && !upd.cs) {
+            const v = newInstruksi.split('/')[0].replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim();
+            if (v) { upd.cs = v; hasChange = true; }
+          }
+          if (!String(row.adv||'').trim() && !upd.adv) {
+            const v = (newInstruksi.split('/')[1]||'').replace(/Adv\.\s*/i,'').trim();
+            if (v) { upd.adv = v; hasChange = true; }
+          }
+          if (!String(row.adm||'').trim() && !upd.adm) {
+            const v = (newInstruksi.split('/')[2]||'').trim();
+            if (v) { upd.adm = v; hasChange = true; }
+          }
+        }
+
         if (hasChange) updates.push(upd);
       }
     }
