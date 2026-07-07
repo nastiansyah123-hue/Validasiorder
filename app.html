@@ -3812,6 +3812,17 @@ async function saveValidasiDetail() {
     rek_ekspedisi : row._rekEkspedisi||'',
     acc_spv_cs    : row._accSPV||row._raw['ACC SPV CS']||'',
     ss_chat       : !!row._ssChatDone,
+    kelurahan     : String(row.kelurahan||'').slice(0,100),
+    kecamatan     : String(row.kecamatan||'').slice(0,100),
+    instruksi     : String(row.instruksi||row._raw['Instruksi Pengiriman']||'').slice(0,200),
+    cs            : (String(row.instruksi||row._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim().slice(0,100),
+    adv           : (String(row.instruksi||row._raw['Instruksi Pengiriman']||'').split('/')[1]||'').replace(/Adv\.\s*/i,'').trim().slice(0,100),
+    adm           : (String(row.instruksi||row._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,100),
+    keluhan       : String(row.keluhan||'').slice(0,200),
+    tanggal_order : String(row.tanggal||'').slice(0,50),
+    quantity      : parseInt(String(row.quantity||row._raw['Quantity']||row._raw['Qty']||'').replace(/\D/g,''))||null,
+    total_pembayaran: parseInt(String(row.total_pembayaran||row._raw['Total Pembayaran']||row._raw['TotalPembayaran']||'').replace(/\D/g,''))||null,
+    rincian       : String(row._raw['Rincian Pembayaran']||row._raw['rincian']||'').slice(0,300),
   }));
 
   // 1. Simpan ke validasi_detail
@@ -3858,12 +3869,14 @@ async function saveValidasiDetail() {
         cs          : (String(r._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim().slice(0,50),
         adv         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[1]||'').replace(/Adv\.\s*/i,'').trim().slice(0,50),
         adm         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,50),
+        keluhan     : String(r._raw['Keluhan']||r.keluhan||'').slice(0,200),
         created_at  : nowWIB(),
       }));
 
     console.log('[ALL_ORDERAN] kirimRows:', kirimRows.length, 'dari', validatedData.length, 'total');
     if (!kirimRows.length) {
       console.warn('[ALL_ORDERAN] Tidak ada row KIRIM — skip save all_orderan');
+      showToast('⚠️ Tidak ada data KIRIM yang tersimpan ke Data Master!', 'error');
       badge.classList.remove('show'); badge.textContent='memproses...';
       return;
     }
