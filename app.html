@@ -1372,6 +1372,28 @@ function excelDateToStr(val) {
   return s;
 }
 
+// Convert any date format → YYYY-MM-DD (untuk key matching di patch)
+function normTglToYMD(val) {
+  if (!val && val !== 0) return '';
+  const s = String(val).trim();
+  if (!s) return '';
+  // Sudah YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  // DD/MM/YYYY atau DD-MM-YYYY
+  const m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+  // Excel serial number
+  const n = parseFloat(s);
+  if (!isNaN(n) && n > 43000 && n < 50000) {
+    const date = new Date((n - 25569) * 86400 * 1000);
+    const d  = date.getUTCDate().toString().padStart(2, '0');
+    const mo = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const y  = date.getUTCFullYear();
+    return `${y}-${mo}-${d}`;
+  }
+  return s.slice(0, 10);
+}
+
 // Convert Excel date only for date fields (stricter check)
 function excelDateFieldToStr(val) {
   if (!val && val !== 0) return '';
@@ -5335,7 +5357,7 @@ async function parseAOPatchFile(file) {
           return String(row[key]||'').trim();
         };
         const hp = normalizeHP(get(/^hp$/i, /telp/i, /nomor/i, /phone/i));
-        const tgl = get(/^tanggal$/i, /^tgl$/i, /^date$/i);
+        const tgl = normTglToYMD(get(/^tanggal$/i, /^tgl$/i, /^date$/i));
         return {
           hp,
           tanggal   : tgl,
