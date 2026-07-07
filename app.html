@@ -1138,6 +1138,11 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="card" style="max-width:600px">
       <div class="card-title">Upload File Resi</div>
       <div class="card-desc" style="margin-bottom:1rem">File CSV/XLSX dengan kolom <b>HP</b> dan <b>Resi</b>. Resi akan dicocokkan ke <b>all_orderan</b> berdasarkan nomor HP.</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+        <label style="font-size:12px;font-weight:600;color:var(--muted)">Tanggal Validasi <span style="font-weight:400;color:var(--muted)">(opsional — untuk HP yang beli berkali-kali)</span></label>
+        <input type="date" id="ur-tanggal-validasi" class="filter-select" style="width:160px" />
+        <button class="btn-secondary" style="font-size:11px" onclick="document.getElementById('ur-tanggal-validasi').value=new Date(Date.now()+7*3600000).toISOString().slice(0,10)">Hari Ini</button>
+      </div>
       <div class="drop-zone" id="dz-update-resi">
         <input type="file" id="file-update-resi" accept=".csv,.xlsx,.xls" />
         <div class="drop-zone-icon">📂</div>
@@ -6996,7 +7001,7 @@ async function saveUpdateResi() {
     const BATCH = 500;
     for (let i = 0; i < hpListDB.length; i += BATCH) {
       const { data, error } = await sb.from('all_orderan')
-        .select('id,hp,resi,nama')
+        .select('id,hp,resi,nama,created_at')
         .in('hp', hpListDB.slice(i, i + BATCH));
       if (error) throw error;
       if (data) allMatches.push(...data);
@@ -7030,6 +7035,7 @@ async function saveUpdateResi() {
       }
 
       // Tentukan target update
+      const tglValidasi = document.getElementById('ur-tanggal-validasi')?.value || '';
       let targets;
       if (dbRecs.length === 1) {
         targets = dbRecs;
@@ -7039,7 +7045,14 @@ async function saveUpdateResi() {
           gagal.push({ hp: hpRaw, resi: resiValue, alasan: 'HP duplikat, semua sudah ada resi', nama: dbRecs.map(r=>r.nama||'').join(', ') });
           continue;
         }
-        targets = emptyRecs;
+        if (tglValidasi && emptyRecs.length > 1) {
+          // Prioritaskan yang created_at-nya sesuai tanggal validasi
+          const byDate = emptyRecs.filter(r => (r.created_at||'').slice(0,10) === tglValidasi);
+          targets = byDate.length ? byDate : [emptyRecs.sort((a,b) => b.id - a.id)[0]];
+        } else {
+          // Fallback: ambil yang paling baru
+          targets = emptyRecs.length === 1 ? emptyRecs : [emptyRecs.sort((a,b) => b.id - a.id)[0]];
+        }
       }
 
       let hpBerhasil = false;
