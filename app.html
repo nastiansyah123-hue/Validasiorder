@@ -79,7 +79,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all 0.15s;user-select:none;margin-bottom:2px}
 .nav-item:hover{background:var(--bg);color:var(--text)}
 .nav-item.active{background:var(--accent-light);color:var(--accent)}
-.nav-item .nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-item .nav-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-item .nav-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .sidebar-user{padding:1rem;border-top:1px solid var(--border)}
 .user-card{display:flex;align-items:center;gap:10px}
 .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
@@ -327,38 +328,38 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   <nav class="sidebar-nav">
     <div class="nav-section">Menu</div>
     <div class="nav-item active" id="nav-harian" onclick="switchPage('harian')">
-      <span class="nav-icon">✅</span> Validasi Harian
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></span> Validasi Harian
     </div>
     <div class="nav-item" id="nav-dashboard" onclick="switchPage('dashboard')">
-      <span class="nav-icon">📈</span> Dashboard
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span> Dashboard
     </div>
     <div class="nav-item" id="nav-master" onclick="switchPage('master')">
-      <span class="nav-icon">🗄️</span> Data Master
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg></span> Data Master
     </div>
     <div class="nav-item" id="nav-updateResi" onclick="switchPage('updateResi')">
-      <span class="nav-icon">📦</span> Update Resi
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span> Update Resi
     </div>
     <div class="nav-item" id="nav-csinput" onclick="switchPage('csinput')">
-      <span class="nav-icon">📱</span> CS Input
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> CS Input
     </div>
     <div class="nav-section">Info</div>
     <div class="nav-item" id="nav-statistik" onclick="switchPage('statistik')">
-      <span class="nav-icon">📊</span> Statistik Wilayah
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg></span> Statistik Wilayah
     </div>
     <div class="nav-item" id="nav-cekHP" onclick="switchPage('cekHP')">
-      <span class="nav-icon">🔍</span> Cek Nomor HP
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.59a16 16 0 0 0 6.5 6.5l.96-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span> Cek Nomor HP
     </div>
     <div class="nav-item" id="nav-cekKodepos" onclick="switchPage('cekKodepos')">
-      <span class="nav-icon">📮</span> Cek Kode Pos
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span> Cek Kode Pos
     </div>
     <div class="nav-item" id="nav-cekOngkir" onclick="switchPage('cekOngkir')">
-      <span class="nav-icon">🚚</span> Cek Ongkir
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/><rect width="7" height="7" x="14" y="10" rx="1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></span> Cek Ongkir
     </div>
     <div class="nav-item" id="nav-allorderan" onclick="switchPage('allorderan')" style="display:none">
-      <span class="nav-icon">📋</span> All Orderan
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg></span> All Orderan
     </div>
     <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
-      <span class="nav-icon">📖</span> Panduan
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span> Panduan
     </div>
   </nav>
   <div class="sidebar-user">
