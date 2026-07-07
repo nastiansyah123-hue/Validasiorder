@@ -1094,6 +1094,11 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <option value="300">300 / hal</option>
       </select>
       <button class="btn-secondary" onclick="showImportUpdateAO()" style="font-size:12px">⬆ Import Update</button>
+      <button class="btn-secondary" onclick="showPatchAO()" style="font-size:12px;background:var(--warn-light);color:#92400e;border-color:var(--warn)">🔧 Patch Kolom Kosong</button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text);cursor:pointer;white-space:nowrap">
+        <input type="checkbox" id="ao-only-empty" onchange="filterAO()" style="accent-color:var(--accent)">
+        Hanya yang kosong
+      </label>
       <span class="spacer"></span>
       <span id="ao-count" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
       <span class="loading-badge" id="loading-ao">memuat...</span>
@@ -5283,6 +5288,217 @@ async function saveAOUpdate() {
 }
 
 
+// ── PATCH KOLOM KOSONG DARI EXCEL ─────────────────────────────────────────────
+let aoPatchParsed = [];
+
+function showPatchAO() {
+  aoPatchParsed = [];
+  document.getElementById('ao-patch-status').textContent = '';
+  document.getElementById('ao-patch-preview').style.display = 'none';
+  document.getElementById('btn-ao-patch-save').disabled = true;
+  document.getElementById('ao-patch-file').value = '';
+  document.getElementById('ao-patch-modal').style.display = 'flex';
+}
+
+async function parseAOPatchFile(file) {
+  if (!file) return;
+  const statusEl = document.getElementById('ao-patch-status');
+  statusEl.textContent = 'Membaca file...';
+  statusEl.style.color = 'var(--muted)';
+  document.getElementById('btn-ao-patch-save').disabled = true;
+  document.getElementById('ao-patch-preview').style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      let data = [];
+      if (file.name.endsWith('.csv')) {
+        const lines = e.target.result.split('\n').filter(l => l.trim());
+        const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g,''));
+        data = lines.slice(1).map(line => {
+          const vals = line.split(',');
+          const obj = {};
+          headers.forEach((h,i) => obj[h] = (vals[i]||'').trim().replace(/['"]/g,''));
+          return obj;
+        });
+      } else {
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' });
+      }
+
+      aoPatchParsed = data.map(row => {
+        const k = Object.keys(row);
+        const get = (...patterns) => {
+          const key = k.find(k2 => patterns.some(p => p.test(k2.replace(/['"\s]/g,''))));
+          return String(row[key]||'').trim();
+        };
+        const hp = normalizeHP(get(/^hp$/i, /telp/i, /nomor/i, /phone/i));
+        const tgl = get(/^tanggal$/i, /^tgl$/i, /^date$/i);
+        return {
+          hp,
+          tanggal   : tgl,
+          alamat    : get(/^alamat$/i),
+          kelurahan : get(/kelurahan/i, /desa/i),
+          kecamatan : get(/kecamatan/i),
+          kabupaten : get(/kabupaten/i, /kota/i),
+          provinsi  : get(/provinsi/i),
+          kodepos   : get(/kodepos/i, /kode.?pos/i, /postal/i, /zip/i),
+          jumlah    : get(/jumlah.pesanan/i, /jumlah/i),
+          pembayaran: get(/^pembayaran$/i),
+          instruksi : get(/instruksi/i),
+          // parse cs/adv/adm dari instruksi
+          _instruksiRaw: get(/instruksi/i),
+        };
+      }).filter(r => r.hp);
+
+      // Parse cs/adv/adm dari instruksi
+      aoPatchParsed = aoPatchParsed.map(r => {
+        const parts = (r._instruksiRaw||'').split('/');
+        r.cs  = (parts[0]||'').replace(/Pengirim\s+CS\s+/i,'').replace(/Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim();
+        r.adv = (parts[1]||'').replace(/Adv\.\s*/i,'').trim();
+        r.adm = (parts[2]||'').trim();
+        return r;
+      });
+
+      if (!aoPatchParsed.length) {
+        statusEl.textContent = '⚠ Tidak ada data valid di file (kolom HP tidak ditemukan?)';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+
+      statusEl.textContent = `✓ ${aoPatchParsed.length} baris dibaca dari ${file.name}`;
+      statusEl.style.color = 'var(--success)';
+
+      // Preview
+      const previewEl = document.getElementById('ao-patch-preview-list');
+      previewEl.innerHTML = aoPatchParsed.slice(0,10).map(r =>
+        `<div style="padding:4px 8px;border-bottom:0.5px solid var(--border)">
+          HP: <b>${r.hp}</b> | Tgl: ${r.tanggal||'—'} | Kab: ${r.kabupaten||'—'} | Kec: ${r.kecamatan||'—'}
+        </div>`
+      ).join('') + (aoPatchParsed.length > 10 ? `<div style="padding:4px 8px;color:var(--muted)">... dan ${aoPatchParsed.length-10} baris lainnya</div>` : '');
+      document.getElementById('ao-patch-preview').style.display = 'block';
+      document.getElementById('btn-ao-patch-save').disabled = false;
+
+    } catch(err) {
+      statusEl.textContent = 'Error: ' + err.message;
+      statusEl.style.color = 'var(--danger)';
+    }
+  };
+  if (file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+async function saveAOPatch() {
+  if (!aoPatchParsed.length) return;
+  const badge  = document.getElementById('loading-ao-patch');
+  const saveBtn = document.getElementById('btn-ao-patch-save');
+  const statusEl = document.getElementById('ao-patch-status');
+  badge.classList.add('show');
+  saveBtn.disabled = true;
+
+  try {
+    // Ambil semua HP dari file
+    const hpList = [...new Set(aoPatchParsed.map(r => r.hp).filter(Boolean))];
+
+    // Fetch rows dari all_orderan yang punya HP tersebut
+    let existingRows = [], from = 0;
+    const BATCH_FETCH = 100;
+    for (let i = 0; i < hpList.length; i += BATCH_FETCH) {
+      const batch = hpList.slice(i, i + BATCH_FETCH);
+      let f = 0;
+      while (true) {
+        const { data } = await sb.from('all_orderan')
+          .select('id,hp,tanggal,alamat,kelurahan,kecamatan,kabupaten,provinsi,kodepos,jumlah,pembayaran,instruksi,cs,adv,adm')
+          .in('hp', batch)
+          .range(f, f + 999);
+        if (!data?.length) break;
+        existingRows.push(...data);
+        if (data.length < 1000) break;
+        f += 1000;
+      }
+    }
+
+    // Index by HP+tanggal (10 karakter)
+    const idx = {};
+    existingRows.forEach(r => {
+      const tgl = (r.tanggal||'').slice(0,10);
+      const key = normalizeHP(String(r.hp||'')) + '|' + tgl;
+      if (!idx[key]) idx[key] = [];
+      idx[key].push(r);
+    });
+
+    // Bangun daftar updates — hanya isi kolom yang kosong
+    const PATCH_FIELDS = ['alamat','kelurahan','kecamatan','kabupaten','provinsi','kodepos','jumlah','pembayaran','instruksi','cs','adv','adm'];
+    const updates = [];
+    let skipped = 0;
+
+    for (const src of aoPatchParsed) {
+      const tgl = (src.tanggal||'').slice(0,10);
+      const key = src.hp + '|' + tgl;
+
+      // Cari candidates: match HP+tanggal, atau kalau tanggal kosong → match HP saja
+      let candidates = idx[key] || [];
+      if (!candidates.length && !tgl) {
+        // fallback: semua row dengan HP ini
+        candidates = existingRows.filter(r => normalizeHP(String(r.hp||'')) === src.hp);
+      }
+
+      if (!candidates.length) { skipped++; continue; }
+
+      for (const row of candidates) {
+        const upd = { id: row.id };
+        let hasChange = false;
+        for (const col of PATCH_FIELDS) {
+          const srcVal = String(src[col]||'').trim();
+          const dbVal  = String(row[col]||'').trim();
+          if (srcVal && !dbVal) { // hanya isi kalau sumber ada & DB kosong
+            upd[col] = srcVal;
+            hasChange = true;
+          }
+        }
+        if (hasChange) updates.push(upd);
+      }
+    }
+
+    if (!updates.length) {
+      statusEl.textContent = '✓ Tidak ada kolom yang perlu di-patch (semua sudah terisi)';
+      statusEl.style.color = 'var(--success)';
+      badge.classList.remove('show');
+      saveBtn.disabled = false;
+      return;
+    }
+
+    // Simpan
+    let done = 0;
+    const BATCH_UPD = 50;
+    for (let i = 0; i < updates.length; i += BATCH_UPD) {
+      await Promise.all(updates.slice(i, i + BATCH_UPD).map(async u => {
+        const { id, ...fields } = u;
+        const { error } = await sb.from('all_orderan').update(fields).eq('id', id);
+        if (!error) done++;
+      }));
+    }
+
+    statusEl.textContent = `✓ ${done} baris berhasil di-patch! (${skipped} HP tidak ditemukan)`;
+    statusEl.style.color = 'var(--success)';
+    showToast(`✓ ${done} baris di-patch dari Excel!`, 'success');
+    if (skipped) showToast(`${skipped} baris dari Excel tidak cocok di DB`, 'info');
+
+    // Refresh tabel
+    document.getElementById('ao-patch-modal').style.display = 'none';
+    document.getElementById('ao-patch-file').value = '';
+    aoInitDone = false;
+    await loadAO();
+
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    statusEl.style.color = 'var(--danger)';
+    showToast('Gagal patch: ' + e.message, 'error');
+  }
+  badge.classList.remove('show');
+  saveBtn.disabled = false;
+}
+
 // ── VALIDATOR CONFIG ──────────────────────────────────────────────────────────
 let validatorData = [];
 let editingValidatorId = null;
@@ -5992,18 +6208,26 @@ async function loadAO() {
   badge.classList.remove('show');
 }
 
+const AO_COLS_WAJIB = ['alamat','kelurahan','kecamatan','kabupaten','provinsi','kodepos','cs','adv','adm'];
+function rowHasEmptyCol(r) {
+  return AO_COLS_WAJIB.some(c => !r[c] || String(r[c]).trim() === '');
+}
+
 function filterAO() {
   const q = (document.getElementById('ao-search')?.value||'').toLowerCase();
-  if (!q) { aoFiltered = [...aoData]; }
-  else {
-    aoFiltered = aoData.filter(r =>
-      (r.nama||'').toLowerCase().includes(q) ||
-      (r.hp||'').includes(q) ||
-      (r.resi||'').toLowerCase().includes(q) ||
-      (r.kabupaten||'').toLowerCase().includes(q) ||
-      (r.no||'').toLowerCase().includes(q)
-    );
-  }
+  const onlyEmpty = document.getElementById('ao-only-empty')?.checked;
+  aoFiltered = aoData.filter(r => {
+    if (q) {
+      const match = (r.nama||'').toLowerCase().includes(q) ||
+        (r.hp||'').includes(q) ||
+        (r.resi||'').toLowerCase().includes(q) ||
+        (r.kabupaten||'').toLowerCase().includes(q) ||
+        (r.no||'').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    if (onlyEmpty && !rowHasEmptyCol(r)) return false;
+    return true;
+  });
   aoPage = 1;
   document.getElementById('ao-count').textContent = aoFiltered.length.toLocaleString() + ' baris';
   renderAO();
@@ -6020,15 +6244,23 @@ function renderAO() {
     return;
   }
 
-  tbody.innerHTML = rows.map(r => `
-    <tr data-id="${r.id}" style="border-bottom:0.5px solid var(--border)">
-      ${AO_COLS.map((col,ci) => `
-        <td style="padding:6px 10px;font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis"
+  tbody.innerHTML = rows.map(r => {
+    const hasEmpty = rowHasEmptyCol(r);
+    const rowBg = hasEmpty ? 'background:var(--warn-light,#fef9c3)' : '';
+    return `<tr data-id="${r.id}" style="border-bottom:0.5px solid var(--border);${rowBg}">
+      ${AO_COLS.map((col) => {
+        const isEmpty = AO_COLS_WAJIB.includes(col) && (!r[col] || String(r[col]).trim() === '');
+        const cellStyle = isEmpty
+          ? 'padding:6px 10px;font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;background:var(--danger-light);'
+          : 'padding:6px 10px;font-size:11px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis';
+        return `<td style="${cellStyle}"
           ondblclick="editAOCell(this,'${col}',${r.id})"
-          title="Double-klik untuk edit">
+          title="${isEmpty ? '⚠ Kosong — double-klik untuk edit' : 'Double-klik untuk edit'}">
           ${r[col]||''}
-        </td>`).join('')}
-    </tr>`).join('');
+        </td>`;
+      }).join('')}
+    </tr>`;
+  }).join('');
 
   // Pagination
   const total = aoFiltered.length;
@@ -6935,6 +7167,32 @@ function downloadGagalResi() {
         <button onclick="document.getElementById('ao-import-modal').style.display='none'" class="btn-secondary" style="flex:1">Batal</button>
         <button id="btn-ao-import-save" disabled onclick="saveAOUpdate()" class="btn-primary" style="flex:1;justify-content:center">💾 Update Data</button>
         <span class="loading-badge" id="loading-ao-import">mengupdate...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Patch Kolom Kosong dari Excel -->
+  <div id="ao-patch-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:520px;width:90%;max-height:90vh;overflow-y:auto">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Patch Kolom Kosong dari Excel</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:0.75rem">Upload Excel asli orderan. Sistem akan mencocokkan by <b>HP + Tanggal</b>, lalu isi hanya kolom yang <b>masih kosong</b>. Kolom yang sudah ada datanya tidak akan ditimpa.</div>
+      <div style="font-size:11px;background:var(--warn-light);color:#92400e;padding:8px 12px;border-radius:8px;margin-bottom:1rem">
+        Kolom yang akan di-patch: <b>Alamat, Kelurahan, Kecamatan, Kabupaten, Provinsi, Kode Pos, CS, ADV, ADM, Jumlah, Pembayaran, Instruksi</b>
+      </div>
+      <div class="drop-zone" onclick="document.getElementById('ao-patch-file').click()" style="padding:1.5rem;margin-bottom:0.75rem">
+        <input type="file" id="ao-patch-file" accept=".csv,.xlsx,.xls" onchange="parseAOPatchFile(this.files[0])" style="display:none" />
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">Upload Excel orderan<br><span>Format sama dengan Validasi Harian</span></div>
+      </div>
+      <div id="ao-patch-status" style="font-size:12px;font-family:monospace;margin-bottom:0.75rem"></div>
+      <div id="ao-patch-preview" style="display:none;margin-bottom:1rem">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px">Preview (akan di-patch):</div>
+        <div style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;font-size:11px;font-family:monospace" id="ao-patch-preview-list"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="document.getElementById('ao-patch-modal').style.display='none';document.getElementById('ao-patch-file').value=''" class="btn-secondary" style="flex:1">Batal</button>
+        <button id="btn-ao-patch-save" disabled onclick="saveAOPatch()" class="btn-primary" style="flex:1;justify-content:center;background:var(--warn);border-color:var(--warn)">🔧 Patch Sekarang</button>
+        <span class="loading-badge" id="loading-ao-patch">memproses...</span>
       </div>
     </div>
   </div>
