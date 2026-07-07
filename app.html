@@ -1086,7 +1086,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       </select>
       <input type="date" id="ao-tgl-start" class="filter-select" onchange="loadAO()" style="width:140px" title="Dari tanggal" />
       <input type="date" id="ao-tgl-end" class="filter-select" onchange="loadAO()" style="width:140px" title="Sampai tanggal" />
-      <button class="btn-secondary" onclick="document.getElementById('ao-tgl-start').value=new Date().toISOString().slice(0,10);document.getElementById('ao-tgl-end').value=new Date().toISOString().slice(0,10);loadAO()" style="font-size:12px">Hari Ini</button>
+      <button class="btn-secondary" onclick="(function(){const d=new Date(Date.now()+7*3600000).toISOString().slice(0,10);document.getElementById('ao-tgl-start').value=d;document.getElementById('ao-tgl-end').value=d;loadAO();})()" style="font-size:12px">Hari Ini</button>
       <button class="btn-secondary" onclick="document.getElementById('ao-tgl-start').value='';document.getElementById('ao-tgl-end').value='';loadAO()" style="font-size:12px">Semua</button>
       <select class="filter-select" id="ao-pagesize" onchange="renderAO()">
         <option value="100">100 / hal</option>
@@ -1594,7 +1594,7 @@ async function saveOrderanMaster() {
       jumlah:r.jumlah, pembayaran:r.pembayaran, instruksi:r.instruksi,
       resi:r.resi||null, team:r.team, update_crm:r.updateCRM,
       status_akhir:r.statusAkhir, retur:r.retur, cs:r.csa, adv:r.dv, adm:r.adm,
-      keluhan:r.keluhan||null
+      keluhan:r.keluhan||null, created_at:nowWIB()
     }));
 
     let saved = 0;
@@ -3836,6 +3836,7 @@ async function saveValidasiDetail() {
         cs          : (String(r._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim().slice(0,50),
         adv         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[1]||'').replace(/Adv\.\s*/i,'').trim().slice(0,50),
         adm         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,50),
+        created_at  : nowWIB(),
       }));
 
     console.log('[ALL_ORDERAN] kirimRows:', kirimRows.length, 'dari', validatedData.length, 'total');
@@ -4136,6 +4137,7 @@ async function saveCsInputAcc() {
             adv         : '',
             adm         : '',
             keluhan     : r.keluhan || '',
+            created_at  : nowWIB(),
           };
         });
 
@@ -6189,8 +6191,8 @@ async function loadAO() {
         .order('id', { ascending: false })
         .range(from, from+999);
       if (sumber !== 'all') query = query.eq('sumber', sumber);
-      if (tglStart) query = query.gte('tanggal', tglStart);
-      if (tglEnd)   query = query.lte('tanggal', tglEnd);
+      if (tglStart) query = query.gte('created_at', tglStart + 'T00:00:00+07:00');
+      if (tglEnd)   query = query.lte('created_at', tglEnd   + 'T23:59:59+07:00');
       const { data, error } = await query;
       if (error) throw error;
       if (!data?.length) break;
