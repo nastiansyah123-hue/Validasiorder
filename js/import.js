@@ -94,6 +94,11 @@ function smartSplitCSV(line) {
 }
 
 // ── NORMALIZE HELPERS ─────────────────────────────────────────────────────────
+function nowWIB() {
+  // Return ISO timestamp dalam WIB (UTC+7) untuk disimpan ke Supabase
+  return new Date(Date.now() + 7 * 3600 * 1000).toISOString().replace('Z', '+07:00');
+}
+
 function normalizeHP(hp) {
   if (!hp && hp !== 0) return '';
   let s = String(hp).trim().replace(/\D/g, '');
