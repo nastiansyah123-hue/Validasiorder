@@ -6172,12 +6172,15 @@ const AO_LABELS = ['No','Tanggal','Nama','HP','Alamat','Kelurahan','Kecamatan','
   'Status Akhir','Retur','CS','ADV','ADM','Sumber'];
 
 let aoInitDone = false;
+let aoLoadGen  = 0; // generation counter — cegah race condition
+
 function initAllOrderan() {
   if (!aoInitDone) { aoInitDone = true; loadAO(); }
 }
 
 async function loadAO() {
-  const badge    = document.getElementById('loading-ao');
+  const gen    = ++aoLoadGen;  // snapshot generasi ini
+  const badge  = document.getElementById('loading-ao');
   const sumber   = document.getElementById('ao-sumber')?.value || 'all';
   const tglStart = document.getElementById('ao-tgl-start')?.value;
   const tglEnd   = document.getElementById('ao-tgl-end')?.value;
@@ -6186,6 +6189,7 @@ async function loadAO() {
   try {
     let all = [], from = 0;
     while (true) {
+      if (gen !== aoLoadGen) return; // ada loadAO() baru → batalkan ini
       let query = sb.from('all_orderan')
         .select('id,created_at,'+AO_COLS.join(','))
         .order('id', { ascending: false })
@@ -6194,6 +6198,7 @@ async function loadAO() {
       if (tglStart) query = query.gte('created_at', tglStart + 'T00:00:00+07:00');
       if (tglEnd)   query = query.lte('created_at', tglEnd   + 'T23:59:59+07:00');
       const { data, error } = await query;
+      if (gen !== aoLoadGen) return; // cek lagi setelah await
       if (error) throw error;
       if (!data?.length) break;
       all.push(...data);
