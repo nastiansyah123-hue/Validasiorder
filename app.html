@@ -5498,6 +5498,15 @@ async function saveAOPatch() {
         // fallback: semua row dengan HP ini
         candidates = existingRows.filter(r => normalizeHP(String(r.hp||'')) === src.hp);
       }
+      if (!candidates.length && tgl) {
+        // fallback: HP+bulan (YYYY-MM) — cuma dipakai kalau PERSIS 1 kandidat,
+        // biar gak salah timpa data kalau ada repeat buyer (HP sama, order beda di bulan yang sama)
+        const bulan = tgl.slice(0,7);
+        const sameMonth = existingRows.filter(r =>
+          normalizeHP(String(r.hp||'')) === src.hp && normTglToYMD(r.tanggal).slice(0,7) === bulan
+        );
+        if (sameMonth.length === 1) candidates = sameMonth;
+      }
 
       if (!candidates.length) { skipped++; continue; }
 
