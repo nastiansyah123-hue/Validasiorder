@@ -79,7 +79,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:all 0.15s;user-select:none;margin-bottom:2px}
 .nav-item:hover{background:var(--bg);color:var(--text)}
 .nav-item.active{background:var(--accent-light);color:var(--accent)}
-.nav-item .nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-item .nav-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-item .nav-icon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .sidebar-user{padding:1rem;border-top:1px solid var(--border)}
 .user-card{display:flex;align-items:center;gap:10px}
 .user-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
@@ -327,38 +328,38 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   <nav class="sidebar-nav">
     <div class="nav-section">Menu</div>
     <div class="nav-item active" id="nav-harian" onclick="switchPage('harian')">
-      <span class="nav-icon">✅</span> Validasi Harian
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg></span> Validasi Harian
     </div>
     <div class="nav-item" id="nav-dashboard" onclick="switchPage('dashboard')">
-      <span class="nav-icon">📈</span> Dashboard
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span> Dashboard
     </div>
     <div class="nav-item" id="nav-master" onclick="switchPage('master')">
-      <span class="nav-icon">🗄️</span> Data Master
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg></span> Data Master
     </div>
     <div class="nav-item" id="nav-updateResi" onclick="switchPage('updateResi')">
-      <span class="nav-icon">📦</span> Update Resi
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span> Update Resi
     </div>
     <div class="nav-item" id="nav-csinput" onclick="switchPage('csinput')">
-      <span class="nav-icon">📱</span> CS Input
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> CS Input
     </div>
     <div class="nav-section">Info</div>
     <div class="nav-item" id="nav-statistik" onclick="switchPage('statistik')">
-      <span class="nav-icon">📊</span> Statistik Wilayah
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg></span> Statistik Wilayah
     </div>
     <div class="nav-item" id="nav-cekHP" onclick="switchPage('cekHP')">
-      <span class="nav-icon">🔍</span> Cek Nomor HP
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.59a16 16 0 0 0 6.5 6.5l.96-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span> Cek Nomor HP
     </div>
     <div class="nav-item" id="nav-cekKodepos" onclick="switchPage('cekKodepos')">
-      <span class="nav-icon">📮</span> Cek Kode Pos
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span> Cek Kode Pos
     </div>
     <div class="nav-item" id="nav-cekOngkir" onclick="switchPage('cekOngkir')">
-      <span class="nav-icon">🚚</span> Cek Ongkir
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/><rect width="7" height="7" x="14" y="10" rx="1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></span> Cek Ongkir
     </div>
     <div class="nav-item" id="nav-allorderan" onclick="switchPage('allorderan')" style="display:none">
-      <span class="nav-icon">📋</span> All Orderan
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg></span> All Orderan
     </div>
     <div class="nav-item" id="nav-panduan" onclick="switchPage('panduan')">
-      <span class="nav-icon">📖</span> Panduan
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span> Panduan
     </div>
   </nav>
   <div class="sidebar-user">
@@ -1113,11 +1114,11 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
               <th>Provinsi</th><th>Kode Pos</th><th>Jumlah</th><th>Pembayaran</th>
               <th>Instruksi</th><th>Resi</th><th>Team</th><th>Update CRM</th>
               <th>Status Akhir</th><th>Retur</th><th>CS</th><th>ADV</th><th>ADM</th>
-              <th>Sumber</th>
+              <th>Keluhan</th><th>Sumber</th>
             </tr>
           </thead>
           <tbody id="ao-tbody">
-            <tr><td colspan="22" class="empty-state">Klik menu untuk memuat data</td></tr>
+            <tr><td colspan="23" class="empty-state">Klik menu untuk memuat data</td></tr>
           </tbody>
         </table>
       </div>
@@ -1138,6 +1139,11 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="card" style="max-width:600px">
       <div class="card-title">Upload File Resi</div>
       <div class="card-desc" style="margin-bottom:1rem">File CSV/XLSX dengan kolom <b>HP</b> dan <b>Resi</b>. Resi akan dicocokkan ke <b>all_orderan</b> berdasarkan nomor HP.</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+        <label style="font-size:12px;font-weight:600;color:var(--muted)">Tanggal Validasi <span style="font-weight:400;color:var(--muted)">(opsional — untuk HP yang beli berkali-kali)</span></label>
+        <input type="date" id="ur-tanggal-validasi" class="filter-select" style="width:160px" />
+        <button class="btn-secondary" style="font-size:11px" onclick="document.getElementById('ur-tanggal-validasi').value=new Date(Date.now()+7*3600000).toISOString().slice(0,10)">Hari Ini</button>
+      </div>
       <div class="drop-zone" id="dz-update-resi">
         <input type="file" id="file-update-resi" accept=".csv,.xlsx,.xls" />
         <div class="drop-zone-icon">📂</div>
@@ -3812,6 +3818,17 @@ async function saveValidasiDetail() {
     rek_ekspedisi : row._rekEkspedisi||'',
     acc_spv_cs    : row._accSPV||row._raw['ACC SPV CS']||'',
     ss_chat       : !!row._ssChatDone,
+    kelurahan     : String(row.kelurahan||'').slice(0,100),
+    kecamatan     : String(row.kecamatan||'').slice(0,100),
+    instruksi     : String(row.instruksi||row._raw['Instruksi Pengiriman']||'').slice(0,200),
+    cs            : (String(row.instruksi||row._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim().slice(0,100),
+    adv           : (String(row.instruksi||row._raw['Instruksi Pengiriman']||'').split('/')[1]||'').replace(/Adv\.\s*/i,'').trim().slice(0,100),
+    adm           : (String(row.instruksi||row._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,100),
+    keluhan       : String(row.keluhan||'').slice(0,200),
+    tanggal_order : String(row.tanggal||'').slice(0,50),
+    quantity      : parseInt(String(row.quantity||row._raw['Quantity']||row._raw['Qty']||'').replace(/\D/g,''))||null,
+    total_pembayaran: parseInt(String(row.total_pembayaran||row._raw['Total Pembayaran']||row._raw['TotalPembayaran']||'').replace(/\D/g,''))||null,
+    rincian       : String(row._raw['Rincian Pembayaran']||row._raw['rincian']||'').slice(0,300),
   }));
 
   // 1. Simpan ke validasi_detail
@@ -3831,6 +3848,7 @@ async function saveValidasiDetail() {
 
   // 2. Simpan yang KIRIM ke all_orderan (error terpisah agar tidak tertutup toast dashboard)
   try {
+    await loadSkuList();
     const kirimRows = validatedData
       .filter(r => (r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase() === 'KIRIM')
       .map(r => ({
@@ -3845,6 +3863,7 @@ async function saveValidasiDetail() {
         provinsi    : String(r.provinsi||r._raw['Provinsi']||r._raw['"Provinsi"']||'').slice(0,100),
         kodepos     : String(r._raw['Kode Pos']||r.kodepos||'').slice(0,20),
         jumlah      : String(r._raw['Jumlah Pesanan']||'').slice(0,200),
+        produk      : extractProduk(String(r._raw['Jumlah Pesanan']||''), String(r.nama||'')),
         quantity    : parseInt(String(r._raw['Quantity']||r._raw['Qty']||r.quantity||'').replace(/\D/g,''))||null,
         pembayaran  : String(r._raw['Pembayaran']||'').slice(0,100),
         total_pembayaran: parseInt(String(r._raw['Total Pembayaran']||r._raw['TotalPembayaran']||r._raw['Total']||r.total_pembayaran||'').replace(/\D/g,''))||null,
@@ -3858,12 +3877,14 @@ async function saveValidasiDetail() {
         cs          : (String(r._raw['Instruksi Pengiriman']||'').split('/')[0]||'').replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim().slice(0,50),
         adv         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[1]||'').replace(/Adv\.\s*/i,'').trim().slice(0,50),
         adm         : (String(r._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,50),
+        keluhan     : String(r._raw['Keluhan']||r.keluhan||'').slice(0,200),
         created_at  : nowWIB(),
       }));
 
     console.log('[ALL_ORDERAN] kirimRows:', kirimRows.length, 'dari', validatedData.length, 'total');
     if (!kirimRows.length) {
       console.warn('[ALL_ORDERAN] Tidak ada row KIRIM — skip save all_orderan');
+      showToast('⚠️ Tidak ada data KIRIM yang tersimpan ke Data Master!', 'error');
       badge.classList.remove('show'); badge.textContent='memproses...';
       return;
     }
@@ -5422,9 +5443,7 @@ async function saveAOPatch() {
 
   try {
     // Ambil semua HP dari file
-    // Sertakan versi dengan & tanpa leading-0 agar query cocok meski DB simpan tanpa '0'
-    const hpNormed = [...new Set(aoPatchParsed.map(r => r.hp).filter(Boolean))];
-    const hpList = [...new Set(hpNormed.flatMap(hp => [hp, hp.replace(/^0/, '')]))];
+    const hpList = [...new Set(aoPatchParsed.map(r => r.hp).filter(Boolean))];
 
     // Fetch rows dari all_orderan yang punya HP tersebut
     let existingRows = [], from = 0;
@@ -5454,7 +5473,7 @@ async function saveAOPatch() {
     });
 
     // Bangun daftar updates — hanya isi kolom yang kosong
-    const PATCH_FIELDS = ['alamat','kelurahan','kecamatan','kabupaten','provinsi','kodepos','jumlah','pembayaran','instruksi','cs','adv','adm'];
+    const PATCH_FIELDS = ['alamat','kelurahan','kecamatan','kabupaten','provinsi','kodepos','jumlah','pembayaran','instruksi','cs','adv','adm','keluhan'];
     const updates = [];
     let skipped = 0;
 
@@ -5482,6 +5501,23 @@ async function saveAOPatch() {
             hasChange = true;
           }
         }
+        // Auto-parse cs/adv/adm dari instruksi jika instruksi baru terisi dan cs/adv/adm masih kosong
+        const newInstruksi = upd.instruksi || String(row.instruksi||'');
+        if (newInstruksi) {
+          if (!String(row.cs||'').trim() && !upd.cs) {
+            const v = newInstruksi.split('/')[0].replace(/^Pengirim\s+CS\s+/i,'').replace(/^Pengirim\s+/i,'').replace(/^CS\s+/i,'').trim();
+            if (v) { upd.cs = v; hasChange = true; }
+          }
+          if (!String(row.adv||'').trim() && !upd.adv) {
+            const v = (newInstruksi.split('/')[1]||'').replace(/Adv\.\s*/i,'').trim();
+            if (v) { upd.adv = v; hasChange = true; }
+          }
+          if (!String(row.adm||'').trim() && !upd.adm) {
+            const v = (newInstruksi.split('/')[2]||'').trim();
+            if (v) { upd.adm = v; hasChange = true; }
+          }
+        }
+
         if (hasChange) updates.push(upd);
       }
     }
@@ -6190,10 +6226,10 @@ async function checkAndRestoreDraft() {
 let aoData = [], aoFiltered = [], aoPage = 1;
 const AO_COLS = ['no','tanggal','nama','hp','alamat','kelurahan','kecamatan','kabupaten',
   'provinsi','kodepos','jumlah','pembayaran','instruksi','resi','team','update_crm',
-  'status_akhir','retur','cs','adv','adm','sumber'];
+  'status_akhir','retur','cs','adv','adm','keluhan','sumber'];
 const AO_LABELS = ['No','Tanggal','Nama','HP','Alamat','Kelurahan','Kecamatan','Kabupaten',
   'Provinsi','Kode Pos','Jumlah','Pembayaran','Instruksi','Resi','Team','Update CRM',
-  'Status Akhir','Retur','CS','ADV','ADM','Sumber'];
+  'Status Akhir','Retur','CS','ADV','ADM','Keluhan','Sumber'];
 
 let aoInitDone = false;
 let aoLoadGen  = 0; // generation counter — cegah race condition
@@ -6269,7 +6305,7 @@ function renderAO() {
   const rows  = aoFiltered.slice(start, start+PS);
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="22" class="empty-state">Tidak ada data</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="23" class="empty-state">Tidak ada data</td></tr>';
     return;
   }
 
@@ -6968,7 +7004,7 @@ async function saveUpdateResi() {
     const BATCH = 500;
     for (let i = 0; i < hpListDB.length; i += BATCH) {
       const { data, error } = await sb.from('all_orderan')
-        .select('id,hp,resi,nama')
+        .select('id,hp,resi,nama,created_at')
         .in('hp', hpListDB.slice(i, i + BATCH));
       if (error) throw error;
       if (data) allMatches.push(...data);
@@ -7002,6 +7038,7 @@ async function saveUpdateResi() {
       }
 
       // Tentukan target update
+      const tglValidasi = document.getElementById('ur-tanggal-validasi')?.value || '';
       let targets;
       if (dbRecs.length === 1) {
         targets = dbRecs;
@@ -7011,7 +7048,14 @@ async function saveUpdateResi() {
           gagal.push({ hp: hpRaw, resi: resiValue, alasan: 'HP duplikat, semua sudah ada resi', nama: dbRecs.map(r=>r.nama||'').join(', ') });
           continue;
         }
-        targets = emptyRecs;
+        if (tglValidasi && emptyRecs.length > 1) {
+          // Prioritaskan yang created_at-nya sesuai tanggal validasi
+          const byDate = emptyRecs.filter(r => (r.created_at||'').slice(0,10) === tglValidasi);
+          targets = byDate.length ? byDate : [emptyRecs.sort((a,b) => b.id - a.id)[0]];
+        } else {
+          // Fallback: ambil yang paling baru
+          targets = emptyRecs.length === 1 ? emptyRecs : [emptyRecs.sort((a,b) => b.id - a.id)[0]];
+        }
       }
 
       let hpBerhasil = false;
