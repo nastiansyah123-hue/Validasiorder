@@ -5467,10 +5467,11 @@ async function saveAOPatch() {
       }
     }
 
-    // Index by HP+tanggal (10 karakter)
+    // Index by HP+tanggal — pakai normTglToYMD karena tanggal di DB ada beberapa format
+    // (YYYY-MM-DD, DD/MM/YYYY HH:mm:ss, dst), bukan cuma slice mentah
     const idx = {};
     existingRows.forEach(r => {
-      const tgl = (r.tanggal||'').slice(0,10);
+      const tgl = normTglToYMD(r.tanggal);
       const key = normalizeHP(String(r.hp||'')) + '|' + tgl;
       if (!idx[key]) idx[key] = [];
       idx[key].push(r);
@@ -5482,7 +5483,7 @@ async function saveAOPatch() {
     let skipped = 0;
 
     for (const src of aoPatchParsed) {
-      const tgl = (src.tanggal||'').slice(0,10);
+      const tgl = normTglToYMD(src.tanggal);
       const key = src.hp + '|' + tgl;
 
       // Cari candidates: match HP+tanggal, atau kalau tanggal kosong → match HP saja
