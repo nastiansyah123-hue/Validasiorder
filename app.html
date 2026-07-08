@@ -5397,6 +5397,8 @@ async function parseAOPatchFile(file) {
           pembayaran: get(/^pembayaran$/i),
           instruksi : get(/instruksi/i),
           keluhan   : get(/keluhan/i),
+          quantity  : get(/^quantity$/i, /^qty$/i),
+          total_pembayaran: get(/total.?pembayaran/i, /^total$/i),
           // parse cs/adv/adm dari instruksi
           _instruksiRaw: get(/instruksi/i),
         };
@@ -5463,7 +5465,7 @@ async function saveAOPatch() {
       let f = 0;
       while (true) {
         const { data } = await sb.from('all_orderan')
-          .select('id,hp,tanggal,alamat,kelurahan,kecamatan,kabupaten,provinsi,kodepos,jumlah,pembayaran,instruksi,cs,adv,adm,keluhan')
+          .select('id,hp,tanggal,alamat,kelurahan,kecamatan,kabupaten,provinsi,kodepos,jumlah,pembayaran,instruksi,cs,adv,adm,keluhan,quantity,total_pembayaran')
           .in('hp', batch)
           .range(f, f + 999);
         if (!data?.length) break;
@@ -5484,7 +5486,7 @@ async function saveAOPatch() {
     });
 
     // Bangun daftar updates — hanya isi kolom yang kosong
-    const PATCH_FIELDS = ['alamat','kelurahan','kecamatan','kabupaten','provinsi','kodepos','jumlah','pembayaran','instruksi','cs','adv','adm','keluhan'];
+    const PATCH_FIELDS = ['alamat','kelurahan','kecamatan','kabupaten','provinsi','kodepos','jumlah','pembayaran','instruksi','cs','adv','adm','keluhan','quantity','total_pembayaran'];
     const updates = [];
     let skipped = 0;
 
@@ -5517,8 +5519,14 @@ async function saveAOPatch() {
           const srcVal = String(src[col]||'').trim();
           const dbVal  = String(row[col]||'').trim();
           if (srcVal && !dbVal) { // hanya isi kalau sumber ada & DB kosong
-            upd[col] = srcVal;
-            hasChange = true;
+            // quantity/total_pembayaran kolom numerik di DB
+            if (col === 'quantity' || col === 'total_pembayaran') {
+              const n = parseInt(srcVal.replace(/\D/g,''));
+              if (!isNaN(n)) { upd[col] = n; hasChange = true; }
+            } else {
+              upd[col] = srcVal;
+              hasChange = true;
+            }
           }
         }
         // Auto-parse cs/adv/adm dari instruksi jika instruksi baru terisi dan cs/adv/adm masih kosong
