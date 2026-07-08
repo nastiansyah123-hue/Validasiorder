@@ -3893,10 +3893,13 @@ async function saveValidasiDetail() {
 
     // Dedup check dengan pagination supaya tidak kepotong limit 1000 baris
     const hpList = [...new Set(kirimRows.map(r => r.hp))];
+    // Juga cek varian tanpa leading zero — Supabase kadang nyimpen HP lama tanpa 0 di depan
+    const hpListStripped = hpList.map(hp => hp.replace(/^0+/, ''));
+    const hpListAll = [...new Set([...hpList, ...hpListStripped])];
     const existingAll = [];
     const dedupBatch = 100;
-    for (let i = 0; i < hpList.length; i += dedupBatch) {
-      const batch = hpList.slice(i, i + dedupBatch);
+    for (let i = 0; i < hpListAll.length; i += dedupBatch) {
+      const batch = hpListAll.slice(i, i + dedupBatch);
       let from = 0;
       while (true) {
         const { data: ex } = await sb.from('all_orderan')
@@ -3912,17 +3915,19 @@ async function saveValidasiDetail() {
 
     // Dedup: hanya blokir kalau HP + tanggal SAMA (dan tanggal tidak kosong)
     // Kalau tanggal kosong → selalu allow (hindari over-blocking)
+    // Pakai normalizeHP+normTglToYMD (bukan raw slice) karena format tanggal di DB bisa macam-macam
+    // (YYYY-MM-DD, DD/MM/YYYY HH:mm:ss, atau Date.toString() dari bug lama) — slice mentah bisa collide palsu
     const existingSet = new Set(
       existingAll
         .filter(r => r.tanggal)
-        .map(r => r.hp + '|' + (r.tanggal||'').slice(0,10))
+        .map(r => normalizeHP(String(r.hp||'')) + '|' + normTglToYMD(r.tanggal))
     );
     const seenInBatch = new Set();
     const newRows = kirimRows.filter(r => {
       if (seenInBatch.has(r.hp)) return false; // cegah HP dobel dalam 1 batch
       seenInBatch.add(r.hp);
       if (!r.tanggal) return true; // tanggal kosong → selalu simpan
-      return !existingSet.has(r.hp + '|' + r.tanggal.slice(0,10));
+      return !existingSet.has(r.hp + '|' + normTglToYMD(r.tanggal));
     });
     console.log('[ALL_ORDERAN] existing di DB:', existingAll.length, '| kirimRows:', kirimRows.length, '| newRows (akan disimpan):', newRows.length);
     if (newRows.length) console.log('[ALL_ORDERAN] sample row:', JSON.stringify(newRows[0]));
