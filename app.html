@@ -5445,11 +5445,15 @@ async function saveAOPatch() {
     // Ambil semua HP dari file
     const hpList = [...new Set(aoPatchParsed.map(r => r.hp).filter(Boolean))];
 
+    // Juga siapkan varian tanpa leading zero — Supabase kadang nyimpen HP lama tanpa 0 di depan
+    const hpListStripped = hpList.map(hp => hp.replace(/^0+/, ''));
+    const hpListAll = [...new Set([...hpList, ...hpListStripped])];
+
     // Fetch rows dari all_orderan yang punya HP tersebut
     let existingRows = [], from = 0;
     const BATCH_FETCH = 100;
-    for (let i = 0; i < hpList.length; i += BATCH_FETCH) {
-      const batch = hpList.slice(i, i + BATCH_FETCH);
+    for (let i = 0; i < hpListAll.length; i += BATCH_FETCH) {
+      const batch = hpListAll.slice(i, i + BATCH_FETCH);
       let f = 0;
       while (true) {
         const { data } = await sb.from('all_orderan')
