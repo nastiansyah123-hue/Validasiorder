@@ -118,6 +118,17 @@ function getCol(row, ...candidates) {
     const found = Object.keys(row).find(k => k.replace(/['"]/g,'').toLowerCase().replace(/\s/g,'') === c.toLowerCase().replace(/\s/g,''));
     if (found && row[found] !== undefined && row[found] !== '') {
       const val = row[found];
+      // Excel cell terbaca sebagai Date object asli (cellDates:true) — format manual,
+      // jangan biarkan lolos ke String(val) yang hasilnya "Wed Jul 08 2026 ... GMT+0700 (...)"
+      if (val instanceof Date && !isNaN(val)) {
+        const y  = val.getFullYear();
+        const mo = String(val.getMonth()+1).padStart(2,'0');
+        const d  = String(val.getDate()).padStart(2,'0');
+        const hh = String(val.getHours()).padStart(2,'0');
+        const mi = String(val.getMinutes()).padStart(2,'0');
+        const ss = String(val.getSeconds()).padStart(2,'0');
+        return `${y}-${mo}-${d} ${hh}:${mi}:${ss}`;
+      }
       // Fix scientific notation for numeric values (e.g. resi)
       if (typeof val === 'number') return Math.round(val).toString();
       if (typeof val === 'string' && /\d+\.\d+E[+\-]\d+/i.test(val)) return Math.round(parseFloat(val)).toString();
@@ -125,6 +136,51 @@ function getCol(row, ...candidates) {
     }
   }
   return '';
+}
+
+// ── DETEKSI PRODUK — port dari AdsyCRM js/shared.js, biar all_orderan.produk konsisten
+// dengan yang dipakai AdsyCRM (SKU-based, bukan tebak kata) ────────────────────────────
+let skuList = [];
+async function loadSkuList() {
+  if (skuList.length) return;
+  try {
+    const { data } = await sb.from('sku_produk').select('kode,nama_produk');
+    skuList = data || [];
+  } catch(_) { skuList = []; }
+}
+
+function parseSKUKode(nama) {
+  if (!nama) return null;
+  const part = (nama.split('|')[1] || '').trim().toUpperCase();
+  if (!part) return null;
+  const match = part.match(/^([A-Z]+)\s*\d*/);
+  return match ? match[1] : null;
+}
+
+const PRODUK_HARDCODED = ['DIABCARE', 'URICARE', 'GASTRIC', 'STROCAV', 'DIALIVE'];
+
+function extractProduk(jumlah, nama) {
+  // Prioritas 1: SKU dari kolom nama (cs-input format "BUDI|HRB 1|PDS")
+  if (nama && nama.includes('|') && skuList.length) {
+    const kode = parseSKUKode(nama);
+    if (kode) {
+      const found = skuList.find(s => s.kode.toUpperCase() === kode.toUpperCase());
+      if (found) return found.nama_produk.toUpperCase();
+    }
+  }
+  // Prioritas 2: cari nama_produk di dalam teks jumlah (dari skuList)
+  if (jumlah && skuList.length) {
+    const jumlahUp = jumlah.toUpperCase();
+    const found = skuList.find(s => jumlahUp.includes(s.nama_produk.toUpperCase()));
+    if (found) return found.nama_produk.toUpperCase();
+  }
+  // Fallback: hardcoded produk jika tabel sku_produk tidak tersedia
+  if (jumlah) {
+    const jumlahUp = jumlah.toUpperCase();
+    const found = PRODUK_HARDCODED.find(p => jumlahUp.includes(p));
+    if (found) return found;
+  }
+  return null;
 }
 
 function extractOrderFields(row) {
