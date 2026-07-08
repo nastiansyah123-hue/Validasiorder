@@ -5396,6 +5396,7 @@ async function parseAOPatchFile(file) {
           jumlah    : get(/jumlah.pesanan/i, /jumlah/i),
           pembayaran: get(/^pembayaran$/i),
           instruksi : get(/instruksi/i),
+          keluhan   : get(/keluhan/i),
           // parse cs/adv/adm dari instruksi
           _instruksiRaw: get(/instruksi/i),
         };
@@ -5462,7 +5463,7 @@ async function saveAOPatch() {
       let f = 0;
       while (true) {
         const { data } = await sb.from('all_orderan')
-          .select('id,hp,tanggal,alamat,kelurahan,kecamatan,kabupaten,provinsi,kodepos,jumlah,pembayaran,instruksi,cs,adv,adm')
+          .select('id,hp,tanggal,alamat,kelurahan,kecamatan,kabupaten,provinsi,kodepos,jumlah,pembayaran,instruksi,cs,adv,adm,keluhan')
           .in('hp', batch)
           .range(f, f + 999);
         if (!data?.length) break;
