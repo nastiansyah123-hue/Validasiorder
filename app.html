@@ -1211,6 +1211,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <option value="">Semua CS</option>
       </select>
       <button class="btn-primary" id="btn-csi-ambil" onclick="loadCsInputOrders()">🔍 Ambil Data</button>
+      <button class="btn-secondary" id="btn-csi-ongkir" onclick="cekOngkirBatchCsInput()" style="display:none">🚚 Cek Ongkir</button>
       <span class="loading-badge" id="loading-csi">memuat...</span>
       <span class="spacer"></span>
       <span id="csi-info" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
@@ -1228,8 +1229,21 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
               <th>Waktu</th>
               <th>Nama Customer</th>
               <th>No HP</th>
+              <th data-label="Alamat">Alamat</th>
+              <th data-label="Kecamatan">Kecamatan</th>
+              <th data-label="Kode Pos">Kode Pos</th>
               <th>Jumlah Pesanan</th>
+              <th data-label="Qty">Qty</th>
               <th>Pembayaran</th>
+              <th data-label="Total">Total</th>
+              <th data-label="Instruksi">Instruksi</th>
+              <th data-label="Keterangan">Keterangan</th>
+              <th data-label="Rincian">Rincian</th>
+              <th data-label="Keluhan">Keluhan</th>
+              <th data-label="Ekspedisi">Ekspedisi</th>
+              <th data-label="Wil. Rawan">Wil. Rawan</th>
+              <th data-label="Real Ongkir">Real Ongkir</th>
+              <th data-label="SS Chat">SS Chat</th>
               <th>CS</th>
               <th>Validasi</th>
               <th style="min-width:140px">ACC SPV</th>
@@ -1237,7 +1251,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
             </tr>
           </thead>
           <tbody id="csi-tbody">
-            <tr><td colspan="10" class="empty-state">Belum ada data</td></tr>
+            <tr><td colspan="23" class="empty-state">Belum ada data</td></tr>
           </tbody>
         </table>
       </div>
@@ -3997,7 +4011,7 @@ async function loadCsInputOrders() {
 
   try {
     let query = sb.from('orderan_masuk')
-      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, pembayaran, instruksi_pengiriman, keterangan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan')
+      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, quantity, pembayaran, total_pembayaran, instruksi_pengiriman, keterangan, rincian_pembayaran, keluhan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan, is_eks_wrong, eks_detail, kp_stat, ss_urls')
       .eq('tanggal', tanggal)
       .order('created_at', { ascending: true });
 
@@ -4019,6 +4033,7 @@ async function loadCsInputOrders() {
     updateCsiSaveInfo();
     document.getElementById('csi-table-wrap').style.display = 'block';
     document.getElementById('csi-info').textContent = `${csInputRows.length} order`;
+    document.getElementById('btn-csi-ongkir').style.display = 'inline-flex';
 
   } catch(e) {
     statusEl.textContent = '✗ Gagal: ' + e.message;
@@ -4056,13 +4071,55 @@ function renderCsInputTable(rows) {
     const accClr = accVal==='KIRIM'?'#16a34a':accVal==='HOLD'?'#d97706':accVal==='CANCEL'?'#dc2626':'var(--text)';
     const accBdr = accVal==='KIRIM'?'#16a34a':accVal==='HOLD'?'#d97706':accVal==='CANCEL'?'#dc2626':'var(--border-strong)';
 
+    // Alamat lengkap — gabung, tampil singkat + title full
+    const alamatFull = [r.alamat, r.kelurahan, r.kabupaten, r.provinsi].filter(Boolean).join(', ');
+
+    // Ekspedisi — dari eks_detail (sudah dihitung pas CS submit di csorder)
+    const eks = r.eks_detail || null;
+    const eksStatus = eks ? eks.status : 'none';
+    const eksBg  = eksStatus==='red'?'#fee2e2':eksStatus==='yellow'?'#fef3c7':'transparent';
+    const eksClr = eksStatus==='red'?'#dc2626':eksStatus==='yellow'?'#d97706':'var(--text)';
+    const eksHtml = eks
+      ? `<span title="Dipakai: ${eks.dipakai||'—'}" style="font-size:11px;padding:2px 6px;border-radius:4px;background:${eksBg};color:${eksClr}">${eks.rekomendasi||'—'}</span>`
+      : '<span style="color:var(--muted);font-size:11px">—</span>';
+
+    // Wilayah Rawan — dari kp_stat (persentase RTS per kodepos)
+    const kp = r.kp_stat || null;
+    const kpPct = kp ? (kp.pct ?? Math.round((kp.retur/kp.total)*100)) : null;
+    const kpClr = kpPct===null ? 'var(--muted)' : kpPct>=30?'#dc2626':kpPct>=15?'#d97706':'#16a34a';
+    const wilHtml = kp
+      ? `<span title="${kp.retur}/${kp.total} order historis" style="font-size:11px;font-weight:600;color:${kpClr}">${kpPct}%</span>`
+      : (r.is_wilayah_rawan ? '<span style="font-size:11px;color:#d97706">RAWAN</span>' : '<span style="color:var(--muted);font-size:11px">—</span>');
+
+    // Real Ongkir — diisi live lewat tombol "Cek Ongkir" (client-side, gak persisted)
+    const ongkirHtml = `<span class="csi-ongkir-cell" data-id="${r.id}" style="font-size:12px;${r._realOngkir?'color:var(--success)':'color:var(--muted)'}">${r._realOngkir ? 'Rp'+Number(r._realOngkir).toLocaleString('id-ID') : '—'}</span>`;
+
+    // SS Chat — ss_urls jsonb array bukti screenshot chat customer
+    const ssUrls = Array.isArray(r.ss_urls) ? r.ss_urls : [];
+    const ssHtml = ssUrls.length
+      ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(ssUrls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 Lihat (${ssUrls.length})</a>`
+      : '<span style="color:var(--muted);font-size:11px">—</span>';
+
     return `<tr class="${rowCls}" id="csi-row-${r.id}">
       <td style="font-family:monospace;font-size:11px;color:var(--muted)">${i+1}</td>
       <td style="font-family:monospace;font-size:12px">${waktu}</td>
       <td style="font-weight:600">${r.nama||'—'}</td>
       <td style="font-family:monospace;font-size:12px">${r.hp||'—'}</td>
+      <td style="font-size:11px;max-width:180px" title="${alamatFull.replace(/"/g,'&quot;')}">${alamatFull||'—'}</td>
+      <td style="font-size:11px">${r.kecamatan||'—'}</td>
+      <td style="font-size:11px;font-family:monospace">${r.kodepos||'—'}</td>
       <td style="font-size:12px">${r.jumlah_pesanan||'—'}</td>
+      <td style="font-size:12px">${r.quantity||'—'}</td>
       <td style="font-size:12px">${r.pembayaran||'—'}</td>
+      <td style="font-size:12px">${r.total_pembayaran ? 'Rp'+Number(r.total_pembayaran).toLocaleString('id-ID') : '—'}</td>
+      <td style="font-size:11px;max-width:160px" title="${(r.instruksi_pengiriman||'').replace(/"/g,'&quot;')}">${r.instruksi_pengiriman||'—'}</td>
+      <td style="font-size:11px;max-width:140px" title="${(r.keterangan||'').replace(/"/g,'&quot;')}">${r.keterangan||'—'}</td>
+      <td style="font-size:11px;max-width:140px" title="${(r.rincian_pembayaran||'').replace(/"/g,'&quot;')}">${r.rincian_pembayaran||'—'}</td>
+      <td style="font-size:11px;max-width:140px" title="${(r.keluhan||'').replace(/"/g,'&quot;')}">${r.keluhan||'—'}</td>
+      <td>${eksHtml}</td>
+      <td>${wilHtml}</td>
+      <td>${ongkirHtml}</td>
+      <td>${ssHtml}</td>
       <td style="font-size:12px;color:var(--muted)">${r.cs_nama||'—'}</td>
       <td>${flagHtml}</td>
       <td>
@@ -4083,6 +4140,51 @@ function renderCsInputTable(rows) {
       </td>
     </tr>`;
   }).join('');
+}
+
+function showSsChat(urls) {
+  if (!urls || !urls.length) return;
+  urls.forEach(u => window.open(u, '_blank'));
+}
+
+async function cekOngkirBatchCsInput() {
+  if (!csInputRows.length) return;
+  const btn = document.getElementById('btn-csi-ongkir');
+  btn.disabled = true;
+  btn.textContent = '⏳ Mengecek...';
+
+  // Sama persis pola cekOngkirBatch() Harian: ekspedisi yang DIPAKAI customer (dari Pembayaran),
+  // POS Indonesia lewat endpoint terpisah (getPosOngkir), selain itu lewat Mengantar (cekOngkirRow).
+  const eksMap = {'JNE':'JNE','JNT':'JT','Lion':'lion','Ninja':'Ninja','SiCepat':'sicepat','IDX':'iDexpress','SAP':'SAP','Anteraja':'anteraja'};
+
+  try {
+    for (const row of csInputRows) {
+      if (row._realOngkir) continue;
+      const eks = extractEkspedisi(row.pembayaran || '');
+      const cell = document.querySelector(`.csi-ongkir-cell[data-id="${row.id}"]`);
+
+      if (eks === 'POS Indonesia') {
+        const posData = await getPosOngkir(row.kodepos);
+        if (posData) row._realOngkir = posData.price;
+      } else if (eks && row.kecamatan) {
+        const result = await cekOngkirRow(row.kecamatan, row.total_pembayaran || 0);
+        const eksMapped = eksMap[eks] || eks;
+        const eksKey = result && Object.keys(result).find(k => k.toLowerCase() === eksMapped.toLowerCase());
+        if (eksKey) row._realOngkir = result[eksKey].price;
+      }
+
+      if (cell) {
+        cell.textContent = row._realOngkir ? 'Rp'+Number(row._realOngkir).toLocaleString('id-ID') : '—';
+        cell.style.color = row._realOngkir ? 'var(--success)' : 'var(--muted)';
+      }
+    }
+    showToast('✓ Cek ongkir selesai', 'success');
+  } catch(e) {
+    showToast('Gagal cek ongkir: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚚 Cek Ongkir';
+  }
 }
 
 function onCsiAccChange(sel) {
