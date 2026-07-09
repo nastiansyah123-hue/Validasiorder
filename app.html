@@ -356,6 +356,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-cekOngkir" onclick="switchPage('cekOngkir')">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/><rect width="7" height="7" x="14" y="10" rx="1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></span> Cek Ongkir
     </div>
+    <div class="nav-item" id="nav-validasidetail" onclick="switchPage('validasidetail')">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span> Validasi Detail
+    </div>
     <div class="nav-item" id="nav-allorderan" onclick="switchPage('allorderan')" style="display:none">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg></span> All Orderan
     </div>
@@ -860,41 +863,6 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       <div id="db-sesi-list"></div>
     </div>
 
-    <!-- Cek Order Belum Masuk All Orderan (terpisah dari filter PERIODE di atas) -->
-    <div class="card" style="margin-bottom:1rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;flex-wrap:wrap;gap:8px">
-        <div>
-          <div class="card-title" style="margin-bottom:2px">🔍 Cek Order Belum Masuk All Orderan</div>
-          <div class="card-desc">Nyari langsung order KIRIM di validasi_detail yang belum ada di all_orderan — gak perlu tebak tanggal sesi/order, cukup pilih rentang hari terakhir.</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:0.75rem">
-        <select id="orphan-hari" class="filter-select" style="width:160px">
-          <option value="7">7 hari terakhir</option>
-          <option value="14" selected>14 hari terakhir</option>
-          <option value="30">30 hari terakhir</option>
-          <option value="90">90 hari terakhir</option>
-        </select>
-        <button class="btn-primary" onclick="cekOrderBelumMasukAllOrderan()">🔍 Cek Sekarang</button>
-        <span class="loading-badge" id="loading-orphan">mencari...</span>
-        <span id="orphan-info" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
-      </div>
-      <div id="orphan-result" style="display:none;margin-top:1rem">
-        <div class="table-wrap">
-          <div class="table-scroll" style="max-height:320px">
-            <table>
-              <thead><tr><th>Tanggal Order</th><th>Nama</th><th>HP</th><th>Team</th><th>Dibuat</th></tr></thead>
-              <tbody id="orphan-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-          <button class="btn-primary" id="btn-kirim-orphan" onclick="kirimOrphanKeAllOrderan()" style="background:#4f46e5">📤 Kirim Semua yang Ketemu ke All Orderan</button>
-          <span class="loading-badge" id="loading-kirim-orphan">mengirim...</span>
-        </div>
-      </div>
-    </div>
-
     <!-- Resi Input Section -->
     <div id="db-resi-section" style="display:none">
       <div class="card" style="margin-bottom:1rem">
@@ -1107,6 +1075,46 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
     <div id="cekOngkir-empty" style="display:none;text-align:center;padding:3rem;color:var(--muted);font-size:14px">
       Kecamatan tidak ditemukan atau tidak ada data ongkir.
+    </div>
+  </div>
+
+  <!-- PAGE: VALIDASI DETAIL (cek order KIRIM yang belum masuk All Orderan) -->
+  <div class="page" id="page-validasidetail">
+    <div class="page-header">
+      <div class="page-title">Validasi Detail</div>
+      <div class="page-sub">Cek order KIRIM yang belum masuk All Orderan — pilih rentang tanggal sendiri, gak perlu tebak tanggal sesi/order</div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">DARI TANGGAL</label>
+          <input type="date" id="orphan-dari" class="filter-select" style="width:160px">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--muted);font-family:monospace;display:block;margin-bottom:4px">SAMPAI TANGGAL</label>
+          <input type="date" id="orphan-sampai" class="filter-select" style="width:160px">
+        </div>
+        <button class="btn-primary" onclick="cekOrderBelumMasukAllOrderan()">🔍 Cek Sekarang</button>
+        <span class="loading-badge" id="loading-orphan">mencari...</span>
+        <span id="orphan-info" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">Rentang tanggal ini berdasarkan kapan data disimpan ke sistem (bukan tanggal order Excel) — biar gak bias sama sesi yang telat disimpan.</div>
+    </div>
+
+    <div id="orphan-result" style="display:none">
+      <div class="table-wrap">
+        <div class="table-scroll" style="max-height:calc(100vh - 380px)">
+          <table>
+            <thead><tr><th>Tanggal Order</th><th>Nama</th><th>HP</th><th>Team</th><th>Dibuat</th></tr></thead>
+            <tbody id="orphan-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn-primary" id="btn-kirim-orphan" onclick="kirimOrphanKeAllOrderan()" style="background:#4f46e5">📤 Kirim Semua yang Ketemu ke All Orderan</button>
+        <span class="loading-badge" id="loading-kirim-orphan">mengirim...</span>
+      </div>
     </div>
   </div>
 
@@ -1669,7 +1677,7 @@ function switchPage(name) {
   }
   // Save current page
   sessionStorage.setItem('vo_current_page', name);
-  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan','updateResi','csinput'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan','updateResi','csinput','validasidetail'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
@@ -1683,7 +1691,8 @@ function switchPage(name) {
   if (name === 'updateResi') initUpdateResi();
   if (name === 'dashboard') initDashboard();
   if (name === 'csinput') initCsInputPage();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan', updateResi:'Update Resi', csinput:'CS Input'};
+  if (name === 'validasidetail') initValidasiDetailPage();
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan', updateResi:'Update Resi', csinput:'CS Input', validasidetail:'Validasi Detail'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -3971,8 +3980,22 @@ async function kirimDashboardKeAllOrderan() {
 // ── ORPHAN FINDER: cari order KIRIM di validasi_detail yang belum ada di all_orderan,
 // TANPA bergantung sama tanggal sesi/order (biar gak bingung tanggal mana yang bener) ──
 let orphanRows = [];
+function initValidasiDetailPage() {
+  const dariEl = document.getElementById('orphan-dari');
+  const sampaiEl = document.getElementById('orphan-sampai');
+  if (sampaiEl && !sampaiEl.value) {
+    sampaiEl.value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+  }
+  if (dariEl && !dariEl.value) {
+    dariEl.value = new Date(Date.now() - 14*24*3600*1000).toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+  }
+}
+
 async function cekOrderBelumMasukAllOrderan() {
-  const hari = parseInt(document.getElementById('orphan-hari').value) || 14;
+  const dari = document.getElementById('orphan-dari').value;
+  const sampai = document.getElementById('orphan-sampai').value;
+  if (!dari || !sampai) { showToast('Pilih rentang tanggal dulu', 'warn'); return; }
+
   const badge = document.getElementById('loading-orphan');
   const infoEl = document.getElementById('orphan-info');
   badge.classList.add('show');
@@ -3980,14 +4003,16 @@ async function cekOrderBelumMasukAllOrderan() {
   infoEl.textContent = '';
 
   try {
-    const sejak = new Date(Date.now() - hari*24*3600*1000).toISOString();
+    const sejak = `${dari}T00:00:00+07:00`;
+    const sampaiTs = `${sampai}T23:59:59+07:00`;
 
-    // Ambil semua KIRIM dari validasi_detail dalam N hari terakhir (by created_at, unambigu)
+    // Ambil semua KIRIM dari validasi_detail dalam rentang tanggal ini (by created_at, unambigu —
+    // gak kepengaruh perbedaan makna kolom tanggal/tanggal_order)
     const kirimAll = [];
     let from = 0;
     while (true) {
       const { data, error } = await sb.from('validasi_detail')
-        .select('*').eq('acc_spv_cs','KIRIM').gte('created_at', sejak)
+        .select('*').eq('acc_spv_cs','KIRIM').gte('created_at', sejak).lte('created_at', sampaiTs)
         .order('created_at',{ascending:false}).range(from, from+999);
       if (error) throw error;
       if (data) kirimAll.push(...data);
@@ -3996,7 +4021,7 @@ async function cekOrderBelumMasukAllOrderan() {
     }
 
     if (!kirimAll.length) {
-      infoEl.textContent = `Gak ada order KIRIM di ${hari} hari terakhir.`;
+      infoEl.textContent = `Gak ada order KIRIM di rentang ${dari} s/d ${sampai}.`;
       return;
     }
 
