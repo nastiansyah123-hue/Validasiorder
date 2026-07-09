@@ -1245,13 +1245,15 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
               <th data-label="Real Ongkir">Real Ongkir</th>
               <th data-label="SS Chat">SS Chat</th>
               <th>CS</th>
-              <th>Validasi</th>
+              <th data-label="Duplikat Team">Duplikat Team</th>
+              <th data-label="Duplikat All Team" class="td-wide">Duplikat All Team</th>
+              <th data-label="RTS/Retur">RTS/Retur</th>
               <th style="min-width:140px">ACC SPV</th>
               <th style="min-width:180px">Noted</th>
             </tr>
           </thead>
           <tbody id="csi-tbody">
-            <tr><td colspan="23" class="empty-state">Belum ada data</td></tr>
+            <tr><td colspan="25" class="empty-state">Belum ada data</td></tr>
           </tbody>
         </table>
       </div>
@@ -4011,7 +4013,7 @@ async function loadCsInputOrders() {
 
   try {
     let query = sb.from('orderan_masuk')
-      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, quantity, pembayaran, total_pembayaran, instruksi_pengiriman, keterangan, rincian_pembayaran, keluhan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan, is_eks_wrong, eks_detail, kp_stat, ss_urls')
+      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, quantity, pembayaran, total_pembayaran, instruksi_pengiriman, keterangan, rincian_pembayaran, keluhan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan, is_eks_wrong, eks_detail, kp_stat, ss_urls, dup_detail, rts_detail')
       .eq('tanggal', tanggal)
       .order('created_at', { ascending: true });
 
@@ -4051,14 +4053,34 @@ function renderCsInputTable(rows) {
   tbody.innerHTML = rows.map((r, i) => {
     const waktu  = new Date(r.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
 
-    // Badge validasi — pakai class yang sama seperti hasil validasi harian
-    const flags = [];
-    if (r.is_dup_today)      flags.push('<span class="badge badge-dup">DUP HARI INI</span>');
-    if (r.is_dup_all)        flags.push('<span class="badge badge-dup">DUP ALL</span>');
-    if (r.is_rts)            flags.push('<span class="badge badge-rts">PERNAH RTS</span>');
-    if (r.is_wajib_transfer) flags.push('<span class="badge badge-rts" style="background:#ede9fe;color:#7c3aed">WAJIB TF</span>');
-    if (r.is_wilayah_rawan)  flags.push('<span class="badge badge-rts" style="background:#fef9c3;color:#92400e">RAWAN</span>');
-    const flagHtml = flags.length ? flags.join(' ') : '<span class="badge badge-ok">AMAN</span>';
+    // Duplikat Team — badge saja, sama persis Harian (is_dup_today gak punya detail tersimpan)
+    const dupTeamHtml = r.is_dup_today
+      ? '<span style="font-size:11px;color:var(--c-dup);font-family:monospace;font-weight:700">DUPLIKAT TEAM</span>'
+      : '<span class="badge badge-ok">AMAN</span>';
+
+    // Duplikat All Team — detail nama+tanggal+team+cs dari dup_detail, sama persis Harian
+    const dupDetail = Array.isArray(r.dup_detail) ? r.dup_detail : [];
+    const dupAllTeamHtml = r.is_dup_all && dupDetail.length
+      ? dupDetail.slice(0,3).map(m => {
+          const csBadge = m.cs ? ` · CS: ${m.cs}` : '';
+          const teamBadge = m.team ? ` (${m.team})` : '';
+          return `<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block;margin-top:2px">${m.nama||''}${m.tanggal?' '+m.tanggal:''}${teamBadge}${csBadge}</span>`;
+        }).join('')
+      : (r.is_dup_all ? '<span style="font-size:11px;color:var(--c-dup)">Duplikat (detail tidak ada)</span>' : '');
+
+    // RTS/Retur — reason + jumlah RTS dari rts_detail, + badge Wajib Transfer, sama persis kolom Retur ADSY Harian
+    const rtsDetail = Array.isArray(r.rts_detail) ? r.rts_detail : [];
+    const rtsCount  = rtsDetail.length;
+    const rtsReason = rtsDetail[0] ? (rtsDetail[0].reason || rtsDetail[0].status_akhir || 'RTS') : 'RTS';
+    const rtsCountBadge = rtsCount > 0
+      ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;font-family:monospace;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">${rtsCount}x RTS</span>`
+      : '';
+    const wajibTfBadge = r.is_wajib_transfer
+      ? '<span style="font-size:10px;color:#7c3aed;font-family:monospace;display:block;margin-top:2px;font-weight:700">🚫 WAJIB TRANSFER</span>'
+      : '';
+    const rtsHtml = r.is_rts
+      ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)" title="Detail RTS dari histori">${rtsReason}${rtsCountBadge}</span>${wajibTfBadge}`
+      : '';
 
     // Row color — sama seperti row-dup / row-rts
     const hasDup = r.is_dup_today || r.is_dup_all;
@@ -4121,7 +4143,9 @@ function renderCsInputTable(rows) {
       <td>${ongkirHtml}</td>
       <td>${ssHtml}</td>
       <td style="font-size:12px;color:var(--muted)">${r.cs_nama||'—'}</td>
-      <td>${flagHtml}</td>
+      <td style="background:${r.is_dup_today?'var(--c-dup-bg)':''}">${dupTeamHtml}</td>
+      <td class="td-wide" style="background:${r.is_dup_all?'var(--c-dup-bg)':''}">${dupAllTeamHtml||'—'}</td>
+      <td style="background:${r.is_rts?'var(--c-warn-bg)':''}">${rtsHtml||'—'}</td>
       <td>
         <select class="acc-spv-sel" data-id="${r.id}" onchange="onCsiAccChange(this)"
           style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid ${accBdr};background:${accBg};color:${accClr};font-family:monospace;cursor:pointer">
