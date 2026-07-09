@@ -1222,6 +1222,38 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
 
     <div id="csi-status" class="drop-status" style="margin-bottom:10px;display:none"></div>
 
+    <!-- Summary cards -->
+    <div class="summary-grid" id="csi-summary-section" style="display:none;grid-template-columns:repeat(7,minmax(120px,1fr));margin-bottom:1rem">
+      <div class="sum-card c-total" onclick="filterCsiByCard('all')">
+        <div class="s-label">Total Order</div>
+        <div class="s-value" id="csi-s-total">—</div>
+      </div>
+      <div class="sum-card c-dupteam" onclick="filterCsiByCard('dupteam')">
+        <div class="s-label">Duplikat Team ↗</div>
+        <div class="s-value" id="csi-s-dupteam">—</div>
+      </div>
+      <div class="sum-card c-dupall" onclick="filterCsiByCard('dupall')">
+        <div class="s-label">Duplikat All Team ↗</div>
+        <div class="s-value" id="csi-s-dupall">—</div>
+      </div>
+      <div class="sum-card c-rts" onclick="filterCsiByCard('rts')">
+        <div class="s-label">Pernah RTS ↗</div>
+        <div class="s-value" id="csi-s-rts">—</div>
+      </div>
+      <div class="sum-card c-aman" onclick="filterCsiByCard('kirim')">
+        <div class="s-label">Kirim ↗</div>
+        <div class="s-value" id="csi-s-kirim" style="color:var(--success)">—</div>
+      </div>
+      <div class="sum-card" onclick="filterCsiByCard('hold')" style="cursor:pointer;border:1px solid var(--border)">
+        <div class="s-label">Hold ↗</div>
+        <div class="s-value" id="csi-s-hold" style="color:var(--warn)">—</div>
+      </div>
+      <div class="sum-card" onclick="filterCsiByCard('cancel')" style="cursor:pointer;border:1px solid var(--border)">
+        <div class="s-label">Cancel ↗</div>
+        <div class="s-value" id="csi-s-cancel" style="color:var(--danger)">—</div>
+      </div>
+    </div>
+
     <!-- Bulk ACC bar -->
     <div id="csi-bulk-bar" style="display:none;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;background:var(--accent-light);border:1px solid var(--accent);border-radius:8px">
       <span id="csi-bulk-count" style="font-size:12px;font-weight:600;color:var(--accent)"></span>
@@ -3990,6 +4022,43 @@ async function saveValidasiDetail() {
 let csInputRows = []; // data loaded dari orderan_masuk
 let csiRealtimeChannel = null;
 let csiNewCount = 0;
+let csiActiveFilter = 'all';
+
+// ── SUMMARY CARDS (sama pola kayak sum-card Harian) ─────────────────────────
+function getCsiVisibleRows() {
+  const accOf = r => (r._accSpv || r.acc_spv || '').toUpperCase();
+  switch (csiActiveFilter) {
+    case 'dupteam': return csInputRows.filter(r => r.is_dup_today);
+    case 'dupall':  return csInputRows.filter(r => r.is_dup_all);
+    case 'rts':     return csInputRows.filter(r => r.is_rts);
+    case 'kirim':   return csInputRows.filter(r => accOf(r) === 'KIRIM');
+    case 'hold':    return csInputRows.filter(r => accOf(r) === 'HOLD');
+    case 'cancel':  return csInputRows.filter(r => accOf(r) === 'CANCEL');
+    default:        return csInputRows;
+  }
+}
+
+function updateCsiSummary() {
+  const accOf = r => (r._accSpv || r.acc_spv || '').toUpperCase();
+  const total   = csInputRows.length;
+  document.getElementById('csi-s-total').textContent   = total;
+  document.getElementById('csi-s-dupteam').textContent = csInputRows.filter(r => r.is_dup_today).length;
+  document.getElementById('csi-s-dupall').textContent  = csInputRows.filter(r => r.is_dup_all).length;
+  document.getElementById('csi-s-rts').textContent     = csInputRows.filter(r => r.is_rts).length;
+  document.getElementById('csi-s-kirim').textContent   = csInputRows.filter(r => accOf(r)==='KIRIM').length;
+  document.getElementById('csi-s-hold').textContent    = csInputRows.filter(r => accOf(r)==='HOLD').length;
+  document.getElementById('csi-s-cancel').textContent  = csInputRows.filter(r => accOf(r)==='CANCEL').length;
+  document.getElementById('csi-summary-section').style.display = total ? 'grid' : 'none';
+}
+
+function filterCsiByCard(type) {
+  csiActiveFilter = type;
+  renderCsInputTable(getCsiVisibleRows());
+  const order = ['all','dupteam','dupall','rts','kirim','hold','cancel'];
+  document.querySelectorAll('#csi-summary-section .sum-card').forEach((c,i) => {
+    c.style.outline = order[i] === type ? '2px solid var(--accent)' : '';
+  });
+}
 
 function updateCsiNewBadge() {
   const badge = document.getElementById('csi-new-badge');
@@ -4087,7 +4156,9 @@ async function loadCsInputOrders() {
       return;
     }
 
-    renderCsInputTable(csInputRows);
+    csiActiveFilter = 'all';
+    updateCsiSummary();
+    renderCsInputTable(getCsiVisibleRows());
     updateCsiSaveInfo();
     document.getElementById('csi-table-wrap').style.display = 'block';
     document.getElementById('csi-info').textContent = `${csInputRows.length} order`;
@@ -4227,10 +4298,21 @@ function renderCsInputTable(rows) {
 function showSsChat(urls) {
   if (!urls || !urls.length) return;
   // ss_urls isinya array object {type, url} dari CS Order (type: 'iklan'/'deal'), bukan string URL langsung
-  urls.forEach(u => {
-    const url = (u && typeof u === 'object') ? u.url : u;
-    if (url) window.open(url, '_blank');
-  });
+  // Pakai modal in-page (bukan window.open per item) — browser blokir window.open() bertumpuk
+  // dalam 1 klik, jadi kalau ada >1 bukti cuma tab pertama yang kebuka.
+  const TYPE_LABEL = { iklan: 'SS Customer Masuk Iklan', deal: 'SS Deal Customer' };
+  const body = document.getElementById('ss-chat-modal-body');
+  body.innerHTML = urls.map(u => {
+    const url   = (u && typeof u === 'object') ? u.url : u;
+    const type  = (u && typeof u === 'object') ? u.type : '';
+    const label = TYPE_LABEL[type] || type || 'Bukti';
+    if (!url) return '';
+    return `<div>
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">${label}</div>
+      <img src="${url}" style="width:100%;border-radius:10px;border:1px solid var(--border);cursor:pointer" onclick="window.open('${url}','_blank')" title="Klik untuk buka ukuran penuh">
+    </div>`;
+  }).join('');
+  document.getElementById('ss-chat-modal').style.display = 'flex';
 }
 
 // ── BULK ACC (checkbox select) ──────────────────────────────────────────────
@@ -4257,7 +4339,7 @@ function onCsiRowCheck(chk) {
 function clearCsiSelection() {
   csInputRows.forEach(r => r._selected = false);
   document.getElementById('csi-chk-all').checked = false;
-  renderCsInputTable(csInputRows);
+  renderCsInputTable(getCsiVisibleRows());
   updateCsiBulkBar();
 }
 
@@ -4265,7 +4347,8 @@ function bulkSetAccCsi(status) {
   const selected = csInputRows.filter(r => r._selected);
   if (!selected.length) return;
   selected.forEach(r => r._accSpv = status);
-  renderCsInputTable(csInputRows);
+  updateCsiSummary();
+  renderCsInputTable(getCsiVisibleRows());
   updateCsiSaveInfo();
   updateCsiBulkBar();
   showToast(`✓ ${selected.length} baris di-set ${status}`, 'success');
@@ -4321,6 +4404,7 @@ function onCsiAccChange(sel) {
   sel.style.color       = val==='KIRIM'?'#16a34a':val==='HOLD'?'#d97706':val==='CANCEL'?'#dc2626':'var(--text)';
   sel.style.borderColor = val==='KIRIM'?'#16a34a':val==='HOLD'?'#d97706':val==='CANCEL'?'#dc2626':'var(--border-strong)';
   updateCsiSaveInfo();
+  updateCsiSummary();
 }
 
 function onCsiNotedChange(inp) {
@@ -7535,6 +7619,16 @@ function downloadGagalResi() {
         <button onclick="document.getElementById('rts-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
       </div>
       <div id="rts-modal-body"></div>
+    </div>
+  </div>
+
+  <div id="ss-chat-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this)document.getElementById('ss-chat-modal').style.display='none'">
+    <div style="background:var(--bg);border-radius:16px;padding:1.5rem;max-width:680px;width:90%;max-height:85vh;overflow-y:auto;position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div style="font-size:15px;font-weight:700">Bukti Screenshot</div>
+        <button onclick="document.getElementById('ss-chat-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
+      </div>
+      <div id="ss-chat-modal-body" style="display:flex;flex-direction:column;gap:16px"></div>
     </div>
   </div>
 
