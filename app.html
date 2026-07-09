@@ -4022,7 +4022,18 @@ async function loadCsInputOrders() {
     const { data, error } = await query;
     if (error) throw error;
 
-    csInputRows = data || [];
+    // Merge (bukan replace) — pertahankan ACC/Noted yang udah dipilih tapi belum "Simpan Semua ACC",
+    // biar gak ilang pas ambil data baru buat nangkep order yang baru masuk (data ini realtime)
+    const oldById = new Map(csInputRows.map(r => [r.id, r]));
+    csInputRows = (data || []).map(newRow => {
+      const old = oldById.get(newRow.id);
+      if (old) {
+        if (old._accSpv !== undefined) newRow._accSpv = old._accSpv;
+        if (old._noted  !== undefined) newRow._noted  = old._noted;
+        if (old._realOngkir) newRow._realOngkir = old._realOngkir;
+      }
+      return newRow;
+    });
 
     if (!csInputRows.length) {
       statusEl.textContent = `Tidak ada orderan di tanggal ${tanggal}${csId ? ' untuk CS ini' : ''}.`;
