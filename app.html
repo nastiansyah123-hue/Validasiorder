@@ -4212,7 +4212,11 @@ function renderCsInputTable(rows) {
 
 function showSsChat(urls) {
   if (!urls || !urls.length) return;
-  urls.forEach(u => window.open(u, '_blank'));
+  // ss_urls isinya array object {type, url} dari CS Order (type: 'iklan'/'deal'), bukan string URL langsung
+  urls.forEach(u => {
+    const url = (u && typeof u === 'object') ? u.url : u;
+    if (url) window.open(url, '_blank');
+  });
 }
 
 async function cekOngkirBatchCsInput() {
