@@ -3607,7 +3607,7 @@ function renderDbTable() {
         <td style="font-size:11px">${r.wilayah_rawan||''}</td>
         <td style="font-size:11px">${r._source==='cs_input'?(r.noted||''):(r.rek_ekspedisi||'')}</td>
         <td style="font-family:monospace;font-size:11px;color:${accClr}">${r.acc_spv_cs||''}</td>
-        <td style="text-align:center">${(r.ss_urls&&r.ss_urls.length) ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(r.ss_urls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 ${r.ss_urls.length}</a>` : (r.ss_chat?'✓':'')}</td>
+        <td style="text-align:center">${(r.ss_urls&&r.ss_urls.length) ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(r.ss_urls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 ${r.ss_urls.length}</a>` : ((r.duplikat_all||r.pernah_rts) ? '<span style="color:var(--muted);font-size:11px">belum ada SS</span>' : '<span style="color:var(--muted);font-size:11px">—</span>')}</td>
       </tr>`;
     }).join('');
   }
@@ -4160,11 +4160,12 @@ function renderCsInputTable(rows) {
     // Real Ongkir — diisi live lewat tombol "Cek Ongkir" (client-side, gak persisted)
     const ongkirHtml = `<span class="csi-ongkir-cell" data-id="${r.id}" style="font-size:12px;${r._realOngkir?'color:var(--success)':'color:var(--muted)'}">${r._realOngkir ? 'Rp'+Number(r._realOngkir).toLocaleString('id-ID') : '—'}</span>`;
 
-    // SS Chat — ss_urls jsonb array bukti screenshot chat customer
+    // SS Chat — ss_urls jsonb array bukti screenshot chat customer (cuma wajib buat order DUP ALL/RTS)
     const ssUrls = Array.isArray(r.ss_urls) ? r.ss_urls : [];
+    const needSS = r.is_dup_all || r.is_rts;
     const ssHtml = ssUrls.length
       ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(ssUrls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 Lihat (${ssUrls.length})</a>`
-      : '<span style="color:var(--muted);font-size:11px">—</span>';
+      : (needSS ? '<span style="color:var(--muted);font-size:11px">belum ada SS</span>' : '<span style="color:var(--muted);font-size:11px">—</span>');
 
     return `<tr class="${rowCls}" id="csi-row-${r.id}">
       <td style="font-family:monospace;font-size:11px;color:var(--muted)">${i+1}</td>
