@@ -4099,7 +4099,7 @@ function renderCsInputTable(rows) {
     const rowCls = hasDup && hasRts ? 'row-both' : hasDup ? 'row-dup' : hasRts ? 'row-rts' : '';
 
     // ACC SPV select — style persis ValidasiOrder
-    const accVal = (r.acc_spv || '').toUpperCase();
+    const accVal = (r._accSpv || r.acc_spv || '').toUpperCase();
     const accBg  = accVal==='KIRIM'?'#dcfce7':accVal==='HOLD'?'#fef3c7':accVal==='CANCEL'?'#fee2e2':'var(--bg)';
     const accClr = accVal==='KIRIM'?'#16a34a':accVal==='HOLD'?'#d97706':accVal==='CANCEL'?'#dc2626':'var(--text)';
     const accBdr = accVal==='KIRIM'?'#16a34a':accVal==='HOLD'?'#d97706':accVal==='CANCEL'?'#dc2626':'var(--border-strong)';
@@ -4168,7 +4168,7 @@ function renderCsInputTable(rows) {
       </td>
       <td>
         <input type="text" class="noted-input" data-id="${r.id}"
-          value="${(r.noted||'').replace(/"/g,'&quot;')}"
+          value="${((r._noted!==undefined?r._noted:r.noted)||'').replace(/"/g,'&quot;')}"
           placeholder="tulis catatan..."
           oninput="onCsiNotedChange(this)"
           style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:monospace;width:150px">
