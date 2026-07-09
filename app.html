@@ -251,6 +251,7 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
 .toast.error{background:var(--danger)}
 .toast.info{background:var(--accent)}
 @keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 
 /* WELCOME MODAL */
 #welcome-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center}
@@ -1213,6 +1214,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       <button class="btn-primary" id="btn-csi-ambil" onclick="loadCsInputOrders()">🔍 Ambil Data</button>
       <button class="btn-secondary" id="btn-csi-ongkir" onclick="cekOngkirBatchCsInput()" style="display:none">🚚 Cek Ongkir</button>
       <span class="loading-badge" id="loading-csi">memuat...</span>
+      <span id="csi-new-badge" onclick="loadCsInputOrders()" style="display:none;cursor:pointer;background:#fef3c7;color:#d97706;font-size:12px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid #d97706;animation:pulse 2s infinite"></span>
       <span class="spacer"></span>
       <span id="csi-info" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
     </div>
@@ -3972,8 +3974,35 @@ async function saveValidasiDetail() {
 
 // ── CS INPUT ──────────────────────────────────────────────────────────────────
 let csInputRows = []; // data loaded dari orderan_masuk
+let csiRealtimeChannel = null;
+let csiNewCount = 0;
+
+function updateCsiNewBadge() {
+  const badge = document.getElementById('csi-new-badge');
+  if (!badge) return;
+  if (csiNewCount > 0) {
+    badge.textContent = `🔔 ${csiNewCount} order baru — klik buat refresh`;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function initCsiRealtime() {
+  if (csiRealtimeChannel) return; // udah subscribe, gak perlu ulang
+  csiRealtimeChannel = sb.channel('csi-orderan-masuk-watch')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orderan_masuk' }, (payload) => {
+      const tglSel = document.getElementById('csi-tanggal')?.value;
+      if (payload.new && payload.new.tanggal === tglSel) {
+        csiNewCount++;
+        updateCsiNewBadge();
+      }
+    })
+    .subscribe();
+}
 
 async function initCsInputPage() {
+  initCsiRealtime();
   // Set default tanggal = hari ini
   const tglEl = document.getElementById('csi-tanggal');
   if (tglEl && !tglEl.value) {
@@ -4010,6 +4039,8 @@ async function loadCsInputOrders() {
   badge.classList.add('show');
   statusEl.style.display = 'none';
   document.getElementById('csi-table-wrap').style.display = 'none';
+  csiNewCount = 0;
+  updateCsiNewBadge();
 
   try {
     let query = sb.from('orderan_masuk')
