@@ -895,6 +895,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <option value="all">Semua Team</option>
           <option value="Akuisisi 1">Akuisisi 1</option>
           <option value="Akuisisi 2">Akuisisi 2</option>
+          <option value="Akuisisi">Akuisisi (CS Input)</option>
         </select>
         <input class="search-input" id="db-search" type="text" placeholder="Cari nama / HP / resi..." oninput="filterDbDetail()" />
         <span class="spacer"></span>
@@ -3451,7 +3452,7 @@ async function loadDashboard() {
           acc_spv_cs   : r.acc_spv || '',
           ss_chat      : false,
           noted        : r.noted || '',
-          team         : '',
+          team         : 'Akuisisi',
           created_at   : r.created_at,
         };
       });
