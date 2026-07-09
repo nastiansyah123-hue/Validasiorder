@@ -3450,7 +3450,8 @@ async function loadDashboard() {
           wilayah_rawan: r.is_wilayah_rawan ? 'Ya' : '',
           rek_ekspedisi: '',
           acc_spv_cs   : r.acc_spv || '',
-          ss_chat      : false,
+          ss_chat      : Array.isArray(r.ss_urls) && r.ss_urls.length > 0,
+          ss_urls      : Array.isArray(r.ss_urls) ? r.ss_urls : [],
           noted        : r.noted || '',
           team         : 'Akuisisi',
           created_at   : r.created_at,
@@ -3606,7 +3607,7 @@ function renderDbTable() {
         <td style="font-size:11px">${r.wilayah_rawan||''}</td>
         <td style="font-size:11px">${r._source==='cs_input'?(r.noted||''):(r.rek_ekspedisi||'')}</td>
         <td style="font-family:monospace;font-size:11px;color:${accClr}">${r.acc_spv_cs||''}</td>
-        <td style="text-align:center">${r.ss_chat?'✓':''}</td>
+        <td style="text-align:center">${(r.ss_urls&&r.ss_urls.length) ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(r.ss_urls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 ${r.ss_urls.length}</a>` : (r.ss_chat?'✓':'')}</td>
       </tr>`;
     }).join('');
   }
