@@ -1222,12 +1222,24 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
 
     <div id="csi-status" class="drop-status" style="margin-bottom:10px;display:none"></div>
 
+    <!-- Bulk ACC bar -->
+    <div id="csi-bulk-bar" style="display:none;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;background:var(--accent-light);border:1px solid var(--accent);border-radius:8px">
+      <span id="csi-bulk-count" style="font-size:12px;font-weight:600;color:var(--accent)"></span>
+      <span class="spacer"></span>
+      <span style="font-size:11px;color:var(--muted)">Set ACC SPV:</span>
+      <button class="btn-secondary" onclick="bulkSetAccCsi('KIRIM')" style="font-size:12px;background:#dcfce7;color:#16a34a;border-color:#16a34a">✅ Kirim</button>
+      <button class="btn-secondary" onclick="bulkSetAccCsi('HOLD')" style="font-size:12px;background:#fef3c7;color:#d97706;border-color:#d97706">⏸ Hold</button>
+      <button class="btn-secondary" onclick="bulkSetAccCsi('CANCEL')" style="font-size:12px;background:#fee2e2;color:#dc2626;border-color:#dc2626">❌ Cancel</button>
+      <button class="btn-secondary" onclick="clearCsiSelection()" style="font-size:12px">Batal Pilih</button>
+    </div>
+
     <!-- Tabel -->
     <div class="table-wrap" id="csi-table-wrap" style="display:none">
       <div class="table-scroll" style="max-height:calc(100vh - 320px)">
         <table>
           <thead>
             <tr>
+              <th style="width:32px;text-align:center"><input type="checkbox" id="csi-chk-all" onclick="toggleSelectAllCsi(this)" style="cursor:pointer;width:14px;height:14px"></th>
               <th>#</th>
               <th>Waktu</th>
               <th>Nama Customer</th>
@@ -1256,7 +1268,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
             </tr>
           </thead>
           <tbody id="csi-tbody">
-            <tr><td colspan="25" class="empty-state">Belum ada data</td></tr>
+            <tr><td colspan="26" class="empty-state">Belum ada data</td></tr>
           </tbody>
         </table>
       </div>
@@ -4168,6 +4180,7 @@ function renderCsInputTable(rows) {
       : (needSS ? '<span style="color:var(--muted);font-size:11px">belum ada SS</span>' : '<span style="color:var(--muted);font-size:11px">—</span>');
 
     return `<tr class="${rowCls}" id="csi-row-${r.id}">
+      <td style="text-align:center"><input type="checkbox" class="csi-row-chk" data-id="${r.id}" onchange="onCsiRowCheck(this)" ${r._selected?'checked':''} style="cursor:pointer;width:14px;height:14px"></td>
       <td style="font-family:monospace;font-size:11px;color:var(--muted)">${i+1}</td>
       <td style="font-family:monospace;font-size:12px">${waktu}</td>
       <td style="font-weight:600">${r.nama||'—'}</td>
@@ -4218,6 +4231,44 @@ function showSsChat(urls) {
     const url = (u && typeof u === 'object') ? u.url : u;
     if (url) window.open(url, '_blank');
   });
+}
+
+// ── BULK ACC (checkbox select) ──────────────────────────────────────────────
+function updateCsiBulkBar() {
+  const n = csInputRows.filter(r => r._selected).length;
+  const bar = document.getElementById('csi-bulk-bar');
+  document.getElementById('csi-bulk-count').textContent = `${n} baris dipilih`;
+  bar.style.display = n > 0 ? 'flex' : 'none';
+}
+
+function toggleSelectAllCsi(chk) {
+  csInputRows.forEach(r => r._selected = chk.checked);
+  document.querySelectorAll('.csi-row-chk').forEach(el => el.checked = chk.checked);
+  updateCsiBulkBar();
+}
+
+function onCsiRowCheck(chk) {
+  const row = csInputRows.find(r => r.id === chk.dataset.id);
+  if (row) row._selected = chk.checked;
+  if (!chk.checked) document.getElementById('csi-chk-all').checked = false;
+  updateCsiBulkBar();
+}
+
+function clearCsiSelection() {
+  csInputRows.forEach(r => r._selected = false);
+  document.getElementById('csi-chk-all').checked = false;
+  renderCsInputTable(csInputRows);
+  updateCsiBulkBar();
+}
+
+function bulkSetAccCsi(status) {
+  const selected = csInputRows.filter(r => r._selected);
+  if (!selected.length) return;
+  selected.forEach(r => r._accSpv = status);
+  renderCsInputTable(csInputRows);
+  updateCsiSaveInfo();
+  updateCsiBulkBar();
+  showToast(`✓ ${selected.length} baris di-set ${status}`, 'success');
 }
 
 async function cekOngkirBatchCsInput() {
