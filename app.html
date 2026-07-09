@@ -3844,6 +3844,15 @@ function exportDbKirim() {
   showToast(`Export ${kirimData.length} orderan KIRIM berhasil.`, 'success');
 }
 
+// Parse angka dari cell Excel dengan aman — kalau cell-nya ternyata kebaca sebagai tanggal
+// (misal "1900-01-01T01:00:00.000Z"), strip-non-digit bisa hasilin angka raksasa yang
+// overflow kolom integer Postgres (max 2147483647). Di luar rentang wajar → null.
+function safeParseInt(v) {
+  const n = parseInt(String(v||'').replace(/\D/g,''));
+  if (!Number.isFinite(n) || n <= 0 || n > 2147483647) return null;
+  return n;
+}
+
 // ── SAVE VALIDASI DETAIL ──────────────────────────────────────────────────────
 async function saveValidasiDetail() {
   if (!validatedData.length) return;
@@ -3890,8 +3899,8 @@ async function saveValidasiDetail() {
     adm           : (String(row.instruksi||row._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,100),
     keluhan       : String(row.keluhan||'').slice(0,200),
     tanggal_order : String(row.tanggal||'').slice(0,50),
-    quantity      : parseInt(String(row.quantity||row._raw['Quantity']||row._raw['Qty']||'').replace(/\D/g,''))||null,
-    total_pembayaran: parseInt(String(row.total_pembayaran||row._raw['Total Pembayaran']||row._raw['TotalPembayaran']||'').replace(/\D/g,''))||null,
+    quantity      : safeParseInt(row.quantity||row._raw['Quantity']||row._raw['Qty']),
+    total_pembayaran: safeParseInt(row.total_pembayaran||row._raw['Total Pembayaran']||row._raw['TotalPembayaran']),
     rincian       : String(row._raw['Rincian Pembayaran']||row._raw['rincian']||'').slice(0,300),
   }));
 
@@ -3928,9 +3937,9 @@ async function saveValidasiDetail() {
         kodepos     : String(r._raw['Kode Pos']||r.kodepos||'').slice(0,20),
         jumlah      : String(r._raw['Jumlah Pesanan']||'').slice(0,200),
         produk      : extractProduk(String(r._raw['Jumlah Pesanan']||''), String(r.nama||'')),
-        quantity    : parseInt(String(r._raw['Quantity']||r._raw['Qty']||r.quantity||'').replace(/\D/g,''))||null,
+        quantity    : safeParseInt(r._raw['Quantity']||r._raw['Qty']||r.quantity),
         pembayaran  : String(r._raw['Pembayaran']||'').slice(0,100),
-        total_pembayaran: parseInt(String(r._raw['Total Pembayaran']||r._raw['TotalPembayaran']||r._raw['Total']||r.total_pembayaran||'').replace(/\D/g,''))||null,
+        total_pembayaran: safeParseInt(r._raw['Total Pembayaran']||r._raw['TotalPembayaran']||r._raw['Total']||r.total_pembayaran),
         instruksi   : String(r._raw['Instruksi Pengiriman']||r._raw['instruksi']||'').slice(0,200),
         resi        : String(r._raw['Resi']||r._raw['RESI']||'').slice(0,100),
         team        : r._uploadTeam || '',
@@ -4481,9 +4490,9 @@ async function saveCsInputAcc() {
             provinsi    : r.provinsi || '',
             kodepos     : r.kodepos || '',
             jumlah      : r.jumlah_pesanan || '',
-            quantity    : parseInt(String(r.quantity||'').replace(/\D/g,''))||null,
+            quantity    : safeParseInt(r.quantity),
             pembayaran  : r.pembayaran || '',
-            total_pembayaran: parseInt(String(r.total_pembayaran||'').replace(/\D/g,''))||null,
+            total_pembayaran: safeParseInt(r.total_pembayaran),
             instruksi   : r.instruksi_pengiriman || '',
             resi        : '',
             team        : 'akuisisi',
