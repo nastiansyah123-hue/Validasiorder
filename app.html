@@ -860,6 +860,41 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       <div id="db-sesi-list"></div>
     </div>
 
+    <!-- Cek Order Belum Masuk All Orderan (terpisah dari filter PERIODE di atas) -->
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="card-title" style="margin-bottom:2px">🔍 Cek Order Belum Masuk All Orderan</div>
+          <div class="card-desc">Nyari langsung order KIRIM di validasi_detail yang belum ada di all_orderan — gak perlu tebak tanggal sesi/order, cukup pilih rentang hari terakhir.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:0.75rem">
+        <select id="orphan-hari" class="filter-select" style="width:160px">
+          <option value="7">7 hari terakhir</option>
+          <option value="14" selected>14 hari terakhir</option>
+          <option value="30">30 hari terakhir</option>
+          <option value="90">90 hari terakhir</option>
+        </select>
+        <button class="btn-primary" onclick="cekOrderBelumMasukAllOrderan()">🔍 Cek Sekarang</button>
+        <span class="loading-badge" id="loading-orphan">mencari...</span>
+        <span id="orphan-info" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
+      </div>
+      <div id="orphan-result" style="display:none;margin-top:1rem">
+        <div class="table-wrap">
+          <div class="table-scroll" style="max-height:320px">
+            <table>
+              <thead><tr><th>Tanggal Order</th><th>Nama</th><th>HP</th><th>Team</th><th>Dibuat</th></tr></thead>
+              <tbody id="orphan-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <button class="btn-primary" id="btn-kirim-orphan" onclick="kirimOrphanKeAllOrderan()" style="background:#4f46e5">📤 Kirim Semua yang Ketemu ke All Orderan</button>
+          <span class="loading-badge" id="loading-kirim-orphan">mengirim...</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Resi Input Section -->
     <div id="db-resi-section" style="display:none">
       <div class="card" style="margin-bottom:1rem">
@@ -3845,6 +3880,64 @@ function exportDbKirim() {
   showToast(`Export ${kirimData.length} orderan KIRIM berhasil.`, 'success');
 }
 
+// ── SHARED: insert baris validasi_detail (shape: hp/tanggal_order/tanggal/nama/dst) ke all_orderan.
+// Dipakai oleh kirimDashboardKeAllOrderan() (by tanggal sesi) dan cekOrderBelumMasukAllOrderan()
+// (cari orphan tanpa filter tanggal). created_at diset ikut tanggal ORDER (bukan waktu proses) —
+// ini data backfill/susulan, dan CRM (AdsyCRM) pakai created_at buat nge-bucket order per tanggal.
+async function insertKirimRowsToAllOrderan(kirimRows) {
+  const newRows = kirimRows.map(r => {
+    const hp = normalizeHP(String(r.hp||''));
+    const tgl = r.tanggal_order||r.tanggal||'';
+    const createdAt = tgl ? `${tgl}T12:00:00+07:00` : nowWIB();
+    return {
+      no: r.no||'', tanggal: tgl, nama: r.nama||'', hp,
+      alamat: r.alamat||'', kelurahan: r.kelurahan||'', kecamatan: r.kecamatan||'',
+      kabupaten: r.kabupaten||'', provinsi: r.provinsi||'', kodepos: r.kodepos||'',
+      jumlah: r.jumlah||'', quantity: safeParseInt(r.quantity),
+      pembayaran: r.pembayaran||'', total_pembayaran: safeParseInt(r.total_pembayaran),
+      instruksi: r.instruksi||'', resi: r.resi||'', team: r.team||'',
+      update_crm: '', status_akhir: 'ON PROSES', retur: '0', sumber: 'validasi',
+      cs: r.cs||'', adv: r.adv||'', adm: r.adm||'', keluhan: r.keluhan||'',
+      created_at: createdAt,
+    };
+  });
+
+  // Dedup — HP+tanggal, sumber='validasi'
+  const hpList = [...new Set(newRows.map(r => r.hp).filter(Boolean))];
+  const hpListStripped = hpList.map(hp => hp.replace(/^0+/, ''));
+  const hpListAll = [...new Set([...hpList, ...hpListStripped])];
+  const existingAll = [];
+  for (let i = 0; i < hpListAll.length; i += 100) {
+    const batch = hpListAll.slice(i, i + 100);
+    let from = 0;
+    while (true) {
+      const { data: ex } = await sb.from('all_orderan')
+        .select('hp,tanggal').eq('sumber','validasi').in('hp', batch).range(from, from+999);
+      if (ex) existingAll.push(...ex);
+      if (!ex || ex.length < 1000) break;
+      from += 1000;
+    }
+  }
+  const existingSet = new Set(
+    existingAll.filter(r=>r.tanggal).map(r => normalizeHP(String(r.hp||'')) + '|' + normTglToYMD(r.tanggal))
+  );
+  const seenInBatch = new Set();
+  const toInsert = newRows.filter(r => {
+    if (seenInBatch.has(r.hp)) return false;
+    seenInBatch.add(r.hp);
+    if (!r.tanggal) return true;
+    return !existingSet.has(r.hp + '|' + normTglToYMD(r.tanggal));
+  });
+
+  if (toInsert.length) {
+    for (let i = 0; i < toInsert.length; i += 500) {
+      const { error } = await sb.from('all_orderan').insert(toInsert.slice(i, i+500));
+      if (error) throw error;
+    }
+  }
+  return { inserted: toInsert.length, skipped: kirimRows.length - toInsert.length };
+}
+
 // ── RECOVERY: kirim ulang data KIRIM dari Dashboard (validasi_detail) ke all_orderan ────
 // Buat kasus data udah kesimpen di validasi_detail (Dashboard) tapi gagal/kelewat kesimpen
 // ke all_orderan (misal gara-gara bug lama). Sumber: validasi_detail via sesi_id "Simpan
@@ -3861,69 +3954,123 @@ async function kirimDashboardKeAllOrderan() {
   btn.textContent = '⏳ Memproses...';
 
   try {
-    const newRows = kirimRows.map(r => {
-      const hp = normalizeHP(String(r.hp||''));
-      const tgl = r.tanggal_order||r.tanggal||'';
-      // created_at diset ikut tanggal ORDER (bukan waktu recovery) — ini data backfill/susulan,
-      // dan CRM (AdsyCRM) pakai created_at buat nge-bucket order per tanggal. Kalau dipaksa
-      // nowWIB(), semua order susulan (dari tanggal manapun) numpuk keliatan "masuk hari ini"
-      // di CRM, padahal aslinya dari tanggal lain.
-      const createdAt = tgl ? `${tgl}T12:00:00+07:00` : nowWIB();
-      return {
-        no: r.no||'', tanggal: tgl, nama: r.nama||'', hp,
-        alamat: r.alamat||'', kelurahan: r.kelurahan||'', kecamatan: r.kecamatan||'',
-        kabupaten: r.kabupaten||'', provinsi: r.provinsi||'', kodepos: r.kodepos||'',
-        jumlah: r.jumlah||'', quantity: safeParseInt(r.quantity),
-        pembayaran: r.pembayaran||'', total_pembayaran: safeParseInt(r.total_pembayaran),
-        instruksi: r.instruksi||'', resi: r.resi||'', team: r.team||'',
-        update_crm: '', status_akhir: 'ON PROSES', retur: '0', sumber: 'validasi',
-        cs: r.cs||'', adv: r.adv||'', adm: r.adm||'', keluhan: r.keluhan||'',
-        created_at: createdAt,
-      };
-    });
-
-    // Dedup — sama persis pola saveValidasiDetail(): HP+tanggal, sumber='validasi'
-    const hpList = [...new Set(newRows.map(r => r.hp).filter(Boolean))];
-    const hpListStripped = hpList.map(hp => hp.replace(/^0+/, ''));
-    const hpListAll = [...new Set([...hpList, ...hpListStripped])];
-    const existingAll = [];
-    for (let i = 0; i < hpListAll.length; i += 100) {
-      const batch = hpListAll.slice(i, i + 100);
-      let from = 0;
-      while (true) {
-        const { data: ex } = await sb.from('all_orderan')
-          .select('hp,tanggal').eq('sumber','validasi').in('hp', batch).range(from, from+999);
-        if (ex) existingAll.push(...ex);
-        if (!ex || ex.length < 1000) break;
-        from += 1000;
-      }
-    }
-    const existingSet = new Set(
-      existingAll.filter(r=>r.tanggal).map(r => normalizeHP(String(r.hp||'')) + '|' + normTglToYMD(r.tanggal))
-    );
-    const seenInBatch = new Set();
-    const toInsert = newRows.filter(r => {
-      if (seenInBatch.has(r.hp)) return false;
-      seenInBatch.add(r.hp);
-      if (!r.tanggal) return true;
-      return !existingSet.has(r.hp + '|' + normTglToYMD(r.tanggal));
-    });
-
-    if (!toInsert.length) {
+    const { inserted, skipped } = await insertKirimRowsToAllOrderan(kirimRows);
+    if (!inserted) {
       showToast('Semua data KIRIM di rentang ini udah ada di All Orderan', 'info');
-      return;
+    } else {
+      showToast(`✓ ${inserted} orderan berhasil dikirim ke All Orderan (${skipped} udah ada sebelumnya)`, 'success');
     }
-
-    for (let i = 0; i < toInsert.length; i += 500) {
-      const { error } = await sb.from('all_orderan').insert(toInsert.slice(i, i+500));
-      if (error) throw error;
-    }
-    showToast(`✓ ${toInsert.length} orderan berhasil dikirim ke All Orderan (${kirimRows.length - toInsert.length} udah ada sebelumnya)`, 'success');
   } catch(e) {
     showToast('Gagal kirim ke All Orderan: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = '📤 Kirim ke All Orderan';
+  }
+}
+
+// ── ORPHAN FINDER: cari order KIRIM di validasi_detail yang belum ada di all_orderan,
+// TANPA bergantung sama tanggal sesi/order (biar gak bingung tanggal mana yang bener) ──
+let orphanRows = [];
+async function cekOrderBelumMasukAllOrderan() {
+  const hari = parseInt(document.getElementById('orphan-hari').value) || 14;
+  const badge = document.getElementById('loading-orphan');
+  const infoEl = document.getElementById('orphan-info');
+  badge.classList.add('show');
+  document.getElementById('orphan-result').style.display = 'none';
+  infoEl.textContent = '';
+
+  try {
+    const sejak = new Date(Date.now() - hari*24*3600*1000).toISOString();
+
+    // Ambil semua KIRIM dari validasi_detail dalam N hari terakhir (by created_at, unambigu)
+    const kirimAll = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await sb.from('validasi_detail')
+        .select('*').eq('acc_spv_cs','KIRIM').gte('created_at', sejak)
+        .order('created_at',{ascending:false}).range(from, from+999);
+      if (error) throw error;
+      if (data) kirimAll.push(...data);
+      if (!data || data.length < 1000) break;
+      from += 1000;
+    }
+
+    if (!kirimAll.length) {
+      infoEl.textContent = `Gak ada order KIRIM di ${hari} hari terakhir.`;
+      return;
+    }
+
+    // Cek existing di all_orderan (dedup logic sama)
+    const hpList = [...new Set(kirimAll.map(r => normalizeHP(String(r.hp||''))).filter(Boolean))];
+    const hpListStripped = hpList.map(hp => hp.replace(/^0+/, ''));
+    const hpListAll = [...new Set([...hpList, ...hpListStripped])];
+    const existingAll = [];
+    for (let i = 0; i < hpListAll.length; i += 100) {
+      const batch = hpListAll.slice(i, i + 100);
+      let from2 = 0;
+      while (true) {
+        const { data: ex } = await sb.from('all_orderan')
+          .select('hp,tanggal').eq('sumber','validasi').in('hp', batch).range(from2, from2+999);
+        if (ex) existingAll.push(...ex);
+        if (!ex || ex.length < 1000) break;
+        from2 += 1000;
+      }
+    }
+    const existingSet = new Set(
+      existingAll.filter(r=>r.tanggal).map(r => normalizeHP(String(r.hp||'')) + '|' + normTglToYMD(r.tanggal))
+    );
+
+    orphanRows = kirimAll.filter(r => {
+      const hp = normalizeHP(String(r.hp||''));
+      const tgl = r.tanggal_order||r.tanggal||'';
+      if (!hp) return false;
+      if (!tgl) return true;
+      return !existingSet.has(hp + '|' + normTglToYMD(tgl));
+    });
+
+    infoEl.textContent = `${kirimAll.length} order KIRIM dicek, ${orphanRows.length} belum ada di All Orderan`;
+
+    const tbody = document.getElementById('orphan-tbody');
+    if (!orphanRows.length) {
+      document.getElementById('orphan-result').style.display = 'none';
+      showToast('✓ Semua order KIRIM udah ada di All Orderan', 'success');
+    } else {
+      tbody.innerHTML = orphanRows.map(r => `<tr>
+        <td style="font-family:monospace;font-size:11px">${r.tanggal_order||r.tanggal||'—'}</td>
+        <td>${r.nama||''}</td>
+        <td style="font-family:monospace;font-size:11px">${r.hp||''}</td>
+        <td style="font-size:11px">${r.team||'—'}</td>
+        <td style="font-family:monospace;font-size:10px;color:var(--muted)">${(r.created_at||'').slice(0,16).replace('T',' ')}</td>
+      </tr>`).join('');
+      document.getElementById('orphan-result').style.display = 'block';
+    }
+  } catch(e) {
+    showToast('Gagal cek: ' + e.message, 'error');
+  } finally {
+    badge.classList.remove('show');
+  }
+}
+
+async function kirimOrphanKeAllOrderan() {
+  if (!orphanRows.length) return;
+  if (!confirm(`Kirim ${orphanRows.length} order yang ketemu ke All Orderan?`)) return;
+
+  const btn = document.getElementById('btn-kirim-orphan');
+  const badge = document.getElementById('loading-kirim-orphan');
+  btn.disabled = true;
+  badge.classList.add('show');
+
+  try {
+    const { inserted, skipped } = await insertKirimRowsToAllOrderan(orphanRows);
+    showToast(`✓ ${inserted} orderan berhasil dikirim ke All Orderan${skipped?` (${skipped} udah ada)`:''}`, 'success');
+    orphanRows = [];
+    document.getElementById('orphan-result').style.display = 'none';
+    document.getElementById('orphan-info').textContent = '';
+  } catch(e) {
+    showToast('Gagal kirim: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    badge.classList.remove('show');
   }
 }
 
