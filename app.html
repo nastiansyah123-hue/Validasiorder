@@ -902,6 +902,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <button class="btn-secondary" onclick="exportDbCSV()">Export CSV</button>
         <button class="btn-secondary" onclick="exportDbXLSX()">Export XLSX</button>
         <button class="btn-secondary" onclick="exportDbKirim()" style="background:#16a34a;color:white;border-color:#16a34a">✅ Export KIRIM</button>
+        <button class="btn-secondary" id="btn-kirim-all-orderan" onclick="kirimDashboardKeAllOrderan()" style="background:#4f46e5;color:white;border-color:#4f46e5">📤 Kirim ke All Orderan</button>
         <span id="db-detail-count" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
       </div>
       <div class="table-wrap">
@@ -3842,6 +3843,82 @@ function exportDbKirim() {
   if (!kirimData.length) return showToast('Tidak ada data KIRIM', 'error');
   exportDbXLSX(kirimData, 'kirim');
   showToast(`Export ${kirimData.length} orderan KIRIM berhasil.`, 'success');
+}
+
+// ── RECOVERY: kirim ulang data KIRIM dari Dashboard (validasi_detail) ke all_orderan ────
+// Buat kasus data udah kesimpen di validasi_detail (Dashboard) tapi gagal/kelewat kesimpen
+// ke all_orderan (misal gara-gara bug lama). Sumber: validasi_detail via sesi_id "Simpan
+// ke Dashboard" — BUKAN dari data CS Input (_source==='cs_input'), itu punya jalur sendiri
+// (saveCsInputAcc() di menu CS Input). Rentang tanggal ngikut filter Dashboard yang aktif.
+async function kirimDashboardKeAllOrderan() {
+  const kirimRows = dbAllDetail.filter(r => r._source !== 'cs_input' && (r.acc_spv_cs||'').toUpperCase() === 'KIRIM');
+  if (!kirimRows.length) return showToast('Tidak ada data KIRIM (non-CS Input) di rentang tanggal ini', 'error');
+
+  if (!confirm(`Kirim ${kirimRows.length} orderan KIRIM ke All Orderan?\n\nHanya yang belum ada (dedup by HP+tanggal) yang akan disimpan.`)) return;
+
+  const btn = document.getElementById('btn-kirim-all-orderan');
+  btn.disabled = true;
+  btn.textContent = '⏳ Memproses...';
+
+  try {
+    const newRows = kirimRows.map(r => {
+      const hp = normalizeHP(String(r.hp||''));
+      return {
+        no: r.no||'', tanggal: r.tanggal||'', nama: r.nama||'', hp,
+        alamat: r.alamat||'', kelurahan: r.kelurahan||'', kecamatan: r.kecamatan||'',
+        kabupaten: r.kabupaten||'', provinsi: r.provinsi||'', kodepos: r.kodepos||'',
+        jumlah: r.jumlah||'', quantity: safeParseInt(r.quantity),
+        pembayaran: r.pembayaran||'', total_pembayaran: safeParseInt(r.total_pembayaran),
+        instruksi: r.instruksi||'', resi: r.resi||'', team: r.team||'',
+        update_crm: '', status_akhir: 'ON PROSES', retur: '0', sumber: 'validasi',
+        cs: r.cs||'', adv: r.adv||'', adm: r.adm||'', keluhan: r.keluhan||'',
+        created_at: nowWIB(),
+      };
+    });
+
+    // Dedup — sama persis pola saveValidasiDetail(): HP+tanggal, sumber='validasi'
+    const hpList = [...new Set(newRows.map(r => r.hp).filter(Boolean))];
+    const hpListStripped = hpList.map(hp => hp.replace(/^0+/, ''));
+    const hpListAll = [...new Set([...hpList, ...hpListStripped])];
+    const existingAll = [];
+    for (let i = 0; i < hpListAll.length; i += 100) {
+      const batch = hpListAll.slice(i, i + 100);
+      let from = 0;
+      while (true) {
+        const { data: ex } = await sb.from('all_orderan')
+          .select('hp,tanggal').eq('sumber','validasi').in('hp', batch).range(from, from+999);
+        if (ex) existingAll.push(...ex);
+        if (!ex || ex.length < 1000) break;
+        from += 1000;
+      }
+    }
+    const existingSet = new Set(
+      existingAll.filter(r=>r.tanggal).map(r => normalizeHP(String(r.hp||'')) + '|' + normTglToYMD(r.tanggal))
+    );
+    const seenInBatch = new Set();
+    const toInsert = newRows.filter(r => {
+      if (seenInBatch.has(r.hp)) return false;
+      seenInBatch.add(r.hp);
+      if (!r.tanggal) return true;
+      return !existingSet.has(r.hp + '|' + normTglToYMD(r.tanggal));
+    });
+
+    if (!toInsert.length) {
+      showToast('Semua data KIRIM di rentang ini udah ada di All Orderan', 'info');
+      return;
+    }
+
+    for (let i = 0; i < toInsert.length; i += 500) {
+      const { error } = await sb.from('all_orderan').insert(toInsert.slice(i, i+500));
+      if (error) throw error;
+    }
+    showToast(`✓ ${toInsert.length} orderan berhasil dikirim ke All Orderan (${kirimRows.length - toInsert.length} udah ada sebelumnya)`, 'success');
+  } catch(e) {
+    showToast('Gagal kirim ke All Orderan: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Kirim ke All Orderan';
+  }
 }
 
 // Parse angka dari cell Excel dengan aman — kalau cell-nya ternyata kebaca sebagai tanggal
