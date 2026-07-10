@@ -1258,6 +1258,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       </select>
       <button class="btn-primary" id="btn-csi-ambil" onclick="loadCsInputOrders()">🔍 Ambil Data</button>
       <button class="btn-secondary" id="btn-csi-ongkir" onclick="cekOngkirBatchCsInput()" style="display:none">🚚 Cek Ongkir</button>
+      <button class="btn-secondary" id="btn-csi-download" onclick="exportCsiXLSX()" style="display:none">⬇ Download Excel</button>
       <span class="loading-badge" id="loading-csi">memuat...</span>
       <span id="csi-new-badge" onclick="loadCsInputOrders()" style="display:none;cursor:pointer;background:#fef3c7;color:#d97706;font-size:12px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid #d97706;animation:pulse 2s infinite"></span>
       <span class="spacer"></span>
@@ -4332,6 +4333,54 @@ function filterCsiByCard(type) {
   });
 }
 
+function exportCsiXLSX() {
+  const rows = getCsiVisibleRows();
+  if (!rows.length) { showToast('Tidak ada data untuk didownload.', 'error'); return; }
+  const accOf = r => r._accSpv || r.acc_spv || '';
+  const notedOf = r => r._noted !== undefined ? r._noted : (r.noted || '');
+  const exportRows = rows.map((r, i) => ({
+    'No'                 : i + 1,
+    'Waktu'              : new Date(r.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+    'Tanggal'            : r.tanggal || '',
+    'Nama Customer'      : r.nama || '',
+    'No HP'              : r.hp || '',
+    'Alamat'             : r.alamat || '',
+    'Kelurahan'          : r.kelurahan || '',
+    'Kecamatan'          : r.kecamatan || '',
+    'Kabupaten'          : r.kabupaten || '',
+    'Provinsi'           : r.provinsi || '',
+    'Kode Pos'           : r.kodepos || '',
+    'Jumlah Pesanan'     : r.jumlah_pesanan || '',
+    'Qty'                : r.quantity || '',
+    'Pembayaran'         : r.pembayaran || '',
+    'Total Pembayaran'   : r.total_pembayaran || '',
+    'Instruksi'          : r.instruksi_pengiriman || '',
+    'Keterangan'         : r.keterangan || '',
+    'Rincian Pembayaran' : r.rincian_pembayaran || '',
+    'Keluhan'            : r.keluhan || '',
+    'CS'                 : r.cs_nama || '',
+    'Duplikat Team'      : r.is_dup_today ? 'DUPLIKAT TEAM' : '',
+    'Duplikat All Team'  : r.is_dup_all ? 'DUPLIKAT ALL TEAM' : '',
+    'RTS/Retur'          : r.is_rts ? (Array.isArray(r.rts_detail) && r.rts_detail.length ? r.rts_detail.map(x=>x.resi||'').join(', ') : 'RTS') : '',
+    'Wilayah Rawan'      : r.is_wilayah_rawan ? 'RAWAN' : '',
+    'Real Ongkir'        : r._realOngkir ? 'Rp' + Number(r._realOngkir).toLocaleString('id-ID') : '',
+    'ACC SPV'            : accOf(r),
+    'Noted'              : notedOf(r),
+  }));
+  const ws = XLSX.utils.json_to_sheet(exportRows);
+  // Bold header
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c: C });
+    if (ws[addr]) ws[addr].s = { font: { bold: true }, fill: { fgColor: { rgb: 'E6F1FB' } } };
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'CS Input');
+  const tanggal = document.getElementById('csi-tanggal')?.value || today();
+  XLSX.writeFile(wb, `csinput_${tanggal.replace(/-/g,'')}.xlsx`);
+  showToast(`Download selesai — ${rows.length} order.`, 'success');
+}
+
 function updateCsiNewBadge() {
   const badge = document.getElementById('csi-new-badge');
   if (!badge) return;
@@ -4440,6 +4489,7 @@ async function loadCsInputOrders() {
     document.getElementById('csi-table-wrap').style.display = 'block';
     document.getElementById('csi-info').textContent = `${csInputRows.length} order`;
     document.getElementById('btn-csi-ongkir').style.display = 'inline-flex';
+    document.getElementById('btn-csi-download').style.display = 'inline-flex';
 
   } catch(e) {
     statusEl.textContent = '✗ Gagal: ' + e.message;
