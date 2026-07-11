@@ -1307,6 +1307,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       <button class="btn-secondary" onclick="bulkSetAccCsi('KIRIM')" style="font-size:12px;background:#dcfce7;color:#16a34a;border-color:#16a34a">✅ Kirim</button>
       <button class="btn-secondary" onclick="bulkSetAccCsi('HOLD')" style="font-size:12px;background:#fef3c7;color:#d97706;border-color:#d97706">⏸ Hold</button>
       <button class="btn-secondary" onclick="bulkSetAccCsi('CANCEL')" style="font-size:12px;background:#fee2e2;color:#dc2626;border-color:#dc2626">❌ Cancel</button>
+      <button class="btn-secondary" onclick="bulkDeleteCsi()" style="font-size:12px;background:#fee2e2;color:#dc2626;border-color:#dc2626">🗑️ Hapus Terpilih</button>
       <button class="btn-secondary" onclick="clearCsiSelection()" style="font-size:12px">Batal Pilih</button>
     </div>
 
@@ -1342,10 +1343,11 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
               <th data-label="RTS/Retur">RTS/Retur</th>
               <th style="min-width:140px">ACC SPV</th>
               <th style="min-width:180px">Noted</th>
+              <th style="width:40px">Aksi</th>
             </tr>
           </thead>
           <tbody id="csi-tbody">
-            <tr><td colspan="26" class="empty-state">Belum ada data</td></tr>
+            <tr><td colspan="27" class="empty-state">Belum ada data</td></tr>
           </tbody>
         </table>
       </div>
@@ -4581,19 +4583,19 @@ function renderCsInputTable(rows) {
       <td style="text-align:center"><input type="checkbox" class="csi-row-chk" data-id="${r.id}" onchange="onCsiRowCheck(this)" ${r._selected?'checked':''} style="cursor:pointer;width:14px;height:14px"></td>
       <td style="font-family:monospace;font-size:11px;color:var(--muted)">${i+1}</td>
       <td style="font-family:monospace;font-size:12px">${waktu}</td>
-      <td style="font-weight:600">${r.nama||'—'}</td>
-      <td style="font-family:monospace;font-size:12px">${r.hp||'—'}</td>
-      <td style="font-size:11px;max-width:180px" title="${alamatFull.replace(/"/g,'&quot;')}">${alamatFull||'—'}</td>
-      <td style="font-size:11px">${r.kecamatan||'—'}</td>
-      <td style="font-size:11px;font-family:monospace">${r.kodepos||'—'}</td>
-      <td style="font-size:12px">${r.jumlah_pesanan||'—'}</td>
-      <td style="font-size:12px">${r.quantity||'—'}</td>
-      <td style="font-size:12px">${r.pembayaran||'—'}</td>
-      <td style="font-size:12px">${r.total_pembayaran ? 'Rp'+Number(r.total_pembayaran).toLocaleString('id-ID') : '—'}</td>
-      <td style="font-size:11px;max-width:160px" title="${(r.instruksi_pengiriman||'').replace(/"/g,'&quot;')}">${r.instruksi_pengiriman||'—'}</td>
-      <td style="font-size:11px;max-width:140px" title="${(r.keterangan||'').replace(/"/g,'&quot;')}">${r.keterangan||'—'}</td>
-      <td style="font-size:11px;max-width:140px" title="${(r.rincian_pembayaran||'').replace(/"/g,'&quot;')}">${r.rincian_pembayaran||'—'}</td>
-      <td style="font-size:11px;max-width:140px" title="${(r.keluhan||'').replace(/"/g,'&quot;')}">${r.keluhan||'—'}</td>
+      <td style="font-weight:600;cursor:pointer" ondblclick="editCsiCell(this,'nama','${r.id}')" title="Double-klik untuk edit">${r.nama||'—'}</td>
+      <td style="font-family:monospace;font-size:12px;cursor:pointer" ondblclick="editCsiCell(this,'hp','${r.id}')" title="Double-klik untuk edit">${r.hp||'—'}</td>
+      <td style="font-size:11px;max-width:180px;cursor:pointer" ondblclick="editCsiCell(this,'alamat','${r.id}')" title="${alamatFull.replace(/"/g,'&quot;')} — double-klik untuk edit">${alamatFull||'—'}</td>
+      <td style="font-size:11px;cursor:pointer" ondblclick="editCsiCell(this,'kecamatan','${r.id}')" title="Double-klik untuk edit">${r.kecamatan||'—'}</td>
+      <td style="font-size:11px;font-family:monospace;cursor:pointer" ondblclick="editCsiCell(this,'kodepos','${r.id}')" title="Double-klik untuk edit">${r.kodepos||'—'}</td>
+      <td style="font-size:12px;cursor:pointer" ondblclick="editCsiCell(this,'jumlah_pesanan','${r.id}')" title="Double-klik untuk edit">${r.jumlah_pesanan||'—'}</td>
+      <td style="font-size:12px;cursor:pointer" ondblclick="editCsiCell(this,'quantity','${r.id}')" title="Double-klik untuk edit">${r.quantity||'—'}</td>
+      <td style="font-size:12px;cursor:pointer" ondblclick="editCsiCell(this,'pembayaran','${r.id}')" title="Double-klik untuk edit">${r.pembayaran||'—'}</td>
+      <td style="font-size:12px;cursor:pointer" ondblclick="editCsiCell(this,'total_pembayaran','${r.id}')" title="Double-klik untuk edit">${r.total_pembayaran ? 'Rp'+Number(r.total_pembayaran).toLocaleString('id-ID') : '—'}</td>
+      <td style="font-size:11px;max-width:160px;cursor:pointer" ondblclick="editCsiCell(this,'instruksi_pengiriman','${r.id}')" title="${(r.instruksi_pengiriman||'').replace(/"/g,'&quot;')} — double-klik untuk edit">${r.instruksi_pengiriman||'—'}</td>
+      <td style="font-size:11px;max-width:140px;cursor:pointer" ondblclick="editCsiCell(this,'keterangan','${r.id}')" title="${(r.keterangan||'').replace(/"/g,'&quot;')} — double-klik untuk edit">${r.keterangan||'—'}</td>
+      <td style="font-size:11px;max-width:140px;cursor:pointer" ondblclick="editCsiCell(this,'rincian_pembayaran','${r.id}')" title="${(r.rincian_pembayaran||'').replace(/"/g,'&quot;')} — double-klik untuk edit">${r.rincian_pembayaran||'—'}</td>
+      <td style="font-size:11px;max-width:140px;cursor:pointer" ondblclick="editCsiCell(this,'keluhan','${r.id}')" title="${(r.keluhan||'').replace(/"/g,'&quot;')} — double-klik untuk edit">${r.keluhan||'—'}</td>
       <td>${eksHtml}</td>
       <td>${wilHtml}</td>
       <td>${ongkirHtml}</td>
@@ -4618,8 +4620,122 @@ function renderCsInputTable(rows) {
           oninput="onCsiNotedChange(this)"
           style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:monospace;width:150px">
       </td>
+      <td style="text-align:center">
+        <button onclick="deleteCsiRow('${r.id}')" title="Hapus order ini"
+          style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px" onmouseover="this.style.background='var(--danger-light)'" onmouseout="this.style.background='none'">🗑️</button>
+      </td>
     </tr>`;
   }).join('');
+}
+
+// ── EDIT INLINE (double-klik cell) ──────────────────────────────────────────
+const CSI_NUMERIC_FIELDS = ['jumlah_pesanan','quantity','total_pembayaran'];
+
+function editCsiCell(td, col, id) {
+  if (td.querySelector('input')) return; // sudah dalam mode edit
+  const row = csInputRows.find(r => r.id === id);
+  if (!row) return;
+  const oldVal = row[col] != null ? String(row[col]) : '';
+  const inputType = CSI_NUMERIC_FIELDS.includes(col) ? 'number' : 'text';
+  const oldValEsc = oldVal.replace(/"/g,'&quot;');
+  td.innerHTML = `<input type="${inputType}" value="${oldValEsc}"
+    style="width:100%;padding:3px 6px;border:1px solid var(--accent);border-radius:4px;font-size:11px;background:var(--bg);color:var(--text)"
+    onblur="saveCsiCell(this,'${col}','${id}')"
+    onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=this.defaultValue;this.blur();}" />`;
+  td.querySelector('input').select();
+}
+
+async function saveCsiCell(input, col, id) {
+  const td  = input.parentElement;
+  const row = csInputRows.find(r => r.id === id);
+  if (!row) return;
+
+  let newVal = input.value.trim();
+  let dbVal;
+  if (CSI_NUMERIC_FIELDS.includes(col)) {
+    dbVal  = safeParseInt(newVal);
+    newVal = dbVal != null ? dbVal : '';
+  } else {
+    dbVal = newVal || null;
+  }
+  row[col] = newVal;
+
+  // Render ulang tampilan cell sesuai kolomnya
+  if (col === 'alamat') {
+    const alamatFull = [row.alamat, row.kelurahan, row.kabupaten, row.provinsi].filter(Boolean).join(', ');
+    td.textContent = alamatFull || '—';
+    td.title = alamatFull;
+  } else if (col === 'total_pembayaran') {
+    td.textContent = newVal ? 'Rp'+Number(newVal).toLocaleString('id-ID') : '—';
+  } else {
+    td.textContent = newVal || '—';
+    if (['instruksi_pengiriman','keterangan','rincian_pembayaran','keluhan'].includes(col)) td.title = newVal;
+  }
+
+  try {
+    const upd = {}; upd[col] = dbVal;
+    const { error } = await sb.from('orderan_masuk').update(upd).eq('id', id);
+    if (error) throw error;
+    td.style.background = 'var(--success-light)';
+    setTimeout(() => td.style.background = '', 1000);
+  } catch(e) {
+    showToast('Gagal simpan: '+e.message, 'error');
+    td.style.background = 'var(--danger-light)';
+    setTimeout(() => td.style.background = '', 1500);
+  }
+}
+
+// ── HAPUS BARIS ──────────────────────────────────────────────────────────────
+async function deleteCsiRow(id) {
+  const row = csInputRows.find(r => r.id === id);
+  if (!row) return;
+  const accVal = (row._accSpv || row.acc_spv || '').toUpperCase();
+  let msg = `Hapus order dari ${row.nama||'—'} (${row.hp||'—'})?`;
+  if (accVal === 'KIRIM') {
+    msg += '\n\n⚠ Order ini sudah berstatus KIRIM (kemungkinan sudah tersimpan di All Orderan). Menghapus di sini TIDAK otomatis menghapus datanya di All Orderan/tracking resi.';
+  }
+  if (!confirm(msg)) return;
+
+  try {
+    const { error } = await sb.from('orderan_masuk').delete().eq('id', id);
+    if (error) throw error;
+    csInputRows = csInputRows.filter(r => r.id !== id);
+    updateCsiSummary();
+    renderCsInputTable(getCsiVisibleRows());
+    updateCsiSaveInfo();
+    document.getElementById('csi-info').textContent = `${csInputRows.length} order`;
+    showToast('✓ Order dihapus', 'success');
+  } catch(e) {
+    showToast('Gagal hapus: ' + e.message, 'error');
+  }
+}
+
+async function bulkDeleteCsi() {
+  const selected = csInputRows.filter(r => r._selected);
+  if (!selected.length) return;
+  const kirimCount = selected.filter(r => (r._accSpv||r.acc_spv||'').toUpperCase()==='KIRIM').length;
+  let msg = `Hapus ${selected.length} order terpilih?`;
+  if (kirimCount) msg += `\n\n⚠ ${kirimCount} di antaranya sudah berstatus KIRIM. Menghapus di sini TIDAK otomatis menghapus datanya di All Orderan/tracking resi.`;
+  if (!confirm(msg)) return;
+
+  try {
+    const ids = selected.map(r => r.id);
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const { error } = await sb.from('orderan_masuk').delete().in('id', batch);
+      if (error) throw error;
+    }
+    const idSet = new Set(ids);
+    csInputRows = csInputRows.filter(r => !idSet.has(r.id));
+    updateCsiSummary();
+    renderCsInputTable(getCsiVisibleRows());
+    updateCsiSaveInfo();
+    updateCsiBulkBar();
+    document.getElementById('csi-info').textContent = `${csInputRows.length} order`;
+    showToast(`✓ ${selected.length} order dihapus`, 'success');
+  } catch(e) {
+    showToast('Gagal hapus: ' + e.message, 'error');
+  }
 }
 
 function showSsChat(urls) {
