@@ -4890,11 +4890,7 @@ async function saveCsInputAcc() {
       badge.textContent = `cek duplikat all_orderan...`;
 
       // Dedup: cek HP + tanggal yang sudah ada
-      const hpList = [...new Set(kirimRows.map(r => {
-        let hp = (r.hp||'').replace(/\D/g,'');
-        if (hp.startsWith('0')) hp = hp.slice(1);
-        return hp;
-      }))];
+      const hpList = [...new Set(kirimRows.map(r => normalizeHP(r.hp)))];
       const { data: existing } = await sb.from('all_orderan')
         .select('hp,tanggal')
         .eq('sumber','cs_input')
@@ -4904,14 +4900,12 @@ async function saveCsInputAcc() {
 
       const newRows = kirimRows
         .filter(r => {
-          let hp = (r.hp||'').replace(/\D/g,'');
-          if (hp.startsWith('0')) hp = hp.slice(1);
+          const hp = normalizeHP(r.hp);
           const key = hp + '|' + (r.tanggal||'').slice(0,10);
           return !existingSet.has(key);
         })
         .map(r => {
-          let hp = (r.hp||'').replace(/\D/g,'');
-          if (hp.startsWith('0')) hp = hp.slice(1);
+          const hp = normalizeHP(r.hp);
           return {
             no          : r.no || '',
             tanggal     : r.tanggal || '',
