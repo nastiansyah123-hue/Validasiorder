@@ -3525,6 +3525,10 @@ async function loadDashboard() {
         if (hasDup && hasRts) statusVal = 'DUPLIKAT+RTS';
         else if (hasDup)      statusVal = 'DUPLIKAT';
         else if (hasRts)      statusVal = 'RTS';
+        // Syarat wajib SS sama kayak ssNeeds() di csorder-main: dup_all/rts/wilayah_rawan/grade jelek
+        const dbGrade = r.receiver_score?.grade;
+        const dbBadGrade = !dbGrade || dbGrade === 'D';
+        const needSS = !!(r.is_dup_all || r.is_rts || r.is_wilayah_rawan || dbBadGrade);
         return {
           _source      : 'cs_input',
           sesi_id      : 'cs_input_' + (r.tanggal||'').slice(0,10) + '_' + (r.cs_nama||'CS'),
@@ -3551,6 +3555,7 @@ async function loadDashboard() {
           acc_spv_cs   : r.acc_spv || '',
           ss_chat      : Array.isArray(r.ss_urls) && r.ss_urls.length > 0,
           ss_urls      : Array.isArray(r.ss_urls) ? r.ss_urls : [],
+          needSS       : needSS,
           noted        : r.noted || '',
           team         : 'Akuisisi',
           created_at   : r.created_at,
@@ -3706,7 +3711,7 @@ function renderDbTable() {
         <td style="font-size:11px">${r.wilayah_rawan||''}</td>
         <td style="font-size:11px">${r._source==='cs_input'?(r.noted||''):(r.rek_ekspedisi||'')}</td>
         <td style="font-family:monospace;font-size:11px;color:${accClr}">${r.acc_spv_cs||''}</td>
-        <td style="text-align:center">${(r.ss_urls&&r.ss_urls.length) ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(r.ss_urls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 ${r.ss_urls.length}</a>` : ((r.duplikat_all||r.pernah_rts) ? '<span style="color:var(--muted);font-size:11px">belum ada SS</span>' : '<span style="color:var(--muted);font-size:11px">—</span>')}</td>
+        <td style="text-align:center">${(r.ss_urls&&r.ss_urls.length) ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(r.ss_urls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 ${r.ss_urls.length}</a>` : ((r.needSS!==undefined ? r.needSS : (r.duplikat_all||r.pernah_rts)) ? '<span style="color:var(--muted);font-size:11px">belum ada SS</span>' : '<span style="color:var(--muted);font-size:11px">—</span>')}</td>
       </tr>`;
     }).join('');
   }
@@ -4453,7 +4458,7 @@ async function loadCsInputOrders() {
 
   try {
     let query = sb.from('orderan_masuk')
-      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, quantity, pembayaran, total_pembayaran, instruksi_pengiriman, keterangan, rincian_pembayaran, keluhan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan, is_eks_wrong, eks_detail, kp_stat, ss_urls, dup_detail, rts_detail')
+      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, quantity, pembayaran, total_pembayaran, instruksi_pengiriman, keterangan, rincian_pembayaran, keluhan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan, is_eks_wrong, eks_detail, kp_stat, ss_urls, dup_detail, rts_detail, receiver_score')
       .eq('tanggal', tanggal)
       .order('created_at', { ascending: true });
 
@@ -4572,9 +4577,13 @@ function renderCsInputTable(rows) {
     // Real Ongkir — diisi live lewat tombol "Cek Ongkir" (client-side, gak persisted)
     const ongkirHtml = `<span class="csi-ongkir-cell" data-id="${r.id}" style="font-size:12px;${r._realOngkir?'color:var(--success)':'color:var(--muted)'}">${r._realOngkir ? 'Rp'+Number(r._realOngkir).toLocaleString('id-ID') : '—'}</span>`;
 
-    // SS Chat — ss_urls jsonb array bukti screenshot chat customer (cuma wajib buat order DUP ALL/RTS)
+    // SS Chat — ss_urls jsonb array bukti screenshot chat customer.
+    // Syarat wajib SS SAMA PERSIS kayak ssNeeds() di csorder-main (js/app.js) — dup_all/rts/
+    // wilayah_rawan/grade jelek (grade kosong ATAU 'D' dianggap jelek juga, csorder cuma A-D).
     const ssUrls = Array.isArray(r.ss_urls) ? r.ss_urls : [];
-    const needSS = r.is_dup_all || r.is_rts;
+    const csiGrade = r.receiver_score?.grade;
+    const csiBadGrade = !csiGrade || csiGrade === 'D';
+    const needSS = r.is_dup_all || r.is_rts || r.is_wilayah_rawan || csiBadGrade;
     const ssHtml = ssUrls.length
       ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(ssUrls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 Lihat (${ssUrls.length})</a>`
       : (needSS ? '<span style="color:var(--muted);font-size:11px">belum ada SS</span>' : '<span style="color:var(--muted);font-size:11px">—</span>');
