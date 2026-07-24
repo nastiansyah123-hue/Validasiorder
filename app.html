@@ -343,6 +343,9 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     <div class="nav-item" id="nav-csinput" onclick="switchPage('csinput')">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> CS Input
     </div>
+    <div class="nav-item" id="nav-crminput" onclick="switchPage('crminput')">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg></span> CRM Input
+    </div>
     <div class="nav-section">Info</div>
     <div class="nav-item" id="nav-statistik" onclick="switchPage('statistik')">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg></span> Statistik Wilayah
@@ -1254,6 +1257,68 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
     </div>
   </div>
 
+  <!-- PAGE: CRM INPUT -->
+  <div class="page" id="page-crminput">
+    <div class="page-header">
+      <div class="page-title">CRM Input</div>
+      <div class="page-sub">Validasi orderan yang diinput CRM Agent — ACC untuk kirim ke all_orderan</div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="action-bar" style="margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+      <select id="crmi-status-filter" class="filter-select" onchange="loadCrmInput()">
+        <option value="Menunggu Validasi">Menunggu Validasi</option>
+        <option value="">Semua Status</option>
+        <option value="ACC">ACC</option>
+        <option value="HOLD">HOLD</option>
+        <option value="CANCEL">CANCEL</option>
+      </select>
+      <input type="date" id="crmi-tanggal" class="filter-select" style="width:150px">
+      <button class="btn-primary" onclick="loadCrmInput()">🔍 Ambil Data</button>
+      <button class="btn-secondary" id="btn-crmi-acc-all" style="display:none" onclick="crmiAccAll()">✅ ACC Semua Tercentang</button>
+      <span class="loading-badge" id="loading-crmi">memuat...</span>
+      <span class="spacer"></span>
+      <span id="crmi-info" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="summary-grid" id="crmi-summary" style="display:none;grid-template-columns:repeat(5,minmax(120px,1fr));margin-bottom:1rem">
+      <div class="sum-card c-total"><div class="s-label">Total</div><div class="s-value" id="crmi-s-total">—</div></div>
+      <div class="sum-card c-aman"><div class="s-label">ACC</div><div class="s-value" id="crmi-s-acc" style="color:var(--success)">—</div></div>
+      <div class="sum-card"><div class="s-label">HOLD</div><div class="s-value" id="crmi-s-hold" style="color:var(--warn)">—</div></div>
+      <div class="sum-card"><div class="s-label">CANCEL</div><div class="s-value" id="crmi-s-cancel" style="color:var(--danger)">—</div></div>
+      <div class="sum-card"><div class="s-label">Menunggu</div><div class="s-value" id="crmi-s-menunggu" style="color:var(--muted)">—</div></div>
+    </div>
+
+    <div id="crmi-status-msg" class="drop-status" style="display:none;margin-bottom:10px"></div>
+
+    <div id="crmi-table-wrap" style="display:none">
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="crmi-check-all" onchange="crmiToggleAll(this)"></th>
+                <th>Tgl</th>
+                <th>CRM Agent</th>
+                <th>Nama</th>
+                <th>No HP</th>
+                <th>Produk</th>
+                <th>Qty</th>
+                <th>Total</th>
+                <th>Pembayaran</th>
+                <th>Kabupaten</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="crmi-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- PAGE: CS INPUT -->
   <div class="page" id="page-csinput">
     <div class="page-header">
@@ -1698,7 +1763,7 @@ function switchPage(name) {
   }
   // Save current page
   sessionStorage.setItem('vo_current_page', name);
-  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan','updateResi','csinput','validasidetail'].forEach(t => {
+  ['harian','master','statistik','cekHP','cekKodepos','dashboard','cekOngkir','allorderan','panduan','updateResi','csinput','validasidetail','crminput'].forEach(t => {
     const pg = document.getElementById('page-'+t);
     if (pg) pg.classList.toggle('active', t===name);
     const nav = document.getElementById('nav-'+t);
@@ -1713,7 +1778,8 @@ function switchPage(name) {
   if (name === 'dashboard') initDashboard();
   if (name === 'csinput') initCsInputPage();
   if (name === 'validasidetail') initValidasiDetailPage();
-  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan', updateResi:'Update Resi', csinput:'CS Input', validasidetail:'Validasi Detail'};
+  if (name === 'crminput') initCrmInputPage();
+  const titles = {harian:'Validasi Harian', master:'Data Master', statistik:'Statistik Wilayah', cekHP:'Cek Nomor HP', cekKodepos:'Cek Kode Pos', dashboard:'Dashboard', cekOngkir:'Cek Ongkir', allorderan:'All Orderan', panduan:'Panduan', updateResi:'Update Resi', csinput:'CS Input', validasidetail:'Validasi Detail', crminput:'CRM Input'};
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = titles[name] || '';
 }
@@ -7991,6 +8057,239 @@ function downloadGagalResi() {
   ];
   const blob = new Blob(['﻿'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
   triggerDownload(blob, `gagal_update_resi_${today()}.csv`);
+}
+
+// ════════════════════════════════════════════════════════════════
+// CRM INPUT — Validasi order dari CRM Agent
+// ════════════════════════════════════════════════════════════════
+
+let sbApp = null;
+let crmiRows = [];
+let crmiChecked = new Set();
+
+async function initSbApp() {
+  if (sbApp) return sbApp;
+  try {
+    const res = await fetch('/api/config-crm');
+    const cfg = await res.json();
+    sbApp = supabase.createClient(cfg.APP_SUPABASE_URL, cfg.APP_SUPABASE_KEY);
+  } catch(e) {
+    console.error('[CRM] gagal init sbApp:', e);
+  }
+  return sbApp;
+}
+
+async function initCrmInputPage() {
+  await initSbApp();
+  const tglEl = document.getElementById('crmi-tanggal');
+  if (tglEl && !tglEl.value) {
+    tglEl.value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+  }
+  await loadCrmInput();
+}
+
+async function loadCrmInput() {
+  if (!sbApp) await initSbApp();
+  if (!sbApp) { showToast('Gagal koneksi ke CRM database', 'error'); return; }
+
+  const badge    = document.getElementById('loading-crmi');
+  const infoEl   = document.getElementById('crmi-info');
+  const statusEl = document.getElementById('crmi-status-msg');
+  badge.classList.add('show');
+  statusEl.style.display = 'none';
+  document.getElementById('crmi-table-wrap').style.display = 'none';
+  document.getElementById('crmi-summary').style.display = 'none';
+  crmiChecked.clear();
+
+  try {
+    const filterStatus  = document.getElementById('crmi-status-filter')?.value || '';
+    const filterTanggal = document.getElementById('crmi-tanggal')?.value || '';
+
+    let query = sbApp.from('crm_orderan').select('*').order('created_at', { ascending: false });
+    if (filterStatus)  query = query.eq('status', filterStatus);
+    if (filterTanggal) query = query.eq('tanggal', filterTanggal);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    crmiRows = data || [];
+
+    if (!crmiRows.length) {
+      statusEl.textContent = 'Tidak ada order CRM ditemukan.';
+      statusEl.className = 'drop-status err';
+      statusEl.style.display = 'block';
+      infoEl.textContent = '';
+      return;
+    }
+
+    const cnt = s => crmiRows.filter(r => r.status === s).length;
+    document.getElementById('crmi-s-total').textContent    = crmiRows.length;
+    document.getElementById('crmi-s-acc').textContent      = cnt('ACC');
+    document.getElementById('crmi-s-hold').textContent     = cnt('HOLD');
+    document.getElementById('crmi-s-cancel').textContent   = cnt('CANCEL');
+    document.getElementById('crmi-s-menunggu').textContent = cnt('Menunggu Validasi');
+    document.getElementById('crmi-summary').style.display  = 'grid';
+
+    infoEl.textContent = `${crmiRows.length} order`;
+    renderCrmInputTable();
+    document.getElementById('crmi-table-wrap').style.display = 'block';
+
+    const hasMenunggu = crmiRows.some(r => r.status === 'Menunggu Validasi');
+    document.getElementById('btn-crmi-acc-all').style.display = hasMenunggu ? '' : 'none';
+  } catch(e) {
+    showToast('Gagal memuat CRM order: ' + e.message, 'error');
+  } finally {
+    badge.classList.remove('show');
+  }
+}
+
+function renderCrmInputTable() {
+  const tbody = document.getElementById('crmi-tbody');
+  if (!crmiRows.length) {
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--muted)">Tidak ada data</td></tr>`;
+    return;
+  }
+
+  const statusBadge = s => {
+    const map = {
+      'Menunggu Validasi': 'background:#fef3c7;color:#92400e;',
+      'ACC':    'background:#d1fae5;color:#065f46;',
+      'HOLD':   'background:#fef3c7;color:#92400e;',
+      'CANCEL': 'background:#fee2e2;color:#991b1b;',
+    };
+    return `<span style="${map[s]||''}padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">${s}</span>`;
+  };
+
+  tbody.innerHTML = crmiRows.map(r => {
+    const isMenunggu = r.status === 'Menunggu Validasi';
+    const aksi = isMenunggu ? `
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button onclick="crmiAcc(${r.id})" style="padding:3px 10px;font-size:11px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">ACC</button>
+        <button onclick="crmiHold(${r.id})" style="padding:3px 10px;font-size:11px;background:#f59e0b;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">HOLD</button>
+        <button onclick="crmiCancel(${r.id})" style="padding:3px 10px;font-size:11px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">CANCEL</button>
+      </div>` : '—';
+
+    return `<tr>
+      <td><input type="checkbox" ${isMenunggu?'':'disabled'} onchange="crmiToggleCheck(${r.id},this)" ${crmiChecked.has(r.id)?'checked':''}></td>
+      <td style="white-space:nowrap;font-size:12px;">${r.tanggal||'—'}</td>
+      <td style="font-size:12px;">${r.crm_nama||'—'}</td>
+      <td>${r.nama||'—'}</td>
+      <td style="font-family:monospace;font-size:12px;">${r.no_hp||'—'}</td>
+      <td style="max-width:160px;font-size:12px;">${r.jumlah_pesanan||'—'}</td>
+      <td style="text-align:center;">${r.quantity||'—'}</td>
+      <td style="white-space:nowrap;font-size:12px;">Rp${Number(r.total_pembayaran||0).toLocaleString('id-ID')}</td>
+      <td style="font-size:12px;">${r.pembayaran||'—'}</td>
+      <td style="font-size:12px;">${r.kabupaten||'—'}</td>
+      <td>${statusBadge(r.status||'Menunggu Validasi')}</td>
+      <td>${aksi}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('crmi-check-all').checked = false;
+}
+
+function crmiToggleAll(cb) {
+  crmiChecked.clear();
+  if (cb.checked) crmiRows.filter(r => r.status === 'Menunggu Validasi').forEach(r => crmiChecked.add(r.id));
+  renderCrmInputTable();
+}
+
+function crmiToggleCheck(id, cb) {
+  if (cb.checked) crmiChecked.add(id); else crmiChecked.delete(id);
+}
+
+async function crmiAcc(id) {
+  const row = crmiRows.find(r => r.id === id);
+  if (!row) return;
+  if (!confirm(`ACC order dari ${row.nama} (${row.no_hp})?`)) return;
+  await crmiDoAcc([row]);
+}
+
+async function crmiAccAll() {
+  const toAcc = crmiRows.filter(r => crmiChecked.has(r.id) && r.status === 'Menunggu Validasi');
+  if (!toAcc.length) { showToast('Centang order dulu', 'warn'); return; }
+  if (!confirm(`ACC ${toAcc.length} order CRM sekaligus?`)) return;
+  await crmiDoAcc(toAcc);
+}
+
+async function crmiDoAcc(rows) {
+  const badge = document.getElementById('loading-crmi');
+  badge.classList.add('show');
+  try {
+    for (const r of rows) {
+      const hp  = normalizeHP(r.no_hp || '');
+      const hp8 = hp.replace(/^0/, '');
+      const tgl = r.tanggal || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+
+      // 1. Insert ke all_orderan (sbData)
+      const { error: aoErr } = await sb.from('all_orderan').insert({
+        no: '', tanggal: tgl,
+        nama: r.nama || '', hp: hp8,
+        alamat: r.alamat || '', kelurahan: r.kelurahan || '',
+        kecamatan: r.kecamatan || '', kabupaten: r.kabupaten || '',
+        provinsi: r.provinsi || '', kodepos: r.kodepos || '',
+        jumlah: r.jumlah_pesanan || '', quantity: r.quantity || null,
+        pembayaran: r.pembayaran || '', total_pembayaran: r.total_pembayaran || null,
+        instruksi: r.instruksi_pengiriman || '', resi: '',
+        team: 'CRM', cs: r.crm_nama || '', adv: '', adm: '',
+        keluhan: r.keluhan || '', update_crm: '',
+        status_akhir: 'ON PROSES', retur: '0', sumber: 'crm',
+        created_at: `${tgl}T12:00:00+07:00`,
+      });
+      if (aoErr) throw new Error(`Gagal insert all_orderan: ${aoErr.message}`);
+
+      // 2. Cari customer di crm_customers (sbApp) by HP
+      const { data: customers } = await sbApp
+        .from('crm_customers')
+        .select('id, repeat_orders')
+        .or(`no_hp.eq.${hp},no_hp.eq.${hp8}`)
+        .limit(1);
+
+      if (customers && customers.length > 0) {
+        const cust = customers[0];
+        const repeatCount = ((cust.repeat_orders || []).filter(x => x.status !== 'Gagal')).length;
+        // 3. Insert ke crm_repeats (sbApp)
+        const { error: repErr } = await sbApp.from('crm_repeats').insert({
+          customer_id:    cust.id,
+          no_repeat:      repeatCount + 1,
+          tgl:            tgl,
+          produk:         r.jumlah_pesanan || '',
+          qty:            r.quantity || null,
+          resi:           '',
+          ekspedisi:      '',
+          status:         'Menunggu Resi',
+          is_crosselling: false,
+        });
+        if (repErr) console.warn('[CRM] gagal insert crm_repeats:', repErr.message);
+      }
+
+      // 4. Update crm_orderan status = 'ACC' (sbApp)
+      await sbApp.from('crm_orderan').update({ status: 'ACC' }).eq('id', r.id);
+    }
+
+    showToast(`✅ ${rows.length} order berhasil di-ACC`, 'success');
+    await loadCrmInput();
+  } catch(e) {
+    showToast('Gagal ACC: ' + e.message, 'error');
+  } finally {
+    badge.classList.remove('show');
+  }
+}
+
+async function crmiHold(id) {
+  if (!confirm('HOLD order ini?')) return;
+  const { error } = await sbApp.from('crm_orderan').update({ status: 'HOLD' }).eq('id', id);
+  if (error) { showToast('Gagal HOLD: ' + error.message, 'error'); return; }
+  showToast('Order di-HOLD', 'warn');
+  await loadCrmInput();
+}
+
+async function crmiCancel(id) {
+  if (!confirm('CANCEL order ini? Order tidak akan dikirim.')) return;
+  const { error } = await sbApp.from('crm_orderan').update({ status: 'CANCEL' }).eq('id', id);
+  if (error) { showToast('Gagal CANCEL: ' + error.message, 'error'); return; }
+  showToast('Order di-CANCEL', 'error');
+  await loadCrmInput();
 }
 </script>
   <!-- Add/Edit Validator Modal -->
