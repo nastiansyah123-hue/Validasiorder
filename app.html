@@ -1266,14 +1266,17 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
 
     <!-- Filter bar -->
     <div class="action-bar" style="margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-      <select id="crmi-status-filter" class="filter-select" onchange="loadCrmInput()">
-        <option value="Menunggu Validasi">Menunggu Validasi</option>
+      <input type="date" id="crmi-tanggal" class="filter-select" style="width:150px" onchange="crmiRefreshAgentFilter()">
+      <select id="crmi-agent-filter" class="filter-select" style="min-width:160px">
+        <option value="">Semua CRM Agent</option>
+      </select>
+      <select id="crmi-status-filter" class="filter-select">
         <option value="">Semua Status</option>
+        <option value="Menunggu Validasi" selected>Menunggu Validasi</option>
         <option value="ACC">ACC</option>
         <option value="HOLD">HOLD</option>
         <option value="CANCEL">CANCEL</option>
       </select>
-      <input type="date" id="crmi-tanggal" class="filter-select" style="width:150px">
       <button class="btn-primary" onclick="loadCrmInput()">🔍 Ambil Data</button>
       <button class="btn-secondary" id="btn-crmi-acc-all" style="display:none" onclick="crmiAccAll()">✅ ACC Semua Tercentang</button>
       <span class="loading-badge" id="loading-crmi">memuat...</span>
@@ -8085,7 +8088,28 @@ async function initCrmInputPage() {
   if (tglEl && !tglEl.value) {
     tglEl.value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
   }
+  await crmiRefreshAgentFilter();
   await loadCrmInput();
+}
+
+async function crmiRefreshAgentFilter() {
+  if (!sbApp) await initSbApp();
+  if (!sbApp) return;
+  const tanggal = document.getElementById('crmi-tanggal')?.value;
+  const sel = document.getElementById('crmi-agent-filter');
+  if (!sel) return;
+  const prevVal = sel.value;
+  try {
+    let query = sbApp.from('crm_orderan').select('crm_id, crm_nama');
+    if (tanggal) query = query.eq('tanggal', tanggal);
+    const { data } = await query;
+    const seen = new Map();
+    (data||[]).forEach(r => { if (r.crm_id && !seen.has(r.crm_id)) seen.set(r.crm_id, r.crm_nama||'(tanpa nama)'); });
+    const sorted = [...seen.entries()].sort((a,b) => a[1].localeCompare(b[1]));
+    sel.innerHTML = '<option value="">Semua CRM Agent</option>' +
+      sorted.map(([id, nama]) => `<option value="${id}">${nama}</option>`).join('');
+    if ([...sel.options].some(o => o.value == prevVal)) sel.value = prevVal;
+  } catch(_) {}
 }
 
 async function loadCrmInput() {
@@ -8104,10 +8128,12 @@ async function loadCrmInput() {
   try {
     const filterStatus  = document.getElementById('crmi-status-filter')?.value || '';
     const filterTanggal = document.getElementById('crmi-tanggal')?.value || '';
+    const filterAgent   = document.getElementById('crmi-agent-filter')?.value || '';
 
     let query = sbApp.from('crm_orderan').select('*').order('created_at', { ascending: false });
     if (filterStatus)  query = query.eq('status', filterStatus);
     if (filterTanggal) query = query.eq('tanggal', filterTanggal);
+    if (filterAgent)   query = query.eq('crm_id', filterAgent);
 
     const { data, error } = await query;
     if (error) throw error;
