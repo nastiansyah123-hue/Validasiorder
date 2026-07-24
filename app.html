@@ -7806,7 +7806,7 @@ async function saveUpdateResi() {
     const BATCH = 500;
     for (let i = 0; i < hpListDB.length; i += BATCH) {
       const { data, error } = await sb.from('all_orderan')
-        .select('id,hp,resi,nama,created_at')
+        .select('id,hp,resi,nama,tanggal')
         .in('hp', hpListDB.slice(i, i + BATCH));
       if (error) throw error;
       if (data) allMatches.push(...data);
@@ -7851,8 +7851,8 @@ async function saveUpdateResi() {
           continue;
         }
         if (tglValidasi && emptyRecs.length > 1) {
-          // Prioritaskan yang created_at-nya sesuai tanggal validasi
-          const byDate = emptyRecs.filter(r => (r.created_at||'').slice(0,10) === tglValidasi);
+          // Prioritaskan yang tanggal-nya sesuai tanggal siklus
+          const byDate = emptyRecs.filter(r => (r.tanggal||'').slice(0,10) === tglValidasi);
           targets = byDate.length ? byDate : [emptyRecs.sort((a,b) => b.id - a.id)[0]];
         } else {
           // Fallback: ambil yang paling baru
