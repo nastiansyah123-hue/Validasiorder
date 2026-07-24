@@ -3705,7 +3705,7 @@ function renderDbTable() {
         <td style="font-family:monospace;font-size:12px;font-weight:600">${r.ekspedisi||''}</td>
         <td style="font-family:monospace;font-size:11px">${r.resi||''}</td>
         <td style="font-family:monospace;font-size:12px">${r.grade||''}</td>
-        <td style="font-weight:600;font-size:11px;color:${statusColor(r.status_validasi)}">${r.status_validasi||''}</td>
+        <td style="font-weight:600;font-size:11px;color:${statusColor(r.status_validasi)}">${r.status_validasi||''}${r.duplikat_all && r.iklan_verified === false ? '<br><span style="font-size:9px;background:#fee2e2;color:#dc2626;padding:1px 5px;border-radius:4px;font-weight:600;white-space:nowrap">⛔ Tidak ada klik iklan 7 hari</span>' : ''}${r.duplikat_all && r.iklan_verified === true ? '<br><span style="font-size:9px;background:#dcfce7;color:#16a34a;padding:1px 5px;border-radius:4px;font-weight:600;white-space:nowrap">✅ Klik iklan terverifikasi</span>' : ''}</td>
         <td style="font-size:11px;color:var(--warn)">${r.rts_reason||''}</td>
         <td style="text-align:center;font-family:monospace">${r.rts_count||0}</td>
         <td style="font-size:11px">${r.wilayah_rawan||''}</td>
@@ -4458,7 +4458,7 @@ async function loadCsInputOrders() {
 
   try {
     let query = sb.from('orderan_masuk')
-      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, quantity, pembayaran, total_pembayaran, instruksi_pengiriman, keterangan, rincian_pembayaran, keluhan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan, is_eks_wrong, eks_detail, kp_stat, ss_urls, dup_detail, rts_detail, receiver_score')
+      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, quantity, pembayaran, total_pembayaran, instruksi_pengiriman, keterangan, rincian_pembayaran, keluhan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan, is_eks_wrong, eks_detail, kp_stat, ss_urls, dup_detail, rts_detail, receiver_score, iklan_verified')
       .eq('tanggal', tanggal)
       .order('created_at', { ascending: true });
 
