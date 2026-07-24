@@ -1216,6 +1216,28 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       </div>
     </div>
 
+    <!-- Card 2: Update Resi CRM -->
+    <div class="card" style="max-width:600px;margin-top:1.5rem">
+      <div class="card-title">Upload File Resi CRM</div>
+      <div class="card-desc" style="margin-bottom:1rem">File CSV/XLSX dengan kolom <b>HP</b> dan <b>Resi</b>. Resi akan disimpan ke <b>all_orderan</b> (team CRM) dan <b>crm_repeats</b> sekaligus.</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+        <label style="font-size:12px;font-weight:600;color:var(--muted)">Tanggal Order CRM <span style="font-weight:400;color:var(--muted)">(opsional — untuk repeat yang beli berkali-kali)</span></label>
+        <input type="date" id="urc-tanggal" class="filter-select" style="width:160px" />
+        <button class="btn-secondary" style="font-size:11px" onclick="document.getElementById('urc-tanggal').value=new Date(Date.now()+7*3600000).toISOString().slice(0,10)">Hari Ini</button>
+      </div>
+      <div class="drop-zone" id="dz-update-resi-crm">
+        <input type="file" id="file-update-resi-crm" accept=".csv,.xlsx,.xls" />
+        <div class="drop-zone-icon">📂</div>
+        <div class="drop-zone-text">Upload file resi CRM<br><span>.csv / .xlsx — kolom: HP + Resi</span></div>
+      </div>
+      <div id="urc-preview-info" style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-top:8px"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+        <button class="btn-primary" id="btn-save-urc" disabled onclick="saveUpdateResiCRM()" style="font-size:13px;background:#6366F1;border-color:#6366F1">💾 Simpan Resi CRM</button>
+        <span class="loading-badge" id="loading-urc">menyimpan...</span>
+      </div>
+      <div id="urc-result" style="display:none;margin-top:12px;font-size:13px;"></div>
+    </div>
+
     <div id="ur-result-section" style="display:none;margin-top:1.5rem;max-width:900px">
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:1rem;flex-wrap:wrap">
         <div style="background:var(--success-light,#dcfce7);color:#15803d;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:600">
@@ -7835,9 +7857,110 @@ function escHtml(str) {
   return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+let updateResiCRMParsed = [];
+let updateResiCRMDropzoneInit = false;
+
+function initUpdateResiCRM() {
+  if (updateResiCRMDropzoneInit) return;
+  updateResiCRMDropzoneInit = true;
+  setupDropzone('dz-update-resi-crm', 'file-update-resi-crm', 'update-resi-crm', (data, fname) => {
+    updateResiCRMParsed = data.map(row => {
+      const keys = Object.keys(row);
+      const hpKey   = keys.find(k => { const kl=k.toLowerCase().replace(/\s/g,''); return kl.includes('hp')||kl.includes('telp')||kl.includes('nomor')||kl.includes('phone'); });
+      const resiKey = keys.find(k => { const kl=k.toLowerCase(); return kl.includes('resi')||kl.includes('awb')||kl.includes('tracking'); });
+      let resiVal = resiKey ? row[resiKey] : '';
+      if (typeof resiVal === 'number') resiVal = Math.round(resiVal).toString();
+      return { hp: String(row[hpKey]||'').trim(), resi: String(resiVal||'').trim() };
+    }).filter(r => r.hp && r.resi);
+    document.getElementById('urc-preview-info').textContent = `✓ ${updateResiCRMParsed.length} baris dimuat dari ${fname}`;
+    document.getElementById('btn-save-urc').disabled = !updateResiCRMParsed.length;
+    document.getElementById('urc-result').style.display = 'none';
+  });
+}
+
+async function saveUpdateResiCRM() {
+  if (!updateResiCRMParsed.length) return showToast('Upload file resi CRM dulu!', 'error');
+  const badge = document.getElementById('loading-urc');
+  const btn   = document.getElementById('btn-save-urc');
+  badge.classList.add('show'); btn.disabled = true;
+
+  try {
+    const tglFilter = document.getElementById('urc-tanggal')?.value || '';
+    const normHp = hp => String(hp||'').trim().replace(/^(\+?62|0)/, '');
+
+    // Build map normHp → resi dari file
+    const fileMap = {};
+    for (const row of updateResiCRMParsed) {
+      const key = normHp(row.hp);
+      if (key && !fileMap[key]) fileMap[key] = row.resi;
+    }
+    const normList = Object.keys(fileMap);
+    if (!normList.length) { showToast('Tidak ada data valid', 'error'); return; }
+
+    // Semua varian HP (dengan & tanpa 0)
+    const hpVariants = [...new Set([...normList, ...normList.map(h => '0'+h)])];
+
+    let aoOk = 0, repOk = 0;
+
+    // 1. Update all_orderan (team=CRM) by HP
+    const BATCH = 500;
+    for (let i = 0; i < hpVariants.length; i += BATCH) {
+      const { data: aoRows } = await sb.from('all_orderan')
+        .select('id, hp, tanggal')
+        .eq('team', 'CRM')
+        .in('hp', hpVariants.slice(i, i + BATCH))
+        .or('resi.is.null,resi.eq.');
+      for (const rec of (aoRows || [])) {
+        const resi = fileMap[normHp(rec.hp)];
+        if (!resi) continue;
+        if (tglFilter && (rec.tanggal||'').slice(0,10) !== tglFilter) continue;
+        const { error } = await sb.from('all_orderan').update({ resi }).eq('id', rec.id);
+        if (!error) aoOk++;
+      }
+    }
+
+    // 2. Update crm_repeats by HP (via crm_customers)
+    for (let i = 0; i < hpVariants.length; i += BATCH) {
+      const { data: custs } = await sbApp.from('crm_customers')
+        .select('id, no_hp')
+        .in('no_hp', hpVariants.slice(i, i + BATCH));
+      if (!custs || !custs.length) continue;
+
+      const custMap = {};
+      custs.forEach(c => { custMap[c.id] = c.no_hp; });
+      const custIds = custs.map(c => c.id);
+
+      const { data: repRows } = await sbApp.from('crm_repeats')
+        .select('id, customer_id, tgl')
+        .in('customer_id', custIds)
+        .or('resi.is.null,resi.eq.');
+
+      for (const rep of (repRows || [])) {
+        const hp   = custMap[rep.customer_id];
+        const resi = fileMap[normHp(hp)];
+        if (!resi) continue;
+        if (tglFilter && rep.tgl !== tglFilter) continue;
+        const { error } = await sbApp.from('crm_repeats').update({ resi }).eq('id', rep.id);
+        if (!error) repOk++;
+      }
+    }
+
+    const msg = `✅ all_orderan: ${aoOk} diupdate · crm_repeats: ${repOk} diupdate`;
+    document.getElementById('urc-result').style.display = 'block';
+    document.getElementById('urc-result').innerHTML = `<span style="color:#059669;font-weight:600">${msg}</span>`;
+    showToast(msg, 'success');
+
+  } catch(e) {
+    showToast('Error: '+e.message, 'error');
+  } finally {
+    badge.classList.remove('show'); btn.disabled = false;
+  }
+}
+
 function initUpdateResi() {
   if (updateResiDropzoneInit) return;
   updateResiDropzoneInit = true;
+  initUpdateResiCRM();
   setupDropzone('dz-update-resi', 'file-update-resi', 'update-resi', (data, fname) => {
     updateResiParsed = data.map(row => {
       const keys = Object.keys(row);
@@ -8249,7 +8372,7 @@ async function crmiDoAcc(rows) {
 
       // 1. Insert ke all_orderan (sbData)
       const { error: aoErr } = await sb.from('all_orderan').insert({
-        no: '', tanggal: tgl,
+        no: r.no || '', tanggal: tgl,
         nama: r.nama || '', hp: hp8,
         alamat: r.alamat || '', kelurahan: r.kelurahan || '',
         kecamatan: r.kecamatan || '', kabupaten: r.kabupaten || '',
@@ -8282,11 +8405,23 @@ async function crmiDoAcc(rows) {
           produk:         r.jumlah_pesanan || '',
           qty:            r.quantity || null,
           resi:           '',
-          ekspedisi:      '',
+          ekspedisi:      r.ekspedisi || '',
           status:         'Menunggu Resi',
           is_crosselling: false,
         });
         if (repErr) console.warn('[CRM] gagal insert crm_repeats:', repErr.message);
+
+        // 3b. Sync repeat_orders JSONB di crm_customers agar tracking resi terupdate
+        const { data: allRepeats } = await sbApp.from('crm_repeats')
+          .select('tgl,resi,ekspedisi,produk,qty,status')
+          .eq('customer_id', cust.id)
+          .order('no_repeat', { ascending: true });
+        const repeatJson = (allRepeats || []).filter(x => x.status !== 'Gagal').map(x => ({
+          tgl: x.tgl, resi: x.resi, ekspedisi: x.ekspedisi,
+          produk: x.produk, qty: x.qty,
+          status_resi: x.status === 'Berhasil' ? 'SAMPAI' : null,
+        }));
+        await sbApp.from('crm_customers').update({ repeat_orders: repeatJson }).eq('id', cust.id);
       }
 
       // 4. Update crm_orderan status = 'ACC' (sbApp)
