@@ -438,6 +438,17 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       </div>
     </div>
 
+    <!-- Tanggal Siklus -->
+    <div class="card" id="tanggal-siklus-card" style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">📅 Tanggal Siklus Validasi</div>
+        <input type="date" id="validasi-tanggal-siklus"
+          style="padding:6px 10px;border:1.5px solid var(--border-strong);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);cursor:pointer"
+          onchange="this.style.borderColor=this.value?'var(--accent)':'var(--danger)'">
+        <span style="font-size:12px;color:var(--muted)">Pilih tanggal siklus orderan yang akan divalidasi. Wajib diisi sebelum jalankan validasi.</span>
+      </div>
+    </div>
+
     <!-- Upload card -->
     <div class="card" id="upload-card" style="margin-bottom:1rem">
       <div class="card-header">
@@ -1855,6 +1866,13 @@ async function clearTable(tbl, reload) {
 // VALIDASI HARIAN
 async function doValidasiHarian() {
   if (!orderBaruRaw.length) return;
+  const tanggalSiklus = document.getElementById('validasi-tanggal-siklus')?.value;
+  if (!tanggalSiklus) {
+    const el = document.getElementById('validasi-tanggal-siklus');
+    if (el) { el.style.borderColor = 'var(--danger)'; el.focus(); }
+    showToast('⚠️ Pilih tanggal siklus validasi terlebih dahulu!', 'error');
+    return;
+  }
   const badge = document.getElementById('loading-validasi');
   badge.textContent='memuat data master HP...'; badge.classList.add('show');
   document.getElementById('btn-validasi').disabled = true;
@@ -4197,7 +4215,7 @@ async function saveValidasiDetail() {
       .filter(r => (r._accSPV||r._raw['ACC SPV CS']||'').toUpperCase() === 'KIRIM')
       .map(r => ({
         no          : String(r._raw['No']||r._raw['no']||'').slice(0,100),
-        tanggal     : String(r.tanggal||r._raw['Tanggal']||r._raw['tanggal']||'').slice(0,50),
+        tanggal     : document.getElementById('validasi-tanggal-siklus')?.value || normTglToYMD(String(r.tanggal||r._raw['Tanggal']||r._raw['tanggal']||'')),
         nama        : String(r.nama||'').slice(0,200),
         hp          : normalizeHP(String(r.hp||'')),
         alamat      : String(r._raw['Alamat']||'').slice(0,300),
