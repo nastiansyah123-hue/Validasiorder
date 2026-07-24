@@ -4539,13 +4539,20 @@ function renderCsInputTable(rows) {
 
     // Duplikat All Team — detail nama+tanggal+team+cs dari dup_detail, sama persis Harian
     const dupDetail = Array.isArray(r.dup_detail) ? r.dup_detail : [];
+    const iklanBadge = r.is_dup_all
+      ? (r.iklan_verified === false
+          ? '<span style="font-size:10px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:4px;font-weight:600;display:inline-block;margin-top:3px">⛔ Tidak ada klik iklan 7 hari</span>'
+          : r.iklan_verified === true
+            ? '<span style="font-size:10px;background:#dcfce7;color:#16a34a;padding:1px 6px;border-radius:4px;font-weight:600;display:inline-block;margin-top:3px">✅ Klik iklan terverifikasi</span>'
+            : '')
+      : '';
     const dupAllTeamHtml = r.is_dup_all && dupDetail.length
       ? dupDetail.slice(0,3).map(m => {
           const csBadge = m.cs ? ` · CS: ${m.cs}` : '';
           const teamBadge = m.team ? ` (${m.team})` : '';
           return `<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block;margin-top:2px">${m.nama||''}${m.tanggal?' '+m.tanggal:''}${teamBadge}${csBadge}</span>`;
-        }).join('')
-      : (r.is_dup_all ? '<span style="font-size:11px;color:var(--c-dup)">Duplikat (detail tidak ada)</span>' : '');
+        }).join('') + iklanBadge
+      : (r.is_dup_all ? '<span style="font-size:11px;color:var(--c-dup)">Duplikat (detail tidak ada)</span>' + iklanBadge : '');
 
     // RTS/Retur — reason + jumlah RTS dari rts_detail, + badge Wajib Transfer, sama persis kolom Retur ADSY Harian
     const rtsDetail = Array.isArray(r.rts_detail) ? r.rts_detail : [];
