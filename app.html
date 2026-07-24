@@ -4081,7 +4081,7 @@ async function cekOrderBelumMasukAllOrderan() {
         <td>${r.nama||''}</td>
         <td style="font-family:monospace;font-size:11px">${r.hp||''}</td>
         <td style="font-size:11px">${r.team||'—'}</td>
-        <td style="font-family:monospace;font-size:10px;color:var(--muted)">${(r.created_at||'').slice(0,16).replace('T',' ')}</td>
+        <td style="font-family:monospace;font-size:10px;color:var(--muted)">${r.created_at ? new Date(r.created_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'}) : '—'}</td>
       </tr>`).join('');
       document.getElementById('orphan-result').style.display = 'block';
     }
