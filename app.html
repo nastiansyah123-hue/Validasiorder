@@ -4169,9 +4169,9 @@ async function exportTmplAutolaris() {
 
   showToast('Memuat kode kecamatan...', 'info');
 
-  // Lookup kode kecamatan via kodepos (lebih reliable, case-independent)
+  // Lookup kode kecamatan (numerik) via kodepos + cocokkan kecamatan/kabupaten
   const kodeposSet = [...new Set(rows.map(r => (r.kodepos||'').trim()).filter(Boolean))];
-  const kodeMap = {}; // key: kodepos → kode_kecamatan (pilih yang kabupaten paling cocok)
+  const kodeMap = {}; // key: kodepos → array of rows
 
   try {
     for (let i = 0; i < kodeposSet.length; i += 100) {
@@ -4187,10 +4187,11 @@ async function exportTmplAutolaris() {
     }
   } catch(e) { console.error('kode_kecamatan lookup error:', e); }
 
+  // Format template sama persis dengan file Autolaris asli
   const headers = [
-    'Qty','Nama','No HP','Alamat',
-    'Provinsi','Kota','Kecamatan',
-    'Catatan','Pembayaran','Nilai COD','Asuransi','Kode Referensi'
+    'Qty Produk','Nama','HP','Alamat',
+    'Kode Kecamatan','Catatan di AWB',
+    'Pembayaran','Custom COD','Asuransi','Kode Referensi'
   ];
 
   const data = rows.map(r => {
@@ -4199,7 +4200,7 @@ async function exportTmplAutolaris() {
     const kecKey  = (r.kecamatan||'').toUpperCase();
     const matches = kodeMap[kp] || [];
 
-    // Cari match paling cocok dari tabel kode_kecamatan
+    // Cari match paling cocok: prioritas kecamatan, fallback kabupaten, fallback pertama
     let matched = null;
     if (matches.length === 1) {
       matched = matches[0];
@@ -4211,13 +4212,11 @@ async function exportTmplAutolaris() {
       ) || matches[0];
     }
 
-    // Pakai teks dari tabel supaya pasti cocok dengan Autolaris
-    const provinsi  = matched?.provinsi       || r.provinsi  || '';
-    const kota      = matched?.kota_kabupaten || r.kabupaten || '';
-    const kecamatan = matched?.kecamatan      || r.kecamatan || '';
+    // kode_kecamatan = angka numerik (sesuai template Autolaris)
+    const kodeKec = matched ? Number(matched.kode_kecamatan) : '';
 
-    const isCOD   = String(r.pembayaran||'').toUpperCase().includes('COD');
-    const nilaiCOD = isCOD ? (r.total_pembayaran || '') : '';
+    const isCOD    = String(r.pembayaran||'').toUpperCase().includes('COD');
+    const customCOD = isCOD ? (Number(r.total_pembayaran) || null) : null;
     const alamat   = String(r.alamat||'').slice(0, 150);
 
     return [
@@ -4225,12 +4224,10 @@ async function exportTmplAutolaris() {
       r.nama      || '',
       r.hp        || '',
       alamat,
-      provinsi,
-      kota,
-      kecamatan,
+      kodeKec,
       'Sebelum di retur hubungi penjual',
-      isCOD ? 'cod' : 'non-cod',
-      nilaiCOD,
+      isCOD ? 'cod' : 'noncod',
+      customCOD,
       'Tidak',
       r.cs        || '',
     ];
@@ -4245,7 +4242,7 @@ async function exportTmplAutolaris() {
     ws[addr].s = { font:{bold:true}, fill:{fgColor:{rgb:'FEF3C7'}} };
   }
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Autolaris');
+  XLSX.utils.book_append_sheet(wb, ws, 'Worksheet');
   const tgl = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `template_autolaris_${tgl}.xlsx`);
 
