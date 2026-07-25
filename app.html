@@ -4169,60 +4169,70 @@ async function exportTmplAutolaris() {
 
   showToast('Memuat kode kecamatan...', 'info');
 
-  // Kumpulkan kecamatan unik untuk batch lookup
-  const kecList = [...new Set(rows.map(r => (r.kecamatan||'').toUpperCase().trim()).filter(Boolean))];
-  const kodeMap = {}; // key: "KECAMATAN|KABUPATEN" → kode_kecamatan
+  // Lookup kode kecamatan via kodepos (lebih reliable, case-independent)
+  const kodeposSet = [...new Set(rows.map(r => (r.kodepos||'').trim()).filter(Boolean))];
+  const kodeMap = {}; // key: kodepos → kode_kecamatan (pilih yang kabupaten paling cocok)
 
   try {
-    // Batch query per 50
-    for (let i = 0; i < kecList.length; i += 50) {
-      const batch = kecList.slice(i, i + 50);
-      const { data: kecData } = await sb.from('kode_kecamatan')
-        .select('kode_kecamatan,kecamatan,kota_kabupaten,kode_pos')
-        .in('kecamatan', batch);
-      (kecData||[]).forEach(k => {
-        const key = (k.kecamatan||'').toUpperCase().trim();
-        // Simpan semua match, nanti pilih yang kabupaten cocok
-        if (!kodeMap[key]) kodeMap[key] = [];
-        kodeMap[key].push(k);
+    for (let i = 0; i < kodeposSet.length; i += 100) {
+      const batch = kodeposSet.slice(i, i + 100);
+      const { data: kpData } = await sb.from('kode_kecamatan')
+        .select('kode_kecamatan,kecamatan,kota_kabupaten,provinsi,kode_pos')
+        .in('kode_pos', batch);
+      (kpData||[]).forEach(k => {
+        const kp = (k.kode_pos||'').trim();
+        if (!kodeMap[kp]) kodeMap[kp] = [];
+        kodeMap[kp].push(k);
       });
     }
   } catch(e) { console.error('kode_kecamatan lookup error:', e); }
 
   const headers = [
-    'Qty Produk','Nama','HP','Alamat',
-    'Kode Kecamatan','Catatan di AWB',
-    'Pembayaran','Custom COD','Asuransi','Kode Referensi'
+    'Qty','Nama','No HP','Alamat',
+    'Provinsi','Kota','Kecamatan',
+    'Catatan','Pembayaran','Nilai COD','Asuransi','Kode Referensi'
   ];
 
   const data = rows.map(r => {
-    const kecKey  = (r.kecamatan||'').toUpperCase().trim();
-    const kabKey  = (r.kabupaten||'').toUpperCase().trim();
-    const matches = kodeMap[kecKey] || [];
+    const kp      = (r.kodepos||'').trim();
+    const kabKey  = (r.kabupaten||'').toUpperCase();
+    const kecKey  = (r.kecamatan||'').toUpperCase();
+    const matches = kodeMap[kp] || [];
 
-    // Cari match yang kabupatennya cocok
-    let kode = '';
+    // Cari match paling cocok dari tabel kode_kecamatan
+    let matched = null;
     if (matches.length === 1) {
-      kode = matches[0].kode_kecamatan;
+      matched = matches[0];
     } else if (matches.length > 1) {
-      const best = matches.find(m => (m.kota_kabupaten||'').toUpperCase().includes(kabKey) || kabKey.includes((m.kota_kabupaten||'').toUpperCase().replace(/KABUPATEN |KOTA /,'')));
-      kode = best ? best.kode_kecamatan : (matches[0]?.kode_kecamatan || '');
+      matched = matches.find(m =>
+        (m.kecamatan||'').toUpperCase() === kecKey
+      ) || matches.find(m =>
+        (m.kota_kabupaten||'').toUpperCase().includes(kabKey.replace(/^KABUPATEN |^KOTA /i,''))
+      ) || matches[0];
     }
 
-    const isCOD    = String(r.pembayaran||'').toUpperCase().includes('COD');
-    const customCOD = isCOD ? (r.total_pembayaran || '') : '';
+    // Pakai teks dari tabel supaya pasti cocok dengan Autolaris
+    const provinsi  = matched?.provinsi       || r.provinsi  || '';
+    const kota      = matched?.kota_kabupaten || r.kabupaten || '';
+    const kecamatan = matched?.kecamatan      || r.kecamatan || '';
+
+    const isCOD   = String(r.pembayaran||'').toUpperCase().includes('COD');
+    const nilaiCOD = isCOD ? (r.total_pembayaran || '') : '';
+    const alamat   = String(r.alamat||'').slice(0, 150);
 
     return [
-      r.quantity    || 1,
-      r.nama        || '',
-      r.hp          || '',
-      [r.alamat, r.kelurahan].filter(Boolean).join(', '),
-      kode,
+      r.quantity  || 1,
+      r.nama      || '',
+      r.hp        || '',
+      alamat,
+      provinsi,
+      kota,
+      kecamatan,
       'Sebelum di retur hubungi penjual',
       isCOD ? 'cod' : 'non-cod',
-      customCOD,
+      nilaiCOD,
       'Tidak',
-      r.cs          || '',
+      r.cs        || '',
     ];
   });
 
