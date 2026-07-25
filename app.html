@@ -1643,6 +1643,7 @@ let orderBaruRaw = [];
 let masterOrderParsed = [];
 let masterRTSParsed = [];
 let validatedData = [], filteredData = [];
+let editingSesiId = null; // sesi_id lama saat mode edit dari Dashboard
 let currentPage = 1;
 let PAGE_SIZE = 50;
 let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
@@ -1957,6 +1958,7 @@ async function clearTable(tbl, reload) {
 // VALIDASI HARIAN
 async function doValidasiHarian() {
   if (!orderBaruRaw.length) return;
+  editingSesiId = null; // upload Excel baru = bukan edit mode
   const tanggalSiklus = document.getElementById('validasi-tanggal-siklus')?.value;
   if (!tanggalSiklus) {
     const el = document.getElementById('validasi-tanggal-siklus');
@@ -3906,6 +3908,9 @@ async function editSesi(sesiId) {
     saveState();
     renderTable();
 
+    // Tandai bahwa ini mode edit (bukan sesi baru)
+    editingSesiId = sesiId;
+
     // Switch to harian page
     switchPage('harian');
     showToast(`${data.length} baris sesi dimuat — edit lalu simpan ulang ke Dashboard`, 'success');
@@ -4239,7 +4244,8 @@ async function saveValidasiDetail() {
   const badge = document.getElementById('loading-validasi');
   badge.textContent = 'menyimpan sesi...'; badge.classList.add('show');
 
-  const sesiId = new Date().toISOString();
+  const isEditMode = !!editingSesiId;
+  const sesiId = isEditMode ? editingSesiId : new Date().toISOString();
   const d2 = new Date(); const tanggal = d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
   const userEmail = document.getElementById('user-email').textContent;
 
@@ -4286,11 +4292,18 @@ async function saveValidasiDetail() {
 
   // 1. Simpan ke validasi_detail
   try {
+    // Mode edit: hapus dulu data lama agar tidak double
+    if (isEditMode) {
+      badge.textContent = 'menghapus data lama...';
+      const { error: delErr } = await sb.from('validasi_detail').delete().eq('sesi_id', sesiId);
+      if (delErr) throw delErr;
+    }
     for (let i=0; i<rows.length; i+=500) {
       const { error } = await sb.from('validasi_detail').insert(rows.slice(i,i+500));
       if (error) throw error;
       badge.textContent = `menyimpan sesi... ${Math.min(i+500,rows.length)}/${rows.length}`;
     }
+    editingSesiId = null; // reset edit mode setelah save berhasil
     showToast(`✓ ${rows.length} baris tersimpan ke Dashboard!`, 'success');
     await deleteDraft();
   } catch(e) {
@@ -4343,6 +4356,23 @@ async function saveValidasiDetail() {
     }
 
     badge.textContent = 'mengecek duplikat Data Master...';
+
+    // Mode edit: hapus dulu all_orderan lama (sumber=validasi, HP+tanggal match)
+    // supaya update perubahan bisa masuk, tidak diblokir dedup
+    if (isEditMode) {
+      const hpListEdit = [...new Set(kirimRows.map(r => r.hp))];
+      const tglSiklus  = kirimRows[0]?.tanggal || '';
+      if (hpListEdit.length && tglSiklus) {
+        badge.textContent = 'menghapus orderan lama dari Data Master...';
+        for (let i = 0; i < hpListEdit.length; i += 100) {
+          await sb.from('all_orderan')
+            .delete()
+            .eq('sumber', 'validasi')
+            .eq('tanggal', tglSiklus)
+            .in('hp', hpListEdit.slice(i, i + 100));
+        }
+      }
+    }
 
     // Dedup check dengan pagination supaya tidak kepotong limit 1000 baris
     const hpList = [...new Set(kirimRows.map(r => r.hp))];
