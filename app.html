@@ -935,7 +935,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <div id="db-tmpl-menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:180px;box-shadow:0 4px 16px rgba(0,0,0,0.12)">
             <div onclick="exportTmplMengantar();closeTmplMenu()" class="export-menu-item">🚚 Mengantar</div>
             <div class="export-menu-item" style="color:var(--muted);cursor:not-allowed">⏳ Bos Ampuh <span style="font-size:10px">(soon)</span></div>
-            <div class="export-menu-item" style="color:var(--muted);cursor:not-allowed">⏳ Autolaris <span style="font-size:10px">(soon)</span></div>
+            <div onclick="exportTmplAutolaris();closeTmplMenu()" class="export-menu-item">📦 Autolaris</div>
             <div class="export-menu-item" style="color:var(--muted);cursor:not-allowed">⏳ SPX <span style="font-size:10px">(soon)</span></div>
           </div>
         </div>
@@ -4159,6 +4159,88 @@ function exportTmplMengantar() {
   const tgl = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `template_mengantar_${tgl}.xlsx`);
   showToast(`✓ Template Mengantar ${rows.length} orderan KIRIM berhasil diexport!`, 'success');
+}
+
+// ── TEMPLATE AUTOLARIS ────────────────────────────────────────────────────────
+async function exportTmplAutolaris() {
+  const rows = dbFilteredDetail.filter(r => (r.acc_spv_cs||'').toUpperCase() === 'KIRIM');
+  if (!rows.length) return showToast('Tidak ada data KIRIM untuk diexport', 'error');
+
+  showToast('Memuat kode kecamatan...', 'info');
+
+  // Kumpulkan kecamatan unik untuk batch lookup
+  const kecList = [...new Set(rows.map(r => (r.kecamatan||'').toUpperCase().trim()).filter(Boolean))];
+  const kodeMap = {}; // key: "KECAMATAN|KABUPATEN" → kode_kecamatan
+
+  try {
+    // Batch query per 50
+    for (let i = 0; i < kecList.length; i += 50) {
+      const batch = kecList.slice(i, i + 50);
+      const { data: kecData } = await sb.from('kode_kecamatan')
+        .select('kode_kecamatan,kecamatan,kota_kabupaten,kode_pos')
+        .in('kecamatan', batch);
+      (kecData||[]).forEach(k => {
+        const key = (k.kecamatan||'').toUpperCase().trim();
+        // Simpan semua match, nanti pilih yang kabupaten cocok
+        if (!kodeMap[key]) kodeMap[key] = [];
+        kodeMap[key].push(k);
+      });
+    }
+  } catch(e) { console.error('kode_kecamatan lookup error:', e); }
+
+  const headers = [
+    'Qty Produk','Nama','HP','Alamat',
+    'Kode Kecamatan','Catatan di AWB',
+    'Pembayaran','Custom COD','Asuransi','Kode Referensi'
+  ];
+
+  const data = rows.map(r => {
+    const kecKey  = (r.kecamatan||'').toUpperCase().trim();
+    const kabKey  = (r.kabupaten||'').toUpperCase().trim();
+    const matches = kodeMap[kecKey] || [];
+
+    // Cari match yang kabupatennya cocok
+    let kode = '';
+    if (matches.length === 1) {
+      kode = matches[0].kode_kecamatan;
+    } else if (matches.length > 1) {
+      const best = matches.find(m => (m.kota_kabupaten||'').toUpperCase().includes(kabKey) || kabKey.includes((m.kota_kabupaten||'').toUpperCase().replace(/KABUPATEN |KOTA /,'')));
+      kode = best ? best.kode_kecamatan : (matches[0]?.kode_kecamatan || '');
+    }
+
+    const isCOD    = String(r.pembayaran||'').toUpperCase().includes('COD');
+    const customCOD = isCOD ? (r.total_pembayaran || '') : '';
+
+    return [
+      r.quantity    || 1,
+      r.nama        || '',
+      r.hp          || '',
+      [r.alamat, r.kelurahan].filter(Boolean).join(', '),
+      kode,
+      'Sebelum di retur hubungi penjual',
+      isCOD ? 'cod' : 'non-cod',
+      customCOD,
+      'Tidak',
+      r.cs          || '',
+    ];
+  });
+
+  const sheetData = [headers, ...data];
+  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const addr = XLSX.utils.encode_cell({r:0, c:C});
+    if (!ws[addr]) continue;
+    ws[addr].s = { font:{bold:true}, fill:{fgColor:{rgb:'FEF3C7'}} };
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Autolaris');
+  const tgl = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `template_autolaris_${tgl}.xlsx`);
+
+  const kosong = data.filter(r => !r[4]).length;
+  if (kosong) showToast(`✓ Export Autolaris ${rows.length} order — ${kosong} kode kecamatan kosong (perlu dicek manual)`, 'warn');
+  else showToast(`✓ Template Autolaris ${rows.length} orderan KIRIM berhasil diexport!`, 'success');
 }
 
 function exportDbCSV(data, filename) {
