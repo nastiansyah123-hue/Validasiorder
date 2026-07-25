@@ -911,6 +911,14 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         <select class="filter-select" id="db-team-detail-filter" onchange="filterDbDetail()">
           <option value="all">Semua Team</option>
         </select>
+        <div style="position:relative" id="db-eks-wrap">
+          <button onclick="toggleEksFilter(event)" id="db-eks-btn" class="filter-select" style="cursor:pointer;text-align:left;min-width:140px;display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <span id="db-eks-label">Semua Ekspedisi</span><span>▼</span>
+          </button>
+          <div id="db-eks-panel" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px;min-width:180px;box-shadow:0 4px 16px rgba(0,0,0,0.12);max-height:240px;overflow-y:auto">
+            <div id="db-eks-list"></div>
+          </div>
+        </div>
         <input class="search-input" id="db-search" type="text" placeholder="Cari nama / HP / resi..." oninput="filterDbDetail()" />
         <span class="spacer"></span>
         <button class="btn-secondary" onclick="exportDbCSV()">Export CSV</button>
@@ -3765,6 +3773,8 @@ async function loadDashboard() {
       </table>` : '<p style="color:var(--muted);font-size:13px">Tidak ada data sesi.</p>';
 
     document.getElementById('db-detail-section').style.display = 'block';
+    dbEksSelected = new Set(); // reset pilihan ekspedisi
+    populateEksFilter();       // isi dropdown ekspedisi dari data baru
     dbPage = 1;
     renderDbTable();
 
@@ -3785,6 +3795,59 @@ function filterDbByCard(status) {
   if (detailSection) detailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+let dbEksSelected = new Set(); // kosong = semua
+
+function toggleEksFilter(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('db-eks-panel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function populateEksFilter() {
+  const eksSet = [...new Set(dbAllDetail.map(r => r.ekspedisi||'').filter(Boolean))].sort();
+  const list = document.getElementById('db-eks-list');
+  if (!eksSet.length) { list.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px">Tidak ada data</div>'; return; }
+  list.innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;padding:4px 6px;cursor:pointer;font-size:12px;border-bottom:1px solid var(--border);margin-bottom:4px">
+      <input type="checkbox" id="db-eks-all" onchange="onEksAllChange(this)" checked> Semua Ekspedisi
+    </label>` +
+    eksSet.map(e => `
+    <label style="display:flex;align-items:center;gap:8px;padding:4px 6px;cursor:pointer;font-size:12px;border-radius:4px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+      <input type="checkbox" class="db-eks-cb" value="${e}" onchange="onEksCbChange()" checked> ${e}
+    </label>`).join('');
+}
+
+function onEksAllChange(cb) {
+  document.querySelectorAll('.db-eks-cb').forEach(el => el.checked = cb.checked);
+  syncEksSelected();
+}
+
+function onEksCbChange() {
+  const all = [...document.querySelectorAll('.db-eks-cb')];
+  document.getElementById('db-eks-all').checked = all.every(cb => cb.checked);
+  syncEksSelected();
+}
+
+function syncEksSelected() {
+  const checked = [...document.querySelectorAll('.db-eks-cb:checked')].map(cb => cb.value);
+  const all     = [...document.querySelectorAll('.db-eks-cb')];
+  dbEksSelected = checked.length === all.length ? new Set() : new Set(checked);
+  const label = document.getElementById('db-eks-label');
+  label.textContent = dbEksSelected.size === 0 ? 'Semua Ekspedisi'
+    : dbEksSelected.size === 1 ? [...dbEksSelected][0]
+    : `${dbEksSelected.size} Ekspedisi`;
+  filterDbDetail();
+}
+
+// Tutup panel kalau klik di luar
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('db-eks-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const panel = document.getElementById('db-eks-panel');
+    if (panel) panel.style.display = 'none';
+  }
+});
+
 function filterDbDetail() {
   const f    = document.getElementById('db-status-filter').value;
   const team = document.getElementById('db-team-detail-filter')?.value || 'all';
@@ -3800,6 +3863,7 @@ function filterDbDetail() {
       :true;
     if (!mf) return false;
     if (team !== 'all' && (r.team||'') !== team) return false;
+    if (dbEksSelected.size > 0 && !dbEksSelected.has(r.ekspedisi||'')) return false;
     if (!q) return true;
     return String(r.hp||'').includes(q)||String(r.nama||'').toLowerCase().includes(q)||String(r.resi||'').toLowerCase().includes(q);
   });
