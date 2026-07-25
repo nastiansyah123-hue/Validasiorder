@@ -3678,7 +3678,7 @@ async function loadDashboard() {
           kabupaten    : r.kabupaten || '',
           jumlah       : r.jumlah_pesanan || '',
           pembayaran   : r.pembayaran || '',
-          ekspedisi    : '',
+          ekspedisi    : extractEkspedisi(r.pembayaran || ''),
           resi         : '',
           grade        : '',
           status_validasi: statusVal,
