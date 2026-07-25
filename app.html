@@ -4167,7 +4167,7 @@ async function exportTmplAutolaris() {
   const rows = dbFilteredDetail.filter(r => (r.acc_spv_cs||'').toUpperCase() === 'KIRIM');
   if (!rows.length) return showToast('Tidak ada data KIRIM untuk diexport', 'error');
 
-  showToast('Memuat kode kecamatan...', 'info');
+  showToast(`Memuat kode kecamatan (${rows.length} order)...`, 'info');
 
   // Step 1: Lookup via kodepos
   const kodeposSet = [...new Set(rows.map(r => (r.kodepos||'').trim()).filter(Boolean))];
@@ -4176,9 +4176,10 @@ async function exportTmplAutolaris() {
   try {
     for (let i = 0; i < kodeposSet.length; i += 100) {
       const batch = kodeposSet.slice(i, i + 100);
-      const { data: kpData } = await sb.from('kode_kecamatan')
+      const { data: kpData, error: kpErr } = await sb.from('kode_kecamatan')
         .select('kode_kecamatan,kecamatan,kota_kabupaten,provinsi,kode_pos')
         .in('kode_pos', batch);
+      if (kpErr) throw kpErr;
       (kpData||[]).forEach(k => {
         const kp = (k.kode_pos||'').trim();
         if (!kodeMap[kp]) kodeMap[kp] = [];
@@ -4192,17 +4193,19 @@ async function exportTmplAutolaris() {
     const kp = (r.kodepos||'').trim();
     return !kp || !kodeMap[kp];
   });
-  const kecNameMap = {}; // key: "KECAMATAN||KABUPATEN" → best match
+  const kecNameMap = {}; // key: kecamatan uppercase → array
 
   if (needFallback.length > 0) {
+    showToast(`Lookup fallback ${needFallback.length} order by nama kecamatan...`, 'info');
     const kecSet = [...new Set(needFallback.map(r => (r.kecamatan||'').trim().toUpperCase()).filter(Boolean))];
     try {
       for (let i = 0; i < kecSet.length; i += 50) {
         const batch = kecSet.slice(i, i + 50);
         const orFilter = batch.map(k => `kecamatan.ilike.${k}`).join(',');
-        const { data: kecData } = await sb.from('kode_kecamatan')
+        const { data: kecData, error: kecErr } = await sb.from('kode_kecamatan')
           .select('kode_kecamatan,kecamatan,kota_kabupaten,provinsi,kode_pos')
           .or(orFilter);
+        if (kecErr) throw kecErr;
         (kecData||[]).forEach(k => {
           const key = (k.kecamatan||'').toUpperCase();
           if (!kecNameMap[key]) kecNameMap[key] = [];
@@ -4284,9 +4287,14 @@ async function exportTmplAutolaris() {
   const tgl = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `template_autolaris_${tgl}.xlsx`);
 
-  const kosong = data.filter(r => !r[4]).length;
-  if (kosong) showToast(`✓ Export Autolaris ${rows.length} order — ${kosong} kode kecamatan kosong (perlu dicek manual)`, 'warn');
-  else showToast(`✓ Template Autolaris ${rows.length} orderan KIRIM berhasil diexport!`, 'success');
+  const kosongRows = data.filter((r, i) => !r[4]);
+  if (kosongRows.length) {
+    const namaList = kosongRows.map(r => String(r[1]).split('|')[0].trim()).join(', ');
+    showToast(`✓ Download selesai (${rows.length} order)`, 'success');
+    showToast(`⚠️ ${kosongRows.length} kode kecamatan tidak ditemukan — isi manual: ${namaList}`, 'warn');
+  } else {
+    showToast(`✓ Template Autolaris ${rows.length} orderan KIRIM berhasil diexport!`, 'success');
+  }
 }
 
 function exportDbCSV(data, filename) {
