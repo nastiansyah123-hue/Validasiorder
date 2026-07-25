@@ -1643,7 +1643,8 @@ let orderBaruRaw = [];
 let masterOrderParsed = [];
 let masterRTSParsed = [];
 let validatedData = [], filteredData = [];
-let editingSesiId = null; // sesi_id lama saat mode edit dari Dashboard
+let editingSesiId = null;     // sesi_id lama saat mode edit dari Dashboard
+let editingSesiTanggal = null; // tanggal asli sesi (agar tidak berubah saat diedit)
 let currentPage = 1;
 let PAGE_SIZE = 50;
 let sortCol = null, sortDir = 1; // sortDir: 1=asc, -1=desc
@@ -1958,7 +1959,8 @@ async function clearTable(tbl, reload) {
 // VALIDASI HARIAN
 async function doValidasiHarian() {
   if (!orderBaruRaw.length) return;
-  editingSesiId = null; // upload Excel baru = bukan edit mode
+  editingSesiId = null;      // upload Excel baru = bukan edit mode
+  editingSesiTanggal = null;
   const tanggalSiklus = document.getElementById('validasi-tanggal-siklus')?.value;
   if (!tanggalSiklus) {
     const el = document.getElementById('validasi-tanggal-siklus');
@@ -3581,6 +3583,13 @@ async function initDashboard() {
     const sel = document.getElementById('db-user-filter');
     sel.innerHTML = '<option value="all">Semua</option>' + (data||[]).filter(v=>v.email).map(v=>`<option value="${v.email}">${v.nama||v.email}</option>`).join('');
   } catch(e) {}
+  // Load team list dinamis dari validasi_detail
+  try {
+    const { data: teamData } = await sb.from('validasi_detail').select('team').not('team','is',null).neq('team','');
+    const teams = [...new Set((teamData||[]).map(r=>r.team).filter(Boolean))].sort();
+    const teamSel = document.getElementById('db-team-filter');
+    teamSel.innerHTML = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+  } catch(e) {}
   await loadDashboard();
 }
 
@@ -3617,7 +3626,11 @@ async function loadDashboard() {
 
     // Juga load dari orderan_masuk (CS Input) — hanya saat Semua atau non-admin
     if (isAdmin && uFilter === 'all') {
-      let csQuery = sb.from('orderan_masuk').select('*').gte('tanggal', from).lte('tanggal', to).not('acc_spv', 'is', null).neq('acc_spv', '').order('created_at', { ascending:false });
+      // Filter by acc_tanggal (tanggal validator ACC) jika ada, fallback ke tanggal orderan
+      // OR: (acc_tanggal dalam range) OR (acc_tanggal null DAN tanggal dalam range)
+      let csQuery = sb.from('orderan_masuk').select('*').not('acc_spv', 'is', null).neq('acc_spv', '')
+        .or(`and(acc_tanggal.gte.${from},acc_tanggal.lte.${to}),and(acc_tanggal.is.null,tanggal.gte.${from},tanggal.lte.${to})`)
+        .order('created_at', { ascending:false });
       const csAllRows = [];
       let csFrom = 0;
       while (true) {
@@ -3642,9 +3655,9 @@ async function loadDashboard() {
         const needSS = !!(r.is_dup_all || r.is_rts || r.is_wilayah_rawan || dbBadGrade);
         return {
           _source      : 'cs_input',
-          sesi_id      : 'cs_input_' + (r.tanggal||'').slice(0,10) + '_' + (r.cs_nama||'CS'),
-          tanggal      : (r.tanggal||'').slice(0,10),
-          user_email   : '[CS] ' + (r.cs_nama||'—'),
+          sesi_id      : 'cs_input_' + (r.acc_tanggal || (r.tanggal||'').slice(0,10)),
+          tanggal      : r.acc_tanggal || (r.tanggal||'').slice(0,10),
+          user_email   : 'CS Input',
           no           : r.no || '',
           nama         : r.nama || '',
           hp           : r.hp || '',
@@ -3910,6 +3923,12 @@ async function editSesi(sesiId) {
 
     // Tandai bahwa ini mode edit (bukan sesi baru)
     editingSesiId = sesiId;
+    editingSesiTanggal = data[0]?.tanggal || null; // simpan tanggal asli sesi (tanggal validator simpan)
+
+    // Auto-fill date picker tanggal siklus dari data asli
+    const tglSiklusAsli = data[0]?.tanggal_siklus || data[0]?.tanggal_order || '';
+    const dpSiklus = document.getElementById('validasi-tanggal-siklus');
+    if (dpSiklus && tglSiklusAsli) dpSiklus.value = tglSiklusAsli.slice(0, 10);
 
     // Switch to harian page
     switchPage('harian');
@@ -4246,7 +4265,9 @@ async function saveValidasiDetail() {
 
   const isEditMode = !!editingSesiId;
   const sesiId = isEditMode ? editingSesiId : new Date().toISOString();
-  const d2 = new Date(); const tanggal = d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
+  const d2 = new Date();
+  const tanggalHariIni = d2.getFullYear()+'-'+String(d2.getMonth()+1).padStart(2,'0')+'-'+String(d2.getDate()).padStart(2,'0');
+  const tanggal = (isEditMode && editingSesiTanggal) ? editingSesiTanggal : tanggalHariIni;
   const userEmail = document.getElementById('user-email').textContent;
 
   const rows = validatedData.map(row => ({
@@ -4285,6 +4306,7 @@ async function saveValidasiDetail() {
     adm           : (String(row.instruksi||row._raw['Instruksi Pengiriman']||'').split('/')[2]||'').trim().slice(0,100),
     keluhan       : String(row.keluhan||'').slice(0,200),
     tanggal_order : String(row.tanggal||'').slice(0,50),
+    tanggal_siklus: document.getElementById('validasi-tanggal-siklus')?.value || null,
     quantity      : safeParseInt(row.quantity||row._raw['Quantity']||row._raw['Qty']),
     total_pembayaran: safeParseInt(row.total_pembayaran||row._raw['Total Pembayaran']||row._raw['TotalPembayaran']),
     rincian       : String(row._raw['Rincian Pembayaran']||row._raw['rincian']||'').slice(0,300),
@@ -4303,7 +4325,8 @@ async function saveValidasiDetail() {
       if (error) throw error;
       badge.textContent = `menyimpan sesi... ${Math.min(i+500,rows.length)}/${rows.length}`;
     }
-    editingSesiId = null; // reset edit mode setelah save berhasil
+    editingSesiId = null;      // reset edit mode setelah save berhasil
+    editingSesiTanggal = null;
     showToast(`✓ ${rows.length} baris tersimpan ke Dashboard!`, 'success');
     await deleteDraft();
   } catch(e) {
@@ -5029,13 +5052,14 @@ async function saveCsInputAcc() {
   badge.classList.add('show');
 
   try {
-    // 1. Update acc_spv + noted di orderan_masuk
+    // 1. Update acc_spv + noted + acc_tanggal di orderan_masuk
     badge.textContent = `update acc_spv (${toSave.length} order)...`;
+    const accTanggalHariIni = nowWIB().slice(0, 10); // YYYY-MM-DD WIB
     for (const row of toSave) {
       const accVal   = (row._accSpv || row.acc_spv || '').toUpperCase();
       const notedVal = (row._noted  !== undefined ? row._noted : row.noted) || '';
       await sb.from('orderan_masuk')
-        .update({ acc_spv: accVal, noted: notedVal || null })
+        .update({ acc_spv: accVal, noted: notedVal || null, acc_tanggal: accTanggalHariIni })
         .eq('id', row.id);
     }
 
