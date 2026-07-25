@@ -940,6 +940,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
             <div class="export-menu-item" style="color:var(--muted);cursor:not-allowed">⏳ SPX <span style="font-size:10px">(soon)</span></div>
           </div>
         </div>
+        <button class="btn-secondary" onclick="openKodeKecModal()" title="Cari kode kecamatan Autolaris">🔍 Kode Kecamatan</button>
         <button class="btn-secondary" id="btn-kirim-all-orderan" onclick="kirimDashboardKeAllOrderan()" style="background:#4f46e5;color:white;border-color:#4f46e5">📤 Kirim ke All Orderan</button>
         <span id="db-detail-count" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
       </div>
@@ -1586,6 +1587,38 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
 </div>
 
 <div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- Modal Fix Kode Kecamatan Kosong -->
+<div id="modal-kode-kec-fix" style="display:none;position:fixed;inset:0;z-index:1001;background:rgba(0,0,0,0.55);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:12px;width:min(680px,96vw);max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.25)">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <strong style="font-size:15px">⚠️ Kode Kecamatan Tidak Ditemukan</strong>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Cari kode yang benar lalu salin ke Excel</div>
+      </div>
+      <button onclick="document.getElementById('modal-kode-kec-fix').style.display='none'" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0 4px">✕</button>
+    </div>
+    <div id="kode-kec-fix-list" style="overflow-y:auto;flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+</div>
+
+<!-- Modal Cari Kode Kecamatan -->
+<div id="modal-kode-kec" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center" onclick="if(event.target===this)closeKodeKecModal()">
+  <div style="background:var(--surface);border-radius:12px;width:min(560px,95vw);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <strong style="font-size:15px">🔍 Cari Kode Kecamatan Autolaris</strong>
+      <button onclick="closeKodeKecModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0 4px">✕</button>
+    </div>
+    <div style="padding:16px 20px 8px">
+      <input id="kode-kec-search" type="text" placeholder="Ketik nama kecamatan atau kota/kabupaten..."
+        style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);box-sizing:border-box"
+        oninput="searchKodeKec(this.value)">
+    </div>
+    <div id="kode-kec-results" style="overflow-y:auto;flex:1;padding:4px 12px 12px;min-height:80px">
+      <div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">Ketik untuk mencari...</div>
+    </div>
+  </div>
+</div>
 
 <script>
 // EXCEL DATE HELPER
@@ -4163,6 +4196,151 @@ function exportTmplMengantar() {
   showToast(`✓ Template Mengantar ${rows.length} orderan KIRIM berhasil diexport!`, 'success');
 }
 
+// ── FIX KODE KECAMATAN KOSONG ─────────────────────────────────────────────────
+async function openKodeKecFixModal(kosongOrders) {
+  const modal = document.getElementById('modal-kode-kec-fix');
+  const list  = document.getElementById('kode-kec-fix-list');
+  modal.style.display = 'flex';
+
+  // Pastikan cache sudah ada
+  if (!_kodeKecCache) {
+    list.innerHTML = '<div style="padding:20px;color:var(--muted);text-align:center">Memuat data kecamatan...</div>';
+    let all = [], from = 0;
+    while (true) {
+      const { data, error } = await sb.from('kode_kecamatan')
+        .select('kode_kecamatan,kecamatan,kota_kabupaten,provinsi,kode_pos')
+        .range(from, from + 999);
+      if (error || !data?.length) break;
+      all = all.concat(data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    _kodeKecCache = all;
+  }
+
+  list.innerHTML = kosongOrders.map((r, idx) => {
+    const nama    = String(r.nama||'').split('|')[0].trim();
+    const kec     = r.kecamatan || '-';
+    const kab     = r.kabupaten || '-';
+    const kodepos = r.kodepos   || '-';
+    const alamat  = r.alamat    || '-';
+    return `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--bg)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-weight:600;font-size:13px">${nama}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">
+              📍 ${kec} · ${kab} · kodepos ${kodepos}
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;word-break:break-word">${alamat}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" placeholder="Ketik kecamatan / kota..."
+            style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text)"
+            oninput="searchKodeKecInline(this,'fix-result-${idx}')">
+          <div id="fix-result-${idx}" style="font-size:13px;min-width:80px;text-align:right;color:var(--muted)">—</div>
+        </div>
+        <div id="fix-dropdown-${idx}" style="margin-top:4px;border:1px solid var(--border);border-radius:6px;overflow:hidden;display:none;max-height:180px;overflow-y:auto;background:var(--surface)"></div>
+      </div>`;
+  }).join('');
+}
+
+function searchKodeKecInline(inp, resultId) {
+  const idx = resultId.replace('fix-result-', '');
+  const dd  = document.getElementById(`fix-dropdown-${idx}`);
+  const q   = inp.value.trim().toLowerCase();
+
+  if (!q || !_kodeKecCache) { dd.style.display = 'none'; return; }
+
+  const words   = q.split(/\s+/);
+  const results = _kodeKecCache.filter(r => {
+    const h = ((r.kecamatan||'') + ' ' + (r.kota_kabupaten||'') + ' ' + (r.provinsi||'')).toLowerCase();
+    return words.every(w => h.includes(w));
+  }).slice(0, 20);
+
+  if (!results.length) {
+    dd.style.display = 'block';
+    dd.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:12px;text-align:center">Tidak ada hasil</div>';
+    return;
+  }
+
+  dd.style.display = 'block';
+  dd.innerHTML = results.map(r => `
+    <div onclick="pilihKodeKec('${r.kode_kecamatan}','${resultId}','${idx}')"
+      style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;cursor:pointer;gap:8px;font-size:12px"
+      onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background='transparent'">
+      <div>
+        <span style="font-weight:500">${r.kecamatan}</span>
+        <span style="color:var(--muted)"> · ${r.kota_kabupaten} · ${r.provinsi}</span>
+      </div>
+      <span style="font-weight:700;color:var(--accent);font-family:var(--mono);white-space:nowrap">${r.kode_kecamatan}</span>
+    </div>`).join('');
+}
+
+function pilihKodeKec(kode, resultId, idx) {
+  document.getElementById(resultId).innerHTML = `<span style="font-weight:700;color:var(--success);font-family:var(--mono)">${kode}</span>`;
+  document.getElementById(`fix-dropdown-${idx}`).style.display = 'none';
+  navigator.clipboard.writeText(String(kode)).then(() => showToast(`Kode ${kode} disalin!`, 'success'));
+}
+
+// ── CARI KODE KECAMATAN ───────────────────────────────────────────────────────
+let _kodeKecCache = null;
+
+async function openKodeKecModal() {
+  document.getElementById('modal-kode-kec').style.display = 'flex';
+  const inp = document.getElementById('kode-kec-search');
+  inp.value = '';
+  document.getElementById('kode-kec-results').innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">Memuat data...</div>';
+  inp.focus();
+
+  if (!_kodeKecCache) {
+    let all = [], from = 0;
+    while (true) {
+      const { data, error } = await sb.from('kode_kecamatan')
+        .select('kode_kecamatan,kecamatan,kota_kabupaten,provinsi,kode_pos')
+        .range(from, from + 999);
+      if (error || !data?.length) break;
+      all = all.concat(data);
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    _kodeKecCache = all;
+  }
+  document.getElementById('kode-kec-results').innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">Ketik untuk mencari...</div>';
+}
+
+function closeKodeKecModal() {
+  document.getElementById('modal-kode-kec').style.display = 'none';
+}
+
+function searchKodeKec(q) {
+  const box = document.getElementById('kode-kec-results');
+  if (!q.trim()) { box.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">Ketik untuk mencari...</div>'; return; }
+  if (!_kodeKecCache) { box.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">Masih memuat data...</div>'; return; }
+
+  const words = q.trim().toLowerCase().split(/\s+/);
+  const results = _kodeKecCache.filter(r => {
+    const haystack = ((r.kecamatan||'') + ' ' + (r.kota_kabupaten||'') + ' ' + (r.provinsi||'')).toLowerCase();
+    return words.every(w => haystack.includes(w));
+  }).slice(0, 30);
+
+  if (!results.length) { box.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">Tidak ada hasil</div>'; return; }
+
+  box.innerHTML = results.map(r => `
+    <div onclick="copyKodeKec('${r.kode_kecamatan}')" style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;cursor:pointer;gap:12px" onmouseover="this.style.background='var(--accent-light)'" onmouseout="this.style.background='transparent'">
+      <div>
+        <div style="font-size:13px;font-weight:500">${r.kecamatan}</div>
+        <div style="font-size:12px;color:var(--muted)">${r.kota_kabupaten} · ${r.provinsi}${r.kode_pos ? ' · ' + r.kode_pos : ''}</div>
+      </div>
+      <div style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--accent);white-space:nowrap">${r.kode_kecamatan}</div>
+    </div>`).join('');
+}
+
+function copyKodeKec(kode) {
+  navigator.clipboard.writeText(String(kode)).then(() => showToast(`Kode ${kode} disalin!`, 'success'));
+}
+
 // ── TEMPLATE AUTOLARIS ────────────────────────────────────────────────────────
 async function exportTmplAutolaris() {
   const rows = dbFilteredDetail.filter(r => (r.acc_spv_cs||'').toUpperCase() === 'KIRIM');
@@ -4186,7 +4364,8 @@ async function exportTmplAutolaris() {
   } catch(e) { showToast('Error kode kecamatan: ' + e.message, 'error'); console.error(e); }
 
   // Normalisasi string: hapus semua non-alphanumeric, lowercase
-  const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Normalisasi: hapus tanda kurung + isinya, lalu strip non-alphanumeric
+  const norm = s => String(s||'').replace(/\(.*?\)/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   // Index by kode_pos dan by kecamatan-norm
   const kodeMap    = {}; // kode_pos → [rows]
@@ -4268,13 +4447,12 @@ async function exportTmplAutolaris() {
   const tgl = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `template_autolaris_${tgl}.xlsx`);
 
-  const kosongRows = data.filter((r, i) => !r[4]);
-  if (kosongRows.length) {
-    const namaList = kosongRows.map(r => String(r[1]).split('|')[0].trim()).join(', ');
-    showToast(`✓ Download selesai (${rows.length} order)`, 'success');
-    showToast(`⚠️ ${kosongRows.length} kode kecamatan tidak ditemukan — isi manual: ${namaList}`, 'warn');
-  } else {
-    showToast(`✓ Template Autolaris ${rows.length} orderan KIRIM berhasil diexport!`, 'success');
+  showToast(`✓ Template Autolaris ${rows.length} orderan KIRIM berhasil didownload!`, 'success');
+
+  // Kumpulkan order yang kode kecamatannya kosong beserta data aslinya
+  const kosongOrders = rows.filter((r, i) => !data[i][4]);
+  if (kosongOrders.length) {
+    setTimeout(() => openKodeKecFixModal(kosongOrders), 400);
   }
 }
 
