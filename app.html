@@ -252,6 +252,7 @@ tr.row-dup td,tr.row-rts td,tr.row-both td,tr.row-dupteam td{border-bottom:1px s
 .toast.success{background:var(--success)}
 .toast.error{background:var(--danger)}
 .toast.info{background:var(--accent)}
+.toast.warn{background:var(--warn);color:#1a1a1a}
 @keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
 
@@ -4179,14 +4180,14 @@ async function exportTmplAutolaris() {
       const { data: kpData, error: kpErr } = await sb.from('kode_kecamatan')
         .select('kode_kecamatan,kecamatan,kota_kabupaten,provinsi,kode_pos')
         .in('kode_pos', batch);
-      if (kpErr) throw kpErr;
+      if (kpErr) { showToast('Gagal load kode kecamatan: ' + kpErr.message, 'error'); console.error(kpErr); break; }
       (kpData||[]).forEach(k => {
         const kp = (k.kode_pos||'').trim();
         if (!kodeMap[kp]) kodeMap[kp] = [];
         kodeMap[kp].push(k);
       });
     }
-  } catch(e) { console.error('kode_kecamatan kodepos lookup error:', e); }
+  } catch(e) { showToast('Error kode kecamatan: ' + e.message, 'error'); console.error(e); }
 
   // Step 2: Fallback lookup via nama kecamatan untuk yang kodeposnya tidak ketemu
   const needFallback = rows.filter(r => {
@@ -4205,7 +4206,7 @@ async function exportTmplAutolaris() {
         const { data: kecData, error: kecErr } = await sb.from('kode_kecamatan')
           .select('kode_kecamatan,kecamatan,kota_kabupaten,provinsi,kode_pos')
           .or(orFilter);
-        if (kecErr) throw kecErr;
+        if (kecErr) { showToast('Gagal fallback kecamatan: ' + kecErr.message, 'error'); console.error(kecErr); break; }
         (kecData||[]).forEach(k => {
           const key = (k.kecamatan||'').toUpperCase();
           if (!kecNameMap[key]) kecNameMap[key] = [];
