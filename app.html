@@ -7904,7 +7904,7 @@ function initCheckboxes() {
 function extractEkspedisi(pembayaran) {
   if (!pembayaran) return '';
   const p = String(pembayaran).toUpperCase();
-  const eksOptions = ['SICEPAT','ANTERAJA','NINJA','LION','TIKI','SAP','IDX','JNE','JNT','SCP','POS'];
+  const eksOptions = ['SICEPAT','ANTERAJA','NINJA','LION','TIKI','SAP','IDX','JNE','J&T','JNT','SCP','POS'];
   for (const eks of eksOptions) {
     if (p.includes(eks)) {
       // Normalize
@@ -7914,6 +7914,7 @@ function extractEkspedisi(pembayaran) {
       if (eks === 'NINJA') return 'Ninja';
       if (eks === 'LION') return 'Lion';
       if (eks === 'POS') return 'POS Indonesia';
+      if (eks === 'J&T') return 'JNT';
       return eks; // JNE, JNT, TIKI, SAP, IDX
     }
   }
