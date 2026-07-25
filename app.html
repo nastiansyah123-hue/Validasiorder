@@ -3578,16 +3578,19 @@ async function initDashboard() {
   try {
     const { data, error } = await sb.from('validator_config').select('email, nama').order('nama');
     if (error) console.error('[initDashboard] validator_config error:', error);
+    console.log('[initDashboard] validator data:', JSON.stringify(data));
     const sel = document.getElementById('db-user-filter');
     sel.innerHTML = '<option value="all">Semua</option>' + (data||[]).filter(v=>v.email).map(v=>`<option value="${v.email}">${v.nama||v.email}</option>`).join('');
-    console.log('[initDashboard] validator loaded:', (data||[]).length);
+    console.log('[initDashboard] validator loaded:', (data||[]).length, '| setelah filter email:', (data||[]).filter(v=>v.email).length);
   } catch(e) { console.error('[initDashboard] validator catch:', e); }
-  // Load team list dinamis dari validasi_detail
+  // Load team list dinamis dari validasi_detail + tambah Akuisisi & CRM
   try {
     const { data: teamData, error: teamErr } = await sb.from('validasi_detail').select('team').not('team','is',null).neq('team','');
     if (teamErr) console.error('[initDashboard] team error:', teamErr);
-    const teams = [...new Set((teamData||[]).map(r=>r.team).filter(Boolean))].sort();
-    const teamOpts = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+    const extraTeams = ['Akuisisi', 'CRM'];
+    const dbTeams = [...new Set((teamData||[]).map(r=>r.team).filter(Boolean))];
+    const teams = [...new Set([...dbTeams, ...extraTeams])].sort();
+    const teamOpts = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t === 'Akuisisi' ? 'Akuisisi (CS Input)' : t}</option>`).join('');
     document.getElementById('db-team-filter').innerHTML = teamOpts;
     document.getElementById('db-team-detail-filter').innerHTML = teamOpts;
     console.log('[initDashboard] teams loaded:', teams);
