@@ -105,7 +105,8 @@ function triggerDownload(blob, filename) {
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
-function showToast(msg, type = 'info') {
+function showToast(msg, type = 'info', duration) {
+  const ms = duration ?? (type === 'warn' ? 8000 : type === 'error' ? 6000 : 3500);
   let wrap = document.getElementById('toast-wrap');
   if (!wrap) {
     wrap = document.createElement('div');
@@ -117,5 +118,5 @@ function showToast(msg, type = 'info') {
   t.className = `toast ${type}`;
   t.textContent = msg;
   wrap.appendChild(t);
-  setTimeout(() => t.remove(), 3500);
+  setTimeout(() => t.remove(), ms);
 }
