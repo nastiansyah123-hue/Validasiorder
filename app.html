@@ -4169,7 +4169,7 @@ async function exportTmplAutolaris() {
 
   showToast('Memuat kode kecamatan...', 'info');
 
-  // Lookup kode kecamatan (numerik) via kodepos + cocokkan kecamatan/kabupaten
+  // Step 1: Lookup via kodepos
   const kodeposSet = [...new Set(rows.map(r => (r.kodepos||'').trim()).filter(Boolean))];
   const kodeMap = {}; // key: kodepos → array of rows
 
@@ -4185,7 +4185,32 @@ async function exportTmplAutolaris() {
         kodeMap[kp].push(k);
       });
     }
-  } catch(e) { console.error('kode_kecamatan lookup error:', e); }
+  } catch(e) { console.error('kode_kecamatan kodepos lookup error:', e); }
+
+  // Step 2: Fallback lookup via nama kecamatan untuk yang kodeposnya tidak ketemu
+  const needFallback = rows.filter(r => {
+    const kp = (r.kodepos||'').trim();
+    return !kp || !kodeMap[kp];
+  });
+  const kecNameMap = {}; // key: "KECAMATAN||KABUPATEN" → best match
+
+  if (needFallback.length > 0) {
+    const kecSet = [...new Set(needFallback.map(r => (r.kecamatan||'').trim().toUpperCase()).filter(Boolean))];
+    try {
+      for (let i = 0; i < kecSet.length; i += 50) {
+        const batch = kecSet.slice(i, i + 50);
+        const orFilter = batch.map(k => `kecamatan.ilike.${k}`).join(',');
+        const { data: kecData } = await sb.from('kode_kecamatan')
+          .select('kode_kecamatan,kecamatan,kota_kabupaten,provinsi,kode_pos')
+          .or(orFilter);
+        (kecData||[]).forEach(k => {
+          const key = (k.kecamatan||'').toUpperCase();
+          if (!kecNameMap[key]) kecNameMap[key] = [];
+          kecNameMap[key].push(k);
+        });
+      }
+    } catch(e) { console.error('kode_kecamatan name lookup error:', e); }
+  }
 
   // Format template sama persis dengan file Autolaris asli
   const headers = [
@@ -4196,11 +4221,11 @@ async function exportTmplAutolaris() {
 
   const data = rows.map(r => {
     const kp      = (r.kodepos||'').trim();
-    const kabKey  = (r.kabupaten||'').toUpperCase();
-    const kecKey  = (r.kecamatan||'').toUpperCase();
+    const kabKey  = (r.kabupaten||'').trim().toUpperCase();
+    const kecKey  = (r.kecamatan||'').trim().toUpperCase();
     const matches = kodeMap[kp] || [];
 
-    // Cari match paling cocok: prioritas kecamatan, fallback kabupaten, fallback pertama
+    // Cari match via kodepos dulu
     let matched = null;
     if (matches.length === 1) {
       matched = matches[0];
@@ -4210,6 +4235,19 @@ async function exportTmplAutolaris() {
       ) || matches.find(m =>
         (m.kota_kabupaten||'').toUpperCase().includes(kabKey.replace(/^KABUPATEN |^KOTA /i,''))
       ) || matches[0];
+    }
+
+    // Fallback: lookup via nama kecamatan jika kodepos tidak ketemu
+    if (!matched && kecKey) {
+      const nameCandidates = kecNameMap[kecKey] || [];
+      if (nameCandidates.length === 1) {
+        matched = nameCandidates[0];
+      } else if (nameCandidates.length > 1) {
+        const kabStrip = kabKey.replace(/^KABUPATEN |^KOTA /i,'');
+        matched = nameCandidates.find(m =>
+          (m.kota_kabupaten||'').toUpperCase().includes(kabStrip)
+        ) || nameCandidates[0];
+      }
     }
 
     // kode_kecamatan = angka numerik (sesuai template Autolaris)
