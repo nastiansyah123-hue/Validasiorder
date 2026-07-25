@@ -4218,17 +4218,19 @@ async function exportTmplAutolaris() {
     const kecN   = norm(r.kecamatan);
     const kabN   = norm(r.kabupaten);
 
+    const kabStrip = kabN.replace(/^(kabupaten|kota)/, '');
+
     const pickBest = (candidates) => {
       if (!candidates?.length) return null;
-      if (candidates.length === 1) return candidates[0];
-      // Prioritas: kecamatan + kabupaten cocok, lalu kecamatan saja
-      return candidates.find(m => norm(m.kecamatan) === kecN && norm(m.kota_kabupaten).includes(kabN.replace(/^(kabupaten|kota)/,'')))
-          || candidates.find(m => norm(m.kecamatan) === kecN)
-          || candidates.find(m => norm(m.kota_kabupaten).includes(kabN.replace(/^(kabupaten|kota)/,'')))
-          || candidates[0];
+      // Harus kecamatan cocok (normalized) — jangan tebak by kabupaten saja
+      const kecMatch = candidates.filter(m => norm(m.kecamatan) === kecN);
+      if (!kecMatch.length) return null;
+      if (kecMatch.length === 1) return kecMatch[0];
+      // Kalau ada lebih dari 1 nama kecamatan yang sama, cocokkan kabupaten
+      return kecMatch.find(m => norm(m.kota_kabupaten).includes(kabStrip)) || kecMatch[0];
     };
 
-    // Cari match: 1) kodepos exact, 2) nama kecamatan normalized
+    // Cari match: 1) kodepos → wajib kecamatan cocok, 2) nama kecamatan normalized
     let matched = pickBest(kodeMap[kp]);
     if (!matched && kecN) matched = pickBest(kecNormMap[kecN]);
 
