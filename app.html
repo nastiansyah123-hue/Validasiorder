@@ -910,9 +910,6 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
           <option value="HOLD">Hold</option>
           <option value="CANCEL">Cancel</option>
         </select>
-        <select class="filter-select" id="db-team-detail-filter" onchange="filterDbDetail()">
-          <option value="all">Semua Team</option>
-        </select>
         <div style="position:relative" id="db-eks-wrap">
           <button onclick="toggleEksFilter(event)" id="db-eks-btn" class="filter-select" style="cursor:pointer;text-align:left;min-width:140px;display:flex;align-items:center;justify-content:space-between;gap:6px">
             <span id="db-eks-label">Semua Ekspedisi</span><span>▼</span>
@@ -3618,7 +3615,6 @@ async function initDashboard() {
     const teams = [...new Set([...dbTeams, ...extraTeams])].sort();
     const teamOpts = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t === 'akuisisi' ? 'Akuisisi (CS Input)' : t}</option>`).join('');
     document.getElementById('db-team-filter').innerHTML = teamOpts;
-    document.getElementById('db-team-detail-filter').innerHTML = teamOpts;
     console.log('[initDashboard] teams loaded:', teams);
   } catch(e) { console.error('[initDashboard] team catch:', e); }
   await loadDashboard();
@@ -3868,7 +3864,7 @@ document.addEventListener('click', e => {
 
 function filterDbDetail() {
   const f    = document.getElementById('db-status-filter').value;
-  const team = document.getElementById('db-team-detail-filter')?.value || 'all';
+  const team = 'all';
   const q    = document.getElementById('db-search').value.toLowerCase();
   dbFilteredDetail = dbAllDetail.filter(r => {
     const mf = f==='all'?true
