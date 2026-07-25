@@ -3587,7 +3587,7 @@ async function initDashboard() {
   try {
     const { data: teamData, error: teamErr } = await sb.from('validasi_detail').select('team').not('team','is',null).neq('team','');
     if (teamErr) console.error('[initDashboard] team error:', teamErr);
-    const extraTeams = ['Akuisisi', 'CRM'];
+    const extraTeams = ['Akuisisi 1', 'Akuisisi 2', 'Akuisisi', 'CRM'];
     const dbTeams = [...new Set((teamData||[]).map(r=>r.team).filter(Boolean))];
     const teams = [...new Set([...dbTeams, ...extraTeams])].sort();
     const teamOpts = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t === 'Akuisisi' ? 'Akuisisi (CS Input)' : t}</option>`).join('');
