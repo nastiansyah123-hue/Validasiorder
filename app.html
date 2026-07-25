@@ -910,9 +910,6 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
         </select>
         <select class="filter-select" id="db-team-detail-filter" onchange="filterDbDetail()">
           <option value="all">Semua Team</option>
-          <option value="Akuisisi 1">Akuisisi 1</option>
-          <option value="Akuisisi 2">Akuisisi 2</option>
-          <option value="Akuisisi">Akuisisi (CS Input)</option>
         </select>
         <input class="search-input" id="db-search" type="text" placeholder="Cari nama / HP / resi..." oninput="filterDbDetail()" />
         <span class="spacer"></span>
@@ -3579,17 +3576,22 @@ async function initDashboard() {
   drpSetToday();
   // Load user list dari validator_config
   try {
-    const { data } = await sb.from('validator_config').select('email, nama').order('nama');
+    const { data, error } = await sb.from('validator_config').select('email, nama').order('nama');
+    if (error) console.error('[initDashboard] validator_config error:', error);
     const sel = document.getElementById('db-user-filter');
     sel.innerHTML = '<option value="all">Semua</option>' + (data||[]).filter(v=>v.email).map(v=>`<option value="${v.email}">${v.nama||v.email}</option>`).join('');
-  } catch(e) {}
+    console.log('[initDashboard] validator loaded:', (data||[]).length);
+  } catch(e) { console.error('[initDashboard] validator catch:', e); }
   // Load team list dinamis dari validasi_detail
   try {
-    const { data: teamData } = await sb.from('validasi_detail').select('team').not('team','is',null).neq('team','');
+    const { data: teamData, error: teamErr } = await sb.from('validasi_detail').select('team').not('team','is',null).neq('team','');
+    if (teamErr) console.error('[initDashboard] team error:', teamErr);
     const teams = [...new Set((teamData||[]).map(r=>r.team).filter(Boolean))].sort();
-    const teamSel = document.getElementById('db-team-filter');
-    teamSel.innerHTML = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t}</option>`).join('');
-  } catch(e) {}
+    const teamOpts = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+    document.getElementById('db-team-filter').innerHTML = teamOpts;
+    document.getElementById('db-team-detail-filter').innerHTML = teamOpts;
+    console.log('[initDashboard] teams loaded:', teams);
+  } catch(e) { console.error('[initDashboard] team catch:', e); }
   await loadDashboard();
 }
 
