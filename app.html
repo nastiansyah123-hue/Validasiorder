@@ -3595,10 +3595,10 @@ async function initDashboard() {
   try {
     const { data: teamData, error: teamErr } = await sb.from('validasi_detail').select('team').not('team','is',null).neq('team','');
     if (teamErr) console.error('[initDashboard] team error:', teamErr);
-    const extraTeams = ['Akuisisi 1', 'Akuisisi 2', 'Akuisisi', 'CRM'];
+    const extraTeams = ['Akuisisi 1', 'Akuisisi 2', 'akuisisi', 'CRM'];
     const dbTeams = [...new Set((teamData||[]).map(r=>r.team).filter(Boolean))];
     const teams = [...new Set([...dbTeams, ...extraTeams])].sort();
-    const teamOpts = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t === 'Akuisisi' ? 'Akuisisi (CS Input)' : t}</option>`).join('');
+    const teamOpts = '<option value="all">Semua Team</option>' + teams.map(t=>`<option value="${t}">${t === 'akuisisi' ? 'Akuisisi (CS Input)' : t}</option>`).join('');
     document.getElementById('db-team-filter').innerHTML = teamOpts;
     document.getElementById('db-team-detail-filter').innerHTML = teamOpts;
     console.log('[initDashboard] teams loaded:', teams);
@@ -5169,6 +5169,7 @@ async function saveCsInputAcc() {
             quantity    : safeParseInt(r.quantity),
             pembayaran  : r.pembayaran || '',
             total_pembayaran: safeParseInt(r.total_pembayaran),
+            ekspedisi   : extractEkspedisi(r.pembayaran || ''),
             instruksi   : r.instruksi_pengiriman || '',
             resi        : '',
             team        : 'akuisisi',
