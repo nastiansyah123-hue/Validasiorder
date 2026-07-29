@@ -5556,7 +5556,6 @@ async function saveCsInputAcc() {
             quantity    : safeParseInt(r.quantity),
             pembayaran  : r.pembayaran || '',
             total_pembayaran: safeParseInt(r.total_pembayaran),
-            ekspedisi   : extractEkspedisi(r.pembayaran || ''),
             instruksi   : r.instruksi_pengiriman || '',
             resi        : '',
             team        : 'akuisisi',
