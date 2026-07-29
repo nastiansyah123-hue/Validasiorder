@@ -314,6 +314,41 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   .bottom-nav{display:flex}
   .mobile-user-btn{display:flex}
 }
+
+/* ── ASISTEN AI ───────────────────────────────────────────────────── */
+.asisten-fab{position:fixed;bottom:1.5rem;right:1.5rem;width:52px;height:52px;border-radius:50%;background:var(--accent);color:white;border:none;font-size:22px;cursor:pointer;box-shadow:0 4px 16px rgba(79,70,229,0.4);z-index:8000;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.asisten-fab:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(79,70,229,0.5)}
+.asisten-fab.has-notif::after{content:'';position:absolute;top:4px;right:4px;width:10px;height:10px;background:#ef4444;border-radius:50%;border:2px solid white}
+.asisten-panel{position:fixed;bottom:0;right:0;width:380px;height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:7999;display:flex;flex-direction:column;transform:translateX(100%);transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);box-shadow:-4px 0 24px rgba(0,0,0,0.12)}
+.asisten-panel.open{transform:translateX(0)}
+.asisten-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--accent);color:white}
+.asisten-header-title{font-size:14px;font-weight:700;flex:1}
+.asisten-header-sub{font-size:10px;opacity:0.8;font-family:var(--mono)}
+.asisten-close{background:none;border:none;color:white;cursor:pointer;font-size:18px;padding:2px 6px;border-radius:6px;opacity:0.8}
+.asisten-close:hover{opacity:1;background:rgba(255,255,255,0.15)}
+.asisten-messages{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:10px}
+.asisten-msg{max-width:90%;padding:10px 13px;border-radius:12px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.asisten-msg.bot{background:var(--bg);border:1px solid var(--border);border-radius:4px 12px 12px 12px;align-self:flex-start;color:var(--text)}
+.asisten-msg.user{background:var(--accent);color:white;border-radius:12px 4px 12px 12px;align-self:flex-end}
+.asisten-msg.error-ctx{background:var(--danger-light);border:1px solid var(--danger);color:var(--danger);font-size:11px;font-family:var(--mono);align-self:stretch;max-width:100%;border-radius:8px}
+.asisten-typing{display:flex;gap:4px;align-items:center;padding:10px 13px;background:var(--bg);border:1px solid var(--border);border-radius:4px 12px 12px 12px;align-self:flex-start;width:fit-content}
+.asisten-typing span{width:7px;height:7px;background:var(--muted);border-radius:50%;animation:asistenDot 1.2s infinite}
+.asisten-typing span:nth-child(2){animation-delay:0.2s}
+.asisten-typing span:nth-child(3){animation-delay:0.4s}
+@keyframes asistenDot{0%,60%,100%{transform:translateY(0);opacity:0.4}30%{transform:translateY(-5px);opacity:1}}
+.asisten-quick{padding:0.5rem 1rem;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--border);flex-shrink:0}
+.asisten-quick-btn{padding:5px 10px;font-size:11px;background:var(--bg);border:1px solid var(--border-strong);border-radius:99px;cursor:pointer;color:var(--text);font-family:var(--font);transition:all 0.15s;white-space:nowrap}
+.asisten-quick-btn:hover{background:var(--accent-light);color:var(--accent);border-color:var(--accent)}
+.asisten-input-area{padding:0.75rem 1rem;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+.asisten-textarea{flex:1;resize:none;padding:8px 11px;border:1px solid var(--border-strong);border-radius:8px;font-size:13px;font-family:var(--font);background:var(--bg);color:var(--text);outline:none;max-height:100px;line-height:1.4}
+.asisten-textarea:focus{border-color:var(--accent)}
+.asisten-send{padding:8px 14px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;flex-shrink:0;transition:all 0.15s}
+.asisten-send:hover{background:var(--accent-hover)}
+.asisten-send:disabled{opacity:0.4;cursor:not-allowed}
+@media(max-width:768px){
+  .asisten-panel{width:100vw}
+  .asisten-fab{bottom:calc(var(--bottom-nav-h) + 1rem)}
+}
 </style>
 </head>
 <body>
@@ -8963,6 +8998,145 @@ async function crmiCancel(id) {
   showToast('Order di-CANCEL', 'error');
   await loadCrmInput();
 }
+
+// ════════════════════════════════════════════════════════════════
+// ASISTEN AI — Chat panel + Auto-diagnosis error
+// ════════════════════════════════════════════════════════════════
+
+let asistenHistory = [];  // [{role, content}] untuk dikirim ke Claude
+let asistenLoading = false;
+let asistenPanelOpen = false;
+
+function asistenToggle() {
+  asistenPanelOpen = !asistenPanelOpen;
+  document.getElementById('asisten-panel').classList.toggle('open', asistenPanelOpen);
+  document.getElementById('asisten-fab').classList.remove('has-notif');
+  if (asistenPanelOpen && asistenHistory.length === 0) {
+    asistenAddMsg('bot', 'Halo! Aku asisten ValidasiOrder. 👋\n\nTanya apa saja — tentang error, data order, alur kerja, atau cek kondisi sistem. Aku bisa akses database langsung.');
+  }
+  if (asistenPanelOpen) setTimeout(() => document.getElementById('asisten-input')?.focus(), 300);
+}
+
+function asistenAddMsg(role, text) {
+  const wrap = document.getElementById('asisten-messages');
+  if (!wrap) return;
+  const div = document.createElement('div');
+  div.className = `asisten-msg ${role}`;
+  div.textContent = text;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function asistenShowTyping() {
+  const wrap = document.getElementById('asisten-messages');
+  const el = document.createElement('div');
+  el.className = 'asisten-typing';
+  el.id = 'asisten-typing';
+  el.innerHTML = '<span></span><span></span><span></span>';
+  wrap?.appendChild(el);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function asistenHideTyping() {
+  document.getElementById('asisten-typing')?.remove();
+}
+
+async function asistenKirim() {
+  const input = document.getElementById('asisten-input');
+  const text = (input?.value || '').trim();
+  if (!text || asistenLoading) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  asistenSend(text);
+}
+
+async function asistenSend(userText) {
+  if (asistenLoading) return;
+  asistenLoading = true;
+
+  const sendBtn = document.getElementById('asisten-send');
+  if (sendBtn) sendBtn.disabled = true;
+
+  asistenAddMsg('user', userText);
+  asistenHistory.push({ role: 'user', content: userText });
+
+  asistenShowTyping();
+
+  try {
+    const res = await fetch('/api/asisten', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: asistenHistory }),
+    });
+    const data = await res.json();
+    asistenHideTyping();
+
+    if (data.error) {
+      asistenAddMsg('bot', '⚠️ ' + data.error);
+    } else {
+      asistenAddMsg('bot', data.reply);
+      asistenHistory.push({ role: 'assistant', content: data.reply });
+      // Jaga history max 20 pesan agar tidak terlalu besar
+      if (asistenHistory.length > 20) asistenHistory = asistenHistory.slice(-20);
+    }
+  } catch (e) {
+    asistenHideTyping();
+    asistenAddMsg('bot', '⚠️ Gagal konek ke asisten: ' + e.message);
+  } finally {
+    asistenLoading = false;
+    if (sendBtn) sendBtn.disabled = false;
+  }
+}
+
+async function asistenQuick(type) {
+  const prompts = {
+    'cek-sistem': 'Cek kondisi sistem sekarang: berapa order cs_input yang masuk per tanggal (7 hari terakhir)? Ada tanggal yang kosong atau sangat sedikit?',
+    'cek-resi': 'Berapa order di all_orderan yang belum ada resi (resi kosong atau null)? Tampilkan per sumber dan tanggal terbaru.',
+    'order-hari-ini': `Berapa total order masuk hari ini (${new Date(Date.now()+7*3600000).toISOString().slice(0,10)}) dari semua sumber?`,
+  };
+  if (!asistenPanelOpen) asistenToggle();
+  await asistenSend(prompts[type] || type);
+}
+
+// ── AUTO-DIAGNOSIS saat error toast ──────────────────────────────
+// Intercept showToast untuk deteksi error otomatis
+(function() {
+  const _orig = window.showToast;
+  if (!_orig) return;
+  window.showToast = function(msg, type, duration) {
+    _orig(msg, type, duration);
+    if (type === 'error' && msg && !msg.includes('Asisten')) {
+      // Tunggu sebentar biar toast muncul dulu
+      setTimeout(() => {
+        const fab = document.getElementById('asisten-fab');
+        if (fab && !asistenPanelOpen) fab.classList.add('has-notif');
+        const ctx = `Terjadi error di sistem:\n"${msg}"\n\nIni error apa? Kenapa bisa terjadi dan apa yang harus dilakukan?`;
+        if (!asistenPanelOpen) {
+          // Simpan ke history tapi jangan auto-buka — hanya notif di FAB
+          asistenHistory.push({ role: 'user', content: ctx });
+          // Kalau user buka panel, langsung kirim
+          const _origToggle = window.asistenToggle;
+          window.asistenToggle = function() {
+            _origToggle();
+            if (asistenPanelOpen && asistenHistory.length > 0) {
+              const last = asistenHistory[asistenHistory.length - 1];
+              if (last.role === 'user') {
+                // Ada pending error diagnosis
+                asistenAddMsg('user', last.role === 'user' ? last.content.split('\n')[0] : '');
+                window.asistenToggle = _origToggle;
+                asistenSend(last.content);
+                asistenHistory.pop(); // akan di-push ulang oleh asistenSend
+              }
+            }
+          };
+        } else {
+          asistenSend(ctx);
+        }
+      }, 1000);
+    }
+  };
+})();
 </script>
   <!-- Add/Edit Validator Modal -->
   <div id="validator-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
@@ -9074,6 +9248,32 @@ async function crmiCancel(id) {
     </div>
   </div>
 
-</body>
+<!-- ── ASISTEN AI ──────────────────────────────────────── -->
+<button class="asisten-fab" id="asisten-fab" onclick="asistenToggle()" title="Asisten ValidasiOrder">🤖</button>
+
+<div class="asisten-panel" id="asisten-panel">
+  <div class="asisten-header">
+    <div>
+      <div class="asisten-header-title">🤖 Asisten ValidasiOrder</div>
+      <div class="asisten-header-sub">AI · Live data Supabase</div>
+    </div>
+    <button class="asisten-close" onclick="asistenToggle()">✕</button>
+  </div>
+
+  <div class="asisten-messages" id="asisten-messages"></div>
+
+  <div class="asisten-quick">
+    <button class="asisten-quick-btn" onclick="asistenQuick('cek-sistem')">📊 Cek Sistem</button>
+    <button class="asisten-quick-btn" onclick="asistenQuick('cek-resi')">📦 Cek Resi Kosong</button>
+    <button class="asisten-quick-btn" onclick="asistenQuick('order-hari-ini')">📋 Order Hari Ini</button>
+  </div>
+
+  <div class="asisten-input-area">
+    <textarea class="asisten-textarea" id="asisten-input" placeholder="Tanya apa saja tentang sistem..." rows="2"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();asistenKirim()}"></textarea>
+    <button class="asisten-send" id="asisten-send" onclick="asistenKirim()">Kirim</button>
+  </div>
+</div>
+
 </body>
 </html>
