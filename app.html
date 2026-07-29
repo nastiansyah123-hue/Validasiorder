@@ -9010,7 +9010,9 @@ let asistenPanelOpen = false;
 function asistenToggle() {
   asistenPanelOpen = !asistenPanelOpen;
   document.getElementById('asisten-panel').classList.toggle('open', asistenPanelOpen);
-  document.getElementById('asisten-fab').classList.remove('has-notif');
+  const fab = document.getElementById('asisten-fab');
+  fab.style.display = asistenPanelOpen ? 'none' : 'flex';
+  fab.classList.remove('has-notif');
   if (asistenPanelOpen && asistenHistory.length === 0) {
     asistenAddMsg('bot', 'Halo! Aku asisten ValidasiOrder. 👋\n\nTanya apa saja — tentang error, data order, alur kerja, atau cek kondisi sistem. Aku bisa akses database langsung.');
   }
