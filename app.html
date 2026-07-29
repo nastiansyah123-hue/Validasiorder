@@ -9006,6 +9006,7 @@ async function crmiCancel(id) {
 let asistenHistory = [];  // [{role, content}] untuk dikirim ke Claude
 let asistenLoading = false;
 let asistenPanelOpen = false;
+let asistenPendingImage = null; // { base64, mediaType }
 
 function asistenToggle() {
   asistenPanelOpen = !asistenPanelOpen;
@@ -9043,25 +9044,70 @@ function asistenHideTyping() {
   document.getElementById('asisten-typing')?.remove();
 }
 
+function asistenPilihGambar(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const base64 = dataUrl.split(',')[1];
+    const mediaType = file.type || 'image/jpeg';
+    asistenPendingImage = { base64, mediaType };
+    document.getElementById('asisten-img-thumb').src = dataUrl;
+    document.getElementById('asisten-img-preview').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function asistenHapusGambar() {
+  asistenPendingImage = null;
+  document.getElementById('asisten-img-preview').style.display = 'none';
+  document.getElementById('asisten-img-thumb').src = '';
+}
+
 async function asistenKirim() {
   const input = document.getElementById('asisten-input');
   const text = (input?.value || '').trim();
-  if (!text || asistenLoading) return;
+  if ((!text && !asistenPendingImage) || asistenLoading) return;
+
+  const img = asistenPendingImage;
+  asistenPendingImage = null;
+  document.getElementById('asisten-img-preview').style.display = 'none';
 
   input.value = '';
   input.style.height = 'auto';
-  asistenSend(text);
+  asistenSend(text || 'Tolong analisa gambar/screenshot ini.', img);
 }
 
-async function asistenSend(userText) {
+async function asistenSend(userText, image = null) {
   if (asistenLoading) return;
   asistenLoading = true;
 
   const sendBtn = document.getElementById('asisten-send');
   if (sendBtn) sendBtn.disabled = true;
 
-  asistenAddMsg('user', userText);
-  asistenHistory.push({ role: 'user', content: userText });
+  // Tampilkan pesan user di UI
+  if (image) {
+    const wrap = document.getElementById('asisten-messages');
+    const div = document.createElement('div');
+    div.className = 'asisten-msg user';
+    div.innerHTML = `<img src="data:${image.mediaType};base64,${image.base64}" style="max-width:180px;max-height:140px;border-radius:8px;display:block;margin-bottom:${userText?'6px':'0'}">${userText ? `<span>${userText}</span>` : ''}`;
+    wrap?.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  } else {
+    asistenAddMsg('user', userText);
+  }
+
+  // Build content untuk Claude (support gambar)
+  const userContent = image
+    ? [
+        { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } },
+        ...(userText ? [{ type: 'text', text: userText }] : [])
+      ]
+    : userText;
+
+  asistenHistory.push({ role: 'user', content: userContent });
 
   asistenShowTyping();
 
@@ -9279,8 +9325,25 @@ async function asistenQuick(type) {
     <button class="asisten-quick-btn" onclick="asistenQuick('order-hari-ini')">📋 Order Hari Ini</button>
   </div>
 
+  <!-- Preview gambar yang dipilih -->
+  <div id="asisten-img-preview" style="display:none;padding:6px 1rem;border-top:1px solid var(--border)">
+    <div style="position:relative;display:inline-block">
+      <img id="asisten-img-thumb" style="max-height:80px;max-width:200px;border-radius:6px;border:1px solid var(--border)" />
+      <button onclick="asistenHapusGambar()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--danger);color:white;border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;padding:0">✕</button>
+    </div>
+  </div>
+
   <div class="asisten-input-area">
-    <textarea class="asisten-textarea" id="asisten-input" placeholder="Tanya apa saja tentang sistem..." rows="2"
+    <input type="file" id="asisten-file-input" accept="image/*" style="display:none" onchange="asistenPilihGambar(this)">
+    <button onclick="document.getElementById('asisten-file-input').click()" title="Kirim foto/screenshot"
+      style="flex-shrink:0;width:36px;height:36px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all 0.15s"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+      onmouseout="this.style.borderColor='var(--border-strong)';this.style.color='var(--muted)'">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>
+      </svg>
+    </button>
+    <textarea class="asisten-textarea" id="asisten-input" placeholder="Tanya apa saja atau kirim screenshot..." rows="2"
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();asistenKirim()}"></textarea>
     <button class="asisten-send" id="asisten-send" onclick="asistenKirim()">Kirim</button>
   </div>
