@@ -6274,11 +6274,16 @@ async function saveResiFromFile() {
     let matched = 0, updated = 0;
     const hpList = resiFileParsed.map(r => normalizeHP(r.hp)).filter(Boolean);
     
-    // Fetch hanya HP yang ada di file resi
+    // Fetch hanya HP yang ada di file resi — query KEDUA format (08xxx dan 8xxx)
+    // karena cs_input records pakai 08xxx, records lain bisa 8xxx
+    const hpBothFormats = [...new Set([
+      ...hpList,
+      ...hpList.map(hp => hp.replace(/^0+/, ''))
+    ])];
     const { data: onProses } = await sb.from('all_orderan')
       .select('id,hp')
       .eq('status_akhir','ON PROSES')
-      .in('hp', hpList.map(hp => hp.replace(/^0/,'')));
+      .in('hp', hpBothFormats);
 
     const hpIndex = {};
     (onProses||[]).forEach(r => {
@@ -8752,7 +8757,6 @@ async function initSbApp() {
 }
 
 async function initCrmInputPage() {
-  await initSbApp();
   const tglEl = document.getElementById('crmi-tanggal');
   if (tglEl && !tglEl.value) {
     tglEl.value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
@@ -8762,18 +8766,16 @@ async function initCrmInputPage() {
 }
 
 async function crmiRefreshAgentFilter() {
-  if (!sbApp) await initSbApp();
-  if (!sbApp) return;
   const tanggal = document.getElementById('crmi-tanggal')?.value;
   const sel = document.getElementById('crmi-agent-filter');
   if (!sel) return;
   const prevVal = sel.value;
   try {
-    let query = sbApp.from('crm_orderan').select('crm_id, crm_nama');
+    let query = sb.from('orderan_masuk_crm').select('cs_id, cs_nama');
     if (tanggal) query = query.eq('tanggal', tanggal);
     const { data } = await query;
     const seen = new Map();
-    (data||[]).forEach(r => { if (r.crm_id && !seen.has(r.crm_id)) seen.set(r.crm_id, r.crm_nama||'(tanpa nama)'); });
+    (data||[]).forEach(r => { if (r.cs_id && !seen.has(r.cs_id)) seen.set(r.cs_id, r.cs_nama||'(tanpa nama)'); });
     const sorted = [...seen.entries()].sort((a,b) => a[1].localeCompare(b[1]));
     sel.innerHTML = '<option value="">Semua CRM Agent</option>' +
       sorted.map(([id, nama]) => `<option value="${id}">${nama}</option>`).join('');
@@ -8782,9 +8784,6 @@ async function crmiRefreshAgentFilter() {
 }
 
 async function loadCrmInput() {
-  if (!sbApp) await initSbApp();
-  if (!sbApp) { showToast('Gagal koneksi ke CRM database', 'error'); return; }
-
   const badge    = document.getElementById('loading-crmi');
   const infoEl   = document.getElementById('crmi-info');
   const statusEl = document.getElementById('crmi-status-msg');
@@ -8799,15 +8798,25 @@ async function loadCrmInput() {
     const filterTanggal = document.getElementById('crmi-tanggal')?.value || '';
     const filterAgent   = document.getElementById('crmi-agent-filter')?.value || '';
 
-    let query = sbApp.from('crm_orderan').select('*').order('created_at', { ascending: false });
-    if (filterStatus)  query = query.eq('status', filterStatus);
+    let query = sb.from('orderan_masuk_crm').select('*').order('created_at', { ascending: false });
     if (filterTanggal) query = query.eq('tanggal', filterTanggal);
-    if (filterAgent)   query = query.eq('crm_id', filterAgent);
+    if (filterAgent)   query = query.eq('cs_id', filterAgent);
 
     const { data, error } = await query;
     if (error) throw error;
 
-    crmiRows = data || [];
+    // Normalisasi field agar kompatibel dengan render & ACC logic
+    let rows = (data || []).map(r => ({
+      ...r,
+      crm_id:   r.cs_id,
+      crm_nama: r.cs_nama,
+      no_hp:    r.hp,
+      status:   r.acc_spv || 'Menunggu Validasi',
+    }));
+
+    if (filterStatus) rows = rows.filter(r => r.status === filterStatus);
+
+    crmiRows = rows;
 
     if (!crmiRows.length) {
       statusEl.textContent = 'Tidak ada order CRM ditemukan.';
@@ -8916,7 +8925,7 @@ async function crmiDoAcc(rows) {
       const hp8 = hp.replace(/^0/, '');
       const tgl = r.tanggal || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
 
-      // 1. Insert ke all_orderan (sbData)
+      // 1. Insert ke all_orderan
       const { error: aoErr } = await sb.from('all_orderan').insert({
         no: r.no || '', tanggal: tgl,
         nama: r.nama || '', hp: hp8,
@@ -8933,45 +8942,8 @@ async function crmiDoAcc(rows) {
       });
       if (aoErr) throw new Error(`Gagal insert all_orderan: ${aoErr.message}`);
 
-      // 2. Cari customer di crm_customers (sbApp) by HP
-      const { data: customers } = await sbApp
-        .from('crm_customers')
-        .select('id, repeat_orders')
-        .or(`no_hp.eq.${hp},no_hp.eq.${hp8}`)
-        .limit(1);
-
-      if (customers && customers.length > 0) {
-        const cust = customers[0];
-        const repeatCount = ((cust.repeat_orders || []).filter(x => x.status !== 'Gagal')).length;
-        // 3. Insert ke crm_repeats (sbApp)
-        const { error: repErr } = await sbApp.from('crm_repeats').insert({
-          customer_id:    cust.id,
-          no_repeat:      repeatCount + 1,
-          tgl:            tgl,
-          produk:         r.jumlah_pesanan || '',
-          qty:            r.quantity || null,
-          resi:           '',
-          ekspedisi:      r.ekspedisi || '',
-          status:         'Menunggu Resi',
-          is_crosselling: false,
-        });
-        if (repErr) console.warn('[CRM] gagal insert crm_repeats:', repErr.message);
-
-        // 3b. Sync repeat_orders JSONB di crm_customers agar tracking resi terupdate
-        const { data: allRepeats } = await sbApp.from('crm_repeats')
-          .select('tgl,resi,ekspedisi,produk,qty,status')
-          .eq('customer_id', cust.id)
-          .order('no_repeat', { ascending: true });
-        const repeatJson = (allRepeats || []).filter(x => x.status !== 'Gagal').map(x => ({
-          tgl: x.tgl, resi: x.resi, ekspedisi: x.ekspedisi,
-          produk: x.produk, qty: x.qty,
-          status_resi: x.status === 'Berhasil' ? 'SAMPAI' : null,
-        }));
-        await sbApp.from('crm_customers').update({ repeat_orders: repeatJson }).eq('id', cust.id);
-      }
-
-      // 4. Update crm_orderan status = 'ACC' (sbApp)
-      await sbApp.from('crm_orderan').update({ status: 'ACC' }).eq('id', r.id);
+      // 2. Update acc_spv = 'ACC' di orderan_masuk_crm
+      await sb.from('orderan_masuk_crm').update({ acc_spv: 'ACC' }).eq('id', r.id);
     }
 
     showToast(`✅ ${rows.length} order berhasil di-ACC`, 'success');
@@ -8985,7 +8957,7 @@ async function crmiDoAcc(rows) {
 
 async function crmiHold(id) {
   if (!confirm('HOLD order ini?')) return;
-  const { error } = await sbApp.from('crm_orderan').update({ status: 'HOLD' }).eq('id', id);
+  const { error } = await sb.from('orderan_masuk_crm').update({ acc_spv: 'HOLD' }).eq('id', id);
   if (error) { showToast('Gagal HOLD: ' + error.message, 'error'); return; }
   showToast('Order di-HOLD', 'warn');
   await loadCrmInput();
@@ -8993,7 +8965,7 @@ async function crmiHold(id) {
 
 async function crmiCancel(id) {
   if (!confirm('CANCEL order ini? Order tidak akan dikirim.')) return;
-  const { error } = await sbApp.from('crm_orderan').update({ status: 'CANCEL' }).eq('id', id);
+  const { error } = await sb.from('orderan_masuk_crm').update({ acc_spv: 'CANCEL' }).eq('id', id);
   if (error) { showToast('Gagal CANCEL: ' + error.message, 'error'); return; }
   showToast('Order di-CANCEL', 'error');
   await loadCrmInput();
