@@ -1340,7 +1340,7 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
   <div class="page" id="page-crminput">
     <div class="page-header">
       <div class="page-title">CRM Input</div>
-      <div class="page-sub">Validasi orderan yang diinput CRM Agent — ACC untuk kirim ke all_orderan</div>
+      <div class="page-sub">ACC orderan dari CRM Input langsung — hasil validasi sudah otomatis dihitung</div>
     </div>
 
     <!-- Filter bar -->
@@ -1349,53 +1349,103 @@ body.fullscreen-mode #btn-fullscreen { background:var(--accent);color:white;bord
       <select id="crmi-agent-filter" class="filter-select" style="min-width:160px">
         <option value="">Semua CRM Agent</option>
       </select>
-      <select id="crmi-status-filter" class="filter-select">
-        <option value="">Semua Status</option>
-        <option value="Menunggu Validasi" selected>Menunggu Validasi</option>
-        <option value="ACC">ACC</option>
-        <option value="HOLD">HOLD</option>
-        <option value="CANCEL">CANCEL</option>
-      </select>
-      <button class="btn-primary" onclick="loadCrmInput()">🔍 Ambil Data</button>
-      <button class="btn-secondary" id="btn-crmi-acc-all" style="display:none" onclick="crmiAccAll()">✅ ACC Semua Tercentang</button>
+      <button class="btn-primary" id="btn-crmi-ambil" onclick="loadCrmInput()">🔍 Ambil Data</button>
+      <button class="btn-secondary" id="btn-crmi-download" onclick="exportCrmiXLSX()" style="display:none">⬇ Download Excel</button>
       <span class="loading-badge" id="loading-crmi">memuat...</span>
       <span class="spacer"></span>
       <span id="crmi-info" style="font-size:11px;color:var(--muted);font-family:monospace"></span>
     </div>
 
-    <!-- Summary cards -->
-    <div class="summary-grid" id="crmi-summary" style="display:none;grid-template-columns:repeat(5,minmax(120px,1fr));margin-bottom:1rem">
-      <div class="sum-card c-total"><div class="s-label">Total</div><div class="s-value" id="crmi-s-total">—</div></div>
-      <div class="sum-card c-aman"><div class="s-label">ACC</div><div class="s-value" id="crmi-s-acc" style="color:var(--success)">—</div></div>
-      <div class="sum-card"><div class="s-label">HOLD</div><div class="s-value" id="crmi-s-hold" style="color:var(--warn)">—</div></div>
-      <div class="sum-card"><div class="s-label">CANCEL</div><div class="s-value" id="crmi-s-cancel" style="color:var(--danger)">—</div></div>
-      <div class="sum-card"><div class="s-label">Menunggu</div><div class="s-value" id="crmi-s-menunggu" style="color:var(--muted)">—</div></div>
-    </div>
-
     <div id="crmi-status-msg" class="drop-status" style="display:none;margin-bottom:10px"></div>
 
-    <div id="crmi-table-wrap" style="display:none">
-      <div class="table-wrap">
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th><input type="checkbox" id="crmi-check-all" onchange="crmiToggleAll(this)"></th>
-                <th>Tgl</th>
-                <th>CRM Agent</th>
-                <th>Nama</th>
-                <th>No HP</th>
-                <th>Produk</th>
-                <th>Qty</th>
-                <th>Total</th>
-                <th>Pembayaran</th>
-                <th>Kabupaten</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="crmi-tbody"></tbody>
-          </table>
+    <!-- Summary cards -->
+    <div class="summary-grid" id="crmi-summary-section" style="display:none;grid-template-columns:repeat(7,minmax(120px,1fr));margin-bottom:1rem">
+      <div class="sum-card c-total" onclick="filterCrmiByCard('all')" style="cursor:pointer">
+        <div class="s-label">Total Order</div>
+        <div class="s-value" id="crmi-s-total">—</div>
+      </div>
+      <div class="sum-card c-dupteam" onclick="filterCrmiByCard('dupteam')" style="cursor:pointer">
+        <div class="s-label">Duplikat Team ↗</div>
+        <div class="s-value" id="crmi-s-dupteam">—</div>
+      </div>
+      <div class="sum-card c-dupall" onclick="filterCrmiByCard('dupall')" style="cursor:pointer">
+        <div class="s-label">Duplikat All Team ↗</div>
+        <div class="s-value" id="crmi-s-dupall">—</div>
+      </div>
+      <div class="sum-card c-rts" onclick="filterCrmiByCard('rts')" style="cursor:pointer">
+        <div class="s-label">Pernah RTS ↗</div>
+        <div class="s-value" id="crmi-s-rts">—</div>
+      </div>
+      <div class="sum-card c-aman" onclick="filterCrmiByCard('kirim')" style="cursor:pointer">
+        <div class="s-label">Kirim ↗</div>
+        <div class="s-value" id="crmi-s-kirim" style="color:var(--success)">—</div>
+      </div>
+      <div class="sum-card" onclick="filterCrmiByCard('hold')" style="cursor:pointer;border:1px solid var(--border)">
+        <div class="s-label">Hold ↗</div>
+        <div class="s-value" id="crmi-s-hold" style="color:var(--warn)">—</div>
+      </div>
+      <div class="sum-card" onclick="filterCrmiByCard('cancel')" style="cursor:pointer;border:1px solid var(--border)">
+        <div class="s-label">Cancel ↗</div>
+        <div class="s-value" id="crmi-s-cancel" style="color:var(--danger)">—</div>
+      </div>
+    </div>
+
+    <!-- Bulk ACC bar -->
+    <div id="crmi-bulk-bar" style="display:none;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;background:var(--accent-light);border:1px solid var(--accent);border-radius:8px">
+      <span id="crmi-bulk-count" style="font-size:12px;font-weight:600;color:var(--accent)"></span>
+      <span class="spacer"></span>
+      <span style="font-size:11px;color:var(--muted)">Set ACC SPV:</span>
+      <button class="btn-secondary" onclick="bulkSetAccCrmi('KIRIM')" style="font-size:12px;background:#dcfce7;color:#16a34a;border-color:#16a34a">✅ Kirim</button>
+      <button class="btn-secondary" onclick="bulkSetAccCrmi('HOLD')" style="font-size:12px;background:#fef3c7;color:#d97706;border-color:#d97706">⏸ Hold</button>
+      <button class="btn-secondary" onclick="bulkSetAccCrmi('CANCEL')" style="font-size:12px;background:#fee2e2;color:#dc2626;border-color:#dc2626">❌ Cancel</button>
+      <button class="btn-secondary" onclick="bulkDeleteCrmi()" style="font-size:12px;background:#fee2e2;color:#dc2626;border-color:#dc2626">🗑️ Hapus Terpilih</button>
+      <button class="btn-secondary" onclick="clearCrmiSelection()" style="font-size:12px">Batal Pilih</button>
+    </div>
+
+    <!-- Tabel -->
+    <div class="table-wrap" id="crmi-table-wrap" style="display:none">
+      <div class="table-scroll" style="max-height:calc(100vh - 320px)">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:32px;text-align:center"><input type="checkbox" id="crmi-chk-all" onclick="toggleSelectAllCrmi(this)" style="cursor:pointer;width:14px;height:14px"></th>
+              <th>#</th>
+              <th>Waktu</th>
+              <th>Nama Customer</th>
+              <th>No HP</th>
+              <th data-label="Alamat">Alamat</th>
+              <th data-label="Kecamatan">Kecamatan</th>
+              <th data-label="Kode Pos">Kode Pos</th>
+              <th>Jumlah Pesanan</th>
+              <th data-label="Qty">Qty</th>
+              <th>Pembayaran</th>
+              <th data-label="Total">Total</th>
+              <th data-label="Instruksi">Instruksi</th>
+              <th data-label="Keterangan">Keterangan</th>
+              <th data-label="Rincian">Rincian</th>
+              <th data-label="Keluhan">Keluhan</th>
+              <th data-label="Ekspedisi">Ekspedisi</th>
+              <th data-label="Wil. Rawan">Wil. Rawan</th>
+              <th data-label="SS Chat">SS Chat</th>
+              <th>CRM Agent</th>
+              <th data-label="Duplikat Team">Duplikat Team</th>
+              <th data-label="Duplikat All Team" class="td-wide">Duplikat All Team</th>
+              <th data-label="RTS/Retur">RTS/Retur</th>
+              <th style="min-width:140px">ACC SPV</th>
+              <th style="min-width:180px">Noted</th>
+              <th style="width:40px">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="crmi-tbody">
+            <tr><td colspan="26" class="empty-state">Belum ada data</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <span id="crmi-save-info" style="font-size:12px;color:var(--muted)">—</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="loading-badge" id="loading-crmi-save">menyimpan...</span>
+          <button class="btn-primary" id="btn-crmi-simpan" onclick="saveCrmInputAcc()" style="font-size:13px">💾 Simpan Semua ACC</button>
         </div>
       </div>
     </div>
@@ -8741,8 +8791,6 @@ function downloadGagalResi() {
 // ════════════════════════════════════════════════════════════════
 
 let sbApp = null;
-let crmiRows = [];
-let crmiChecked = new Set();
 
 async function initSbApp() {
   if (sbApp) return sbApp;
@@ -8756,24 +8804,74 @@ async function initSbApp() {
   return sbApp;
 }
 
+let crmiRows = []; // data loaded dari orderan_masuk_crm
+let crmiActiveFilter = 'all';
+
+function getCrmiVisibleRows() {
+  const accOf = r => (r._accSpv || r.acc_spv || '').toUpperCase();
+  switch (crmiActiveFilter) {
+    case 'dupteam': return crmiRows.filter(r => r.is_dup_today);
+    case 'dupall':  return crmiRows.filter(r => r.is_dup_all);
+    case 'rts':     return crmiRows.filter(r => r.is_rts);
+    case 'kirim':   return crmiRows.filter(r => accOf(r) === 'KIRIM');
+    case 'hold':    return crmiRows.filter(r => accOf(r) === 'HOLD');
+    case 'cancel':  return crmiRows.filter(r => accOf(r) === 'CANCEL');
+    default:        return crmiRows;
+  }
+}
+
+function updateCrmiSummary() {
+  const accOf = r => (r._accSpv || r.acc_spv || '').toUpperCase();
+  const total = crmiRows.length;
+  document.getElementById('crmi-s-total').textContent   = total;
+  document.getElementById('crmi-s-dupteam').textContent = crmiRows.filter(r => r.is_dup_today).length;
+  document.getElementById('crmi-s-dupall').textContent  = crmiRows.filter(r => r.is_dup_all).length;
+  document.getElementById('crmi-s-rts').textContent     = crmiRows.filter(r => r.is_rts).length;
+  document.getElementById('crmi-s-kirim').textContent   = crmiRows.filter(r => accOf(r)==='KIRIM').length;
+  document.getElementById('crmi-s-hold').textContent    = crmiRows.filter(r => accOf(r)==='HOLD').length;
+  document.getElementById('crmi-s-cancel').textContent  = crmiRows.filter(r => accOf(r)==='CANCEL').length;
+  document.getElementById('crmi-summary-section').style.display = total ? 'grid' : 'none';
+}
+
+function filterCrmiByCard(type) {
+  crmiActiveFilter = type;
+  renderCrmInputTable(getCrmiVisibleRows());
+  const order = ['all','dupteam','dupall','rts','kirim','hold','cancel'];
+  document.querySelectorAll('#crmi-summary-section .sum-card').forEach((c,i) => {
+    c.style.outline = order[i] === type ? '2px solid var(--accent)' : '';
+  });
+}
+
+function updateCrmiSaveInfo() {
+  const accOf = r => (r._accSpv || r.acc_spv || '').toUpperCase();
+  const kirim  = crmiRows.filter(r => accOf(r)==='KIRIM').length;
+  const hold   = crmiRows.filter(r => accOf(r)==='HOLD').length;
+  const cancel = crmiRows.filter(r => accOf(r)==='CANCEL').length;
+  const el = document.getElementById('crmi-save-info');
+  if (!el) return;
+  if (!kirim && !hold && !cancel) { el.textContent = '—'; return; }
+  const parts = [];
+  if (kirim)  parts.push(`${kirim} KIRIM`);
+  if (hold)   parts.push(`${hold} HOLD`);
+  if (cancel) parts.push(`${cancel} CANCEL`);
+  el.textContent = parts.join(' · ');
+}
+
 async function initCrmInputPage() {
   const tglEl = document.getElementById('crmi-tanggal');
   if (tglEl && !tglEl.value) {
     tglEl.value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
   }
   await crmiRefreshAgentFilter();
-  await loadCrmInput();
 }
 
 async function crmiRefreshAgentFilter() {
   const tanggal = document.getElementById('crmi-tanggal')?.value;
   const sel = document.getElementById('crmi-agent-filter');
-  if (!sel) return;
+  if (!tanggal || !sel) return;
   const prevVal = sel.value;
   try {
-    let query = sb.from('orderan_masuk_crm').select('cs_id, cs_nama');
-    if (tanggal) query = query.eq('tanggal', tanggal);
-    const { data } = await query;
+    const { data } = await sb.from('orderan_masuk_crm').select('cs_id, cs_nama').eq('tanggal', tanggal);
     const seen = new Map();
     (data||[]).forEach(r => { if (r.cs_id && !seen.has(r.cs_id)) seen.set(r.cs_id, r.cs_nama||'(tanpa nama)'); });
     const sorted = [...seen.entries()].sort((a,b) => a[1].localeCompare(b[1]));
@@ -8784,191 +8882,533 @@ async function crmiRefreshAgentFilter() {
 }
 
 async function loadCrmInput() {
+  const tanggal = document.getElementById('crmi-tanggal').value;
+  const agentId = document.getElementById('crmi-agent-filter').value;
+  if (!tanggal) { showToast('Pilih tanggal dulu', 'warn'); return; }
+
   const badge    = document.getElementById('loading-crmi');
-  const infoEl   = document.getElementById('crmi-info');
   const statusEl = document.getElementById('crmi-status-msg');
+  const btn      = document.getElementById('btn-crmi-ambil');
+
+  btn.disabled = true;
   badge.classList.add('show');
   statusEl.style.display = 'none';
   document.getElementById('crmi-table-wrap').style.display = 'none';
-  document.getElementById('crmi-summary').style.display = 'none';
-  crmiChecked.clear();
 
   try {
-    const filterStatus  = document.getElementById('crmi-status-filter')?.value || '';
-    const filterTanggal = document.getElementById('crmi-tanggal')?.value || '';
-    const filterAgent   = document.getElementById('crmi-agent-filter')?.value || '';
+    let query = sb.from('orderan_masuk_crm')
+      .select('id, no, created_at, tanggal, nama, hp, alamat, kelurahan, kecamatan, kabupaten, provinsi, kodepos, jumlah_pesanan, quantity, pembayaran, total_pembayaran, instruksi_pengiriman, keterangan, rincian_pembayaran, keluhan, cs_id, cs_nama, acc_spv, noted, is_dup_today, is_dup_all, is_rts, is_wajib_transfer, is_wilayah_rawan, is_eks_wrong, eks_detail, kp_stat, ss_urls, dup_detail, rts_detail, receiver_score, iklan_verified')
+      .eq('tanggal', tanggal)
+      .order('created_at', { ascending: true });
 
-    let query = sb.from('orderan_masuk_crm').select('*').order('created_at', { ascending: false });
-    if (filterTanggal) query = query.eq('tanggal', filterTanggal);
-    if (filterAgent)   query = query.eq('cs_id', filterAgent);
+    if (agentId) query = query.eq('cs_id', agentId);
 
     const { data, error } = await query;
     if (error) throw error;
 
-    // Normalisasi field agar kompatibel dengan render & ACC logic
-    let rows = (data || []).map(r => ({
-      ...r,
-      crm_id:   r.cs_id,
-      crm_nama: r.cs_nama,
-      no_hp:    r.hp,
-      status:   r.acc_spv || 'Menunggu Validasi',
-    }));
+    crmiRefreshAgentFilter();
 
-    if (filterStatus) rows = rows.filter(r => r.status === filterStatus);
-
-    crmiRows = rows;
+    const oldById = new Map(crmiRows.map(r => [r.id, r]));
+    crmiRows = (data || []).map(newRow => {
+      const old = oldById.get(newRow.id);
+      if (old) {
+        if (old._accSpv !== undefined) newRow._accSpv = old._accSpv;
+        if (old._noted  !== undefined) newRow._noted  = old._noted;
+      }
+      return newRow;
+    });
 
     if (!crmiRows.length) {
-      statusEl.textContent = 'Tidak ada order CRM ditemukan.';
+      statusEl.textContent = `Tidak ada orderan CRM di tanggal ${tanggal}${agentId ? ' untuk agent ini' : ''}.`;
       statusEl.className = 'drop-status err';
       statusEl.style.display = 'block';
-      infoEl.textContent = '';
       return;
     }
 
-    const cnt = s => crmiRows.filter(r => r.status === s).length;
-    document.getElementById('crmi-s-total').textContent    = crmiRows.length;
-    document.getElementById('crmi-s-acc').textContent      = cnt('ACC');
-    document.getElementById('crmi-s-hold').textContent     = cnt('HOLD');
-    document.getElementById('crmi-s-cancel').textContent   = cnt('CANCEL');
-    document.getElementById('crmi-s-menunggu').textContent = cnt('Menunggu Validasi');
-    document.getElementById('crmi-summary').style.display  = 'grid';
-
-    infoEl.textContent = `${crmiRows.length} order`;
-    renderCrmInputTable();
+    crmiActiveFilter = 'all';
+    updateCrmiSummary();
+    renderCrmInputTable(getCrmiVisibleRows());
+    updateCrmiSaveInfo();
     document.getElementById('crmi-table-wrap').style.display = 'block';
+    document.getElementById('crmi-info').textContent = `${crmiRows.length} order`;
+    document.getElementById('btn-crmi-download').style.display = 'inline-flex';
 
-    const hasMenunggu = crmiRows.some(r => r.status === 'Menunggu Validasi');
-    document.getElementById('btn-crmi-acc-all').style.display = hasMenunggu ? '' : 'none';
   } catch(e) {
-    showToast('Gagal memuat CRM order: ' + e.message, 'error');
+    statusEl.textContent = '✗ Gagal: ' + e.message;
+    statusEl.className = 'drop-status err';
+    statusEl.style.display = 'block';
+    showToast('Gagal ambil data: ' + e.message, 'error');
   } finally {
+    btn.disabled = false;
     badge.classList.remove('show');
   }
 }
 
-function renderCrmInputTable() {
+function renderCrmInputTable(rows) {
   const tbody = document.getElementById('crmi-tbody');
-  if (!crmiRows.length) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--muted)">Tidak ada data</td></tr>`;
+  if (!rows || !rows.length) {
+    tbody.innerHTML = `<tr><td colspan="26" style="text-align:center;padding:32px;color:var(--muted)">Tidak ada data</td></tr>`;
     return;
   }
 
-  const statusBadge = s => {
-    const map = {
-      'Menunggu Validasi': 'background:#fef3c7;color:#92400e;',
-      'ACC':    'background:#d1fae5;color:#065f46;',
-      'HOLD':   'background:#fef3c7;color:#92400e;',
-      'CANCEL': 'background:#fee2e2;color:#991b1b;',
-    };
-    return `<span style="${map[s]||''}padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">${s}</span>`;
-  };
+  tbody.innerHTML = rows.map((r, i) => {
+    const waktu = new Date(r.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
 
-  tbody.innerHTML = crmiRows.map(r => {
-    const isMenunggu = r.status === 'Menunggu Validasi';
-    const aksi = isMenunggu ? `
-      <div style="display:flex;gap:4px;flex-wrap:wrap;">
-        <button onclick="crmiAcc(${r.id})" style="padding:3px 10px;font-size:11px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">ACC</button>
-        <button onclick="crmiHold(${r.id})" style="padding:3px 10px;font-size:11px;background:#f59e0b;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">HOLD</button>
-        <button onclick="crmiCancel(${r.id})" style="padding:3px 10px;font-size:11px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">CANCEL</button>
-      </div>` : '—';
+    // Duplikat Team
+    const dupTeamHtml = r.is_dup_today
+      ? '<span style="font-size:11px;color:var(--c-dup);font-family:monospace;font-weight:700">DUPLIKAT TEAM</span>'
+      : '<span class="badge badge-ok">AMAN</span>';
 
-    return `<tr>
-      <td><input type="checkbox" ${isMenunggu?'':'disabled'} onchange="crmiToggleCheck(${r.id},this)" ${crmiChecked.has(r.id)?'checked':''}></td>
-      <td style="white-space:nowrap;font-size:12px;">${r.tanggal||'—'}</td>
-      <td style="font-size:12px;">${r.crm_nama||'—'}</td>
-      <td>${r.nama||'—'}</td>
-      <td style="font-family:monospace;font-size:12px;">${r.no_hp||'—'}</td>
-      <td style="max-width:160px;font-size:12px;">${r.jumlah_pesanan||'—'}</td>
-      <td style="text-align:center;">${r.quantity||'—'}</td>
-      <td style="white-space:nowrap;font-size:12px;">Rp${Number(r.total_pembayaran||0).toLocaleString('id-ID')}</td>
-      <td style="font-size:12px;">${r.pembayaran||'—'}</td>
-      <td style="font-size:12px;">${r.kabupaten||'—'}</td>
-      <td>${statusBadge(r.status||'Menunggu Validasi')}</td>
-      <td>${aksi}</td>
+    // Duplikat All Team
+    const dupDetail = Array.isArray(r.dup_detail) ? r.dup_detail : [];
+    const iklanBadge = r.is_dup_all
+      ? (r.iklan_verified === false
+          ? '<span style="font-size:10px;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:4px;font-weight:600;display:inline-block;margin-top:3px">⛔ Tidak ada klik iklan 7 hari</span>'
+          : r.iklan_verified === true
+            ? '<span style="font-size:10px;background:#dcfce7;color:#16a34a;padding:1px 6px;border-radius:4px;font-weight:600;display:inline-block;margin-top:3px">✅ Klik iklan terverifikasi</span>'
+            : '')
+      : '';
+    const dupAllTeamHtml = r.is_dup_all && dupDetail.length
+      ? dupDetail.slice(0,3).map(m => {
+          const csBadge = m.cs ? ` · CS: ${m.cs}` : '';
+          const teamBadge = m.team ? ` (${m.team})` : '';
+          return `<span style="font-size:11px;color:var(--c-dup);font-family:monospace;display:block;margin-top:2px">${m.nama||''}${m.tanggal?' '+m.tanggal:''}${teamBadge}${csBadge}</span>`;
+        }).join('') + iklanBadge
+      : (r.is_dup_all ? '<span style="font-size:11px;color:var(--c-dup)">Duplikat (detail tidak ada)</span>' + iklanBadge : '');
+
+    // RTS
+    const rtsDetail = Array.isArray(r.rts_detail) ? r.rts_detail : [];
+    const rtsCount  = rtsDetail.length;
+    const rtsReason = rtsDetail[0] ? (rtsDetail[0].reason || rtsDetail[0].status_akhir || 'RTS') : 'RTS';
+    const rtsCountBadge = rtsCount > 0
+      ? `<span style="background:#fee2e2;color:#dc2626;font-size:10px;font-family:monospace;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">${rtsCount}x RTS</span>`
+      : '';
+    const wajibTfBadge = r.is_wajib_transfer
+      ? '<span style="font-size:10px;color:#7c3aed;font-family:monospace;display:block;margin-top:2px;font-weight:700">🚫 WAJIB TRANSFER</span>'
+      : '';
+    const rtsHtml = r.is_rts
+      ? `<span style="font-size:11px;font-family:monospace;color:var(--c-warn)">${rtsReason}${rtsCountBadge}</span>${wajibTfBadge}`
+      : '';
+
+    // Row color
+    const hasDup = r.is_dup_today || r.is_dup_all;
+    const hasRts = r.is_rts || r.is_wajib_transfer;
+    const rowCls = hasDup && hasRts ? 'row-both' : hasDup ? 'row-dup' : hasRts ? 'row-rts' : '';
+
+    // ACC SPV select
+    const accVal = (r._accSpv || r.acc_spv || '').toUpperCase();
+    const accBg  = accVal==='KIRIM'?'#dcfce7':accVal==='HOLD'?'#fef3c7':accVal==='CANCEL'?'#fee2e2':'var(--bg)';
+    const accClr = accVal==='KIRIM'?'#16a34a':accVal==='HOLD'?'#d97706':accVal==='CANCEL'?'#dc2626':'var(--text)';
+    const accBdr = accVal==='KIRIM'?'#16a34a':accVal==='HOLD'?'#d97706':accVal==='CANCEL'?'#dc2626':'var(--border-strong)';
+
+    // Alamat
+    const alamatFull = [r.alamat, r.kelurahan, r.kabupaten, r.provinsi].filter(Boolean).join(', ');
+
+    // Ekspedisi
+    const eks = r.eks_detail || null;
+    const eksStatus = eks ? eks.status : 'none';
+    const eksBg  = eksStatus==='red'?'#fee2e2':eksStatus==='yellow'?'#fef3c7':'transparent';
+    const eksClr = eksStatus==='red'?'#dc2626':eksStatus==='yellow'?'#d97706':'var(--text)';
+    const eksHtml = eks
+      ? `<span title="Dipakai: ${eks.dipakai||'—'}" style="font-size:11px;padding:2px 6px;border-radius:4px;background:${eksBg};color:${eksClr}">${eks.rekomendasi||'—'}</span>`
+      : '<span style="color:var(--muted);font-size:11px">—</span>';
+
+    // Wilayah Rawan
+    const kp = r.kp_stat || null;
+    const kpPct = kp ? (kp.pct ?? Math.round((kp.retur/kp.total)*100)) : null;
+    const kpClr = kpPct===null ? 'var(--muted)' : kpPct>=30?'#dc2626':kpPct>=15?'#d97706':'#16a34a';
+    const wilHtml = kp
+      ? `<span title="${kp.retur}/${kp.total} order historis" style="font-size:11px;font-weight:600;color:${kpClr}">${kpPct}%</span>`
+      : (r.is_wilayah_rawan ? '<span style="font-size:11px;color:#d97706">RAWAN</span>' : '<span style="color:var(--muted);font-size:11px">—</span>');
+
+    // SS Chat
+    const ssUrls = Array.isArray(r.ss_urls) ? r.ss_urls : [];
+    const crmiGrade = r.receiver_score?.grade;
+    const crmiBadGrade = !crmiGrade || crmiGrade === 'D';
+    const needSS = r.is_dup_all || r.is_rts || r.is_wilayah_rawan || crmiBadGrade;
+    const ssHtml = ssUrls.length
+      ? `<a href="javascript:void(0)" onclick="showSsChat(${JSON.stringify(ssUrls).replace(/"/g,'&quot;')})" style="font-size:11px;color:var(--accent)">📷 Lihat (${ssUrls.length})</a>`
+      : (needSS ? '<span style="color:var(--muted);font-size:11px">belum ada SS</span>' : '<span style="color:var(--muted);font-size:11px">—</span>');
+
+    return `<tr class="${rowCls}" id="crmi-row-${r.id}">
+      <td style="text-align:center"><input type="checkbox" class="crmi-row-chk" data-id="${r.id}" onchange="onCrmiRowCheck(this)" ${r._selected?'checked':''} style="cursor:pointer;width:14px;height:14px"></td>
+      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${i+1}</td>
+      <td style="font-family:monospace;font-size:12px">${waktu}</td>
+      <td style="font-weight:600;cursor:pointer" ondblclick="editCrmiCell(this,'nama','${r.id}')" title="Double-klik untuk edit">${r.nama||'—'}</td>
+      <td style="font-family:monospace;font-size:12px;cursor:pointer" ondblclick="editCrmiCell(this,'hp','${r.id}')" title="Double-klik untuk edit">${r.hp||'—'}</td>
+      <td style="font-size:11px;max-width:180px;cursor:pointer" ondblclick="editCrmiCell(this,'alamat','${r.id}')" title="${alamatFull.replace(/"/g,'&quot;')} — double-klik untuk edit">${alamatFull||'—'}</td>
+      <td style="font-size:11px;cursor:pointer" ondblclick="editCrmiCell(this,'kecamatan','${r.id}')" title="Double-klik untuk edit">${r.kecamatan||'—'}</td>
+      <td style="font-size:11px;font-family:monospace;cursor:pointer" ondblclick="editCrmiCell(this,'kodepos','${r.id}')" title="Double-klik untuk edit">${r.kodepos||'—'}</td>
+      <td style="font-size:12px;cursor:pointer" ondblclick="editCrmiCell(this,'jumlah_pesanan','${r.id}')" title="Double-klik untuk edit">${r.jumlah_pesanan||'—'}</td>
+      <td style="font-size:12px;cursor:pointer" ondblclick="editCrmiCell(this,'quantity','${r.id}')" title="Double-klik untuk edit">${r.quantity||'—'}</td>
+      <td style="font-size:12px;cursor:pointer" ondblclick="editCrmiCell(this,'pembayaran','${r.id}')" title="Double-klik untuk edit">${r.pembayaran||'—'}</td>
+      <td style="font-size:12px;cursor:pointer" ondblclick="editCrmiCell(this,'total_pembayaran','${r.id}')" title="Double-klik untuk edit">${r.total_pembayaran ? 'Rp'+Number(r.total_pembayaran).toLocaleString('id-ID') : '—'}</td>
+      <td style="font-size:11px;max-width:160px;cursor:pointer" ondblclick="editCrmiCell(this,'instruksi_pengiriman','${r.id}')" title="${(r.instruksi_pengiriman||'').replace(/"/g,'&quot;')} — double-klik untuk edit">${r.instruksi_pengiriman||'—'}</td>
+      <td style="font-size:11px;max-width:140px;cursor:pointer" ondblclick="editCrmiCell(this,'keterangan','${r.id}')" title="${(r.keterangan||'').replace(/"/g,'&quot;')} — double-klik untuk edit">${r.keterangan||'—'}</td>
+      <td style="font-size:11px;max-width:140px;cursor:pointer" ondblclick="editCrmiCell(this,'rincian_pembayaran','${r.id}')" title="${(r.rincian_pembayaran||'').replace(/"/g,'&quot;')} — double-klik untuk edit">${r.rincian_pembayaran||'—'}</td>
+      <td style="font-size:11px;max-width:140px;cursor:pointer" ondblclick="editCrmiCell(this,'keluhan','${r.id}')" title="${(r.keluhan||'').replace(/"/g,'&quot;')} — double-klik untuk edit">${r.keluhan||'—'}</td>
+      <td>${eksHtml}</td>
+      <td>${wilHtml}</td>
+      <td>${ssHtml}</td>
+      <td style="font-size:12px;color:var(--muted)">${r.cs_nama||'—'}</td>
+      <td style="background:${r.is_dup_today?'var(--c-dup-bg)':''}">${dupTeamHtml}</td>
+      <td class="td-wide" style="background:${r.is_dup_all?'var(--c-dup-bg)':''}">${dupAllTeamHtml||'—'}</td>
+      <td style="background:${r.is_rts?'var(--c-warn-bg)':''}">${rtsHtml||'—'}</td>
+      <td>
+        <select class="acc-spv-sel" data-id="${r.id}" onchange="onCrmiAccChange(this)"
+          style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid ${accBdr};background:${accBg};color:${accClr};font-family:monospace;cursor:pointer">
+          <option value="">— pilih —</option>
+          <option value="KIRIM"  ${accVal==='KIRIM' ?'selected':''}>✅ Kirim</option>
+          <option value="HOLD"   ${accVal==='HOLD'  ?'selected':''}>⏸ Hold</option>
+          <option value="CANCEL" ${accVal==='CANCEL'?'selected':''}>❌ Cancel</option>
+        </select>
+      </td>
+      <td>
+        <input type="text" class="noted-input" data-id="${r.id}"
+          value="${((r._noted!==undefined?r._noted:r.noted)||'').replace(/"/g,'&quot;')}"
+          placeholder="tulis catatan..."
+          oninput="onCrmiNotedChange(this)"
+          style="font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:monospace;width:150px">
+      </td>
+      <td style="text-align:center">
+        <button onclick="deleteCrmiRow('${r.id}')" title="Hapus order ini"
+          style="background:none;border:none;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px" onmouseover="this.style.background='var(--danger-light)'" onmouseout="this.style.background='none'">🗑️</button>
+      </td>
     </tr>`;
   }).join('');
-
-  document.getElementById('crmi-check-all').checked = false;
 }
 
-function crmiToggleAll(cb) {
-  crmiChecked.clear();
-  if (cb.checked) crmiRows.filter(r => r.status === 'Menunggu Validasi').forEach(r => crmiChecked.add(r.id));
-  renderCrmInputTable();
-}
+// ── EDIT INLINE ──────────────────────────────────────────────────────────────
+const CRMI_NUMERIC_FIELDS = ['jumlah_pesanan','quantity','total_pembayaran'];
 
-function crmiToggleCheck(id, cb) {
-  if (cb.checked) crmiChecked.add(id); else crmiChecked.delete(id);
-}
-
-async function crmiAcc(id) {
+function editCrmiCell(td, col, id) {
+  if (td.querySelector('input')) return;
   const row = crmiRows.find(r => r.id === id);
   if (!row) return;
-  if (!confirm(`ACC order dari ${row.nama} (${row.no_hp})?`)) return;
-  await crmiDoAcc([row]);
+  const oldVal = row[col] != null ? String(row[col]) : '';
+  const inputType = CRMI_NUMERIC_FIELDS.includes(col) ? 'number' : 'text';
+  td.innerHTML = `<input type="${inputType}" value="${oldVal.replace(/"/g,'&quot;')}"
+    style="width:100%;padding:3px 6px;border:1px solid var(--accent);border-radius:4px;font-size:11px;background:var(--bg);color:var(--text)"
+    onblur="saveCrmiCell(this,'${col}','${id}')"
+    onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=this.defaultValue;this.blur();}" />`;
+  td.querySelector('input').select();
 }
 
-async function crmiAccAll() {
-  const toAcc = crmiRows.filter(r => crmiChecked.has(r.id) && r.status === 'Menunggu Validasi');
-  if (!toAcc.length) { showToast('Centang order dulu', 'warn'); return; }
-  if (!confirm(`ACC ${toAcc.length} order CRM sekaligus?`)) return;
-  await crmiDoAcc(toAcc);
-}
+async function saveCrmiCell(input, col, id) {
+  const td  = input.parentElement;
+  const row = crmiRows.find(r => r.id === id);
+  if (!row) return;
 
-async function crmiDoAcc(rows) {
-  const badge = document.getElementById('loading-crmi');
-  badge.classList.add('show');
+  let newVal = input.value.trim();
+  let dbVal;
+  if (CRMI_NUMERIC_FIELDS.includes(col)) {
+    dbVal  = safeParseInt(newVal);
+    newVal = dbVal != null ? dbVal : '';
+  } else {
+    dbVal = newVal || null;
+  }
+  row[col] = newVal;
+
+  if (col === 'alamat') {
+    const alamatFull = [row.alamat, row.kelurahan, row.kabupaten, row.provinsi].filter(Boolean).join(', ');
+    td.textContent = alamatFull || '—';
+    td.title = alamatFull;
+  } else if (col === 'total_pembayaran') {
+    td.textContent = newVal ? 'Rp'+Number(newVal).toLocaleString('id-ID') : '—';
+  } else {
+    td.textContent = newVal || '—';
+    if (['instruksi_pengiriman','keterangan','rincian_pembayaran','keluhan'].includes(col)) td.title = newVal;
+  }
+
   try {
-    for (const r of rows) {
-      const hp  = normalizeHP(r.no_hp || '');
-      const hp8 = hp.replace(/^0/, '');
-      const tgl = r.tanggal || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+    const upd = {}; upd[col] = dbVal;
+    const { error } = await sb.from('orderan_masuk_crm').update(upd).eq('id', id);
+    if (error) throw error;
+    td.style.background = 'var(--success-light)';
+    setTimeout(() => td.style.background = '', 1000);
+  } catch(e) {
+    showToast('Gagal simpan: '+e.message, 'error');
+    td.style.background = 'var(--danger-light)';
+    setTimeout(() => td.style.background = '', 1500);
+  }
+}
 
-      // 1. Insert ke all_orderan
-      const { error: aoErr } = await sb.from('all_orderan').insert({
-        no: r.no || '', tanggal: tgl,
-        nama: r.nama || '', hp: hp8,
-        alamat: r.alamat || '', kelurahan: r.kelurahan || '',
-        kecamatan: r.kecamatan || '', kabupaten: r.kabupaten || '',
-        provinsi: r.provinsi || '', kodepos: r.kodepos || '',
-        jumlah: r.jumlah_pesanan || '', quantity: r.quantity || null,
-        pembayaran: r.pembayaran || '', total_pembayaran: r.total_pembayaran || null,
-        instruksi: r.instruksi_pengiriman || '', resi: '',
-        team: 'CRM', cs: r.crm_nama || '', adv: '', adm: '',
-        keluhan: r.keluhan || '', update_crm: '',
-        status_akhir: 'ON PROSES', retur: '0', sumber: 'crm',
-        created_at: `${tgl}T12:00:00+07:00`,
-      });
-      if (aoErr) throw new Error(`Gagal insert all_orderan: ${aoErr.message}`);
+// ── HAPUS BARIS ──────────────────────────────────────────────────────────────
+async function deleteCrmiRow(id) {
+  const row = crmiRows.find(r => r.id === id);
+  if (!row) return;
+  const accVal = (row._accSpv || row.acc_spv || '').toUpperCase();
+  let msg = `Hapus order dari ${row.nama||'—'} (${row.hp||'—'})?`;
+  if (accVal === 'KIRIM') {
+    msg += '\n\n⚠ Order ini sudah berstatus KIRIM (kemungkinan sudah tersimpan di All Orderan). Menghapus di sini TIDAK otomatis menghapus datanya di All Orderan.';
+  }
+  if (!confirm(msg)) return;
 
-      // 2. Update acc_spv = 'ACC' di orderan_masuk_crm
-      await sb.from('orderan_masuk_crm').update({ acc_spv: 'ACC' }).eq('id', r.id);
+  try {
+    const { error } = await sb.from('orderan_masuk_crm').delete().eq('id', id);
+    if (error) throw error;
+    crmiRows = crmiRows.filter(r => r.id !== id);
+    updateCrmiSummary();
+    renderCrmInputTable(getCrmiVisibleRows());
+    updateCrmiSaveInfo();
+    document.getElementById('crmi-info').textContent = `${crmiRows.length} order`;
+    showToast('✓ Order dihapus', 'success');
+  } catch(e) {
+    showToast('Gagal hapus: ' + e.message, 'error');
+  }
+}
+
+async function bulkDeleteCrmi() {
+  const selected = crmiRows.filter(r => r._selected);
+  if (!selected.length) return;
+  const kirimCount = selected.filter(r => (r._accSpv||r.acc_spv||'').toUpperCase()==='KIRIM').length;
+  let msg = `Hapus ${selected.length} order terpilih?`;
+  if (kirimCount) msg += `\n\n⚠ ${kirimCount} di antaranya sudah berstatus KIRIM.`;
+  if (!confirm(msg)) return;
+
+  try {
+    const ids = selected.map(r => r.id);
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const { error } = await sb.from('orderan_masuk_crm').delete().in('id', batch);
+      if (error) throw error;
+    }
+    const idSet = new Set(ids);
+    crmiRows = crmiRows.filter(r => !idSet.has(r.id));
+    updateCrmiSummary();
+    renderCrmInputTable(getCrmiVisibleRows());
+    updateCrmiSaveInfo();
+    updateCrmiBulkBar();
+    document.getElementById('crmi-info').textContent = `${crmiRows.length} order`;
+    showToast(`✓ ${selected.length} order dihapus`, 'success');
+  } catch(e) {
+    showToast('Gagal hapus: ' + e.message, 'error');
+  }
+}
+
+// ── BULK ACC ─────────────────────────────────────────────────────────────────
+function updateCrmiBulkBar() {
+  const n = crmiRows.filter(r => r._selected).length;
+  const bar = document.getElementById('crmi-bulk-bar');
+  document.getElementById('crmi-bulk-count').textContent = `${n} baris dipilih`;
+  bar.style.display = n > 0 ? 'flex' : 'none';
+}
+
+function toggleSelectAllCrmi(chk) {
+  crmiRows.forEach(r => r._selected = chk.checked);
+  document.querySelectorAll('.crmi-row-chk').forEach(el => el.checked = chk.checked);
+  updateCrmiBulkBar();
+}
+
+function onCrmiRowCheck(chk) {
+  const row = crmiRows.find(r => r.id === chk.dataset.id);
+  if (row) row._selected = chk.checked;
+  if (!chk.checked) document.getElementById('crmi-chk-all').checked = false;
+  updateCrmiBulkBar();
+}
+
+function clearCrmiSelection() {
+  crmiRows.forEach(r => r._selected = false);
+  document.getElementById('crmi-chk-all').checked = false;
+  renderCrmInputTable(getCrmiVisibleRows());
+  updateCrmiBulkBar();
+}
+
+function bulkSetAccCrmi(status) {
+  const selected = crmiRows.filter(r => r._selected);
+  if (!selected.length) return;
+  selected.forEach(r => r._accSpv = status);
+  updateCrmiSummary();
+  renderCrmInputTable(getCrmiVisibleRows());
+  updateCrmiSaveInfo();
+}
+
+function onCrmiAccChange(sel) {
+  const id  = sel.dataset.id;
+  const row = crmiRows.find(r => r.id === id);
+  if (!row) return;
+  row._accSpv = sel.value;
+  const bg  = sel.value==='KIRIM'?'#dcfce7':sel.value==='HOLD'?'#fef3c7':sel.value==='CANCEL'?'#fee2e2':'var(--bg)';
+  const clr = sel.value==='KIRIM'?'#16a34a':sel.value==='HOLD'?'#d97706':sel.value==='CANCEL'?'#dc2626':'var(--text)';
+  const bdr = sel.value==='KIRIM'?'#16a34a':sel.value==='HOLD'?'#d97706':sel.value==='CANCEL'?'#dc2626':'var(--border-strong)';
+  sel.style.background = bg; sel.style.color = clr; sel.style.borderColor = bdr;
+  updateCrmiSaveInfo();
+  updateCrmiSummary();
+}
+
+function onCrmiNotedChange(inp) {
+  const id  = inp.dataset.id;
+  const row = crmiRows.find(r => r.id === id);
+  if (row) row._noted = inp.value;
+}
+
+// ── SIMPAN SEMUA ACC ──────────────────────────────────────────────────────────
+async function saveCrmInputAcc() {
+  const toSave = crmiRows.filter(r => r._accSpv || r.acc_spv);
+  if (!toSave.length) { showToast('Belum ada yang di-ACC', 'warn'); return; }
+
+  const badge = document.getElementById('loading-crmi-save');
+  const btn   = document.getElementById('btn-crmi-simpan');
+  btn.disabled = true;
+  badge.classList.add('show');
+
+  try {
+    // 1. Update acc_spv + noted di orderan_masuk_crm
+    badge.textContent = `update acc_spv (${toSave.length} order)...`;
+    const accTanggalHariIni = nowWIB().slice(0, 10);
+    for (const row of toSave) {
+      const accVal   = (row._accSpv || row.acc_spv || '').toUpperCase();
+      const notedVal = (row._noted  !== undefined ? row._noted : row.noted) || '';
+      await sb.from('orderan_masuk_crm')
+        .update({ acc_spv: accVal, noted: notedVal || null, acc_tanggal: accTanggalHariIni })
+        .eq('id', row.id);
     }
 
-    showToast(`✅ ${rows.length} order berhasil di-ACC`, 'success');
+    // 2. Insert KIRIM ke all_orderan
+    const kirimRows = toSave.filter(r => (r._accSpv||r.acc_spv||'').toUpperCase() === 'KIRIM');
+    if (kirimRows.length) {
+      badge.textContent = `cek duplikat all_orderan...`;
+
+      const hpList = [...new Set(kirimRows.map(r => normalizeHP(r.hp)))];
+      const { data: existing } = await sb.from('all_orderan')
+        .select('hp,tanggal')
+        .eq('sumber','crm')
+        .in('hp', hpList);
+
+      const existingSet = new Set((existing||[]).filter(r=>r.tanggal).map(r=>r.hp+'|'+r.tanggal.slice(0,10)));
+
+      const newRows = kirimRows
+        .filter(r => {
+          const hp = normalizeHP(r.hp);
+          const key = hp + '|' + (r.tanggal||'').slice(0,10);
+          return !existingSet.has(key);
+        })
+        .map(r => {
+          const hp = normalizeHP(r.hp);
+          return {
+            no          : r.no || '',
+            tanggal     : r.tanggal || '',
+            nama        : r.nama || '',
+            hp          : hp,
+            alamat      : r.alamat || '',
+            kelurahan   : r.kelurahan || '',
+            kecamatan   : r.kecamatan || '',
+            kabupaten   : r.kabupaten || '',
+            provinsi    : r.provinsi || '',
+            kodepos     : r.kodepos || '',
+            jumlah      : r.jumlah_pesanan || '',
+            quantity    : safeParseInt(r.quantity),
+            pembayaran  : r.pembayaran || '',
+            total_pembayaran: safeParseInt(r.total_pembayaran),
+            instruksi   : r.instruksi_pengiriman || '',
+            resi        : '',
+            team        : 'CRM',
+            update_crm  : '',
+            status_akhir: 'ON PROSES',
+            retur       : '0',
+            sumber      : 'crm',
+            cs          : r.cs_nama || '',
+            adv         : (String(r.instruksi_pengiriman||'').split('/')[1]||'').replace(/Adv\.\s*/i,'').trim().slice(0,100),
+            adm         : (String(r.instruksi_pengiriman||'').split('/')[2]||'').trim().slice(0,100),
+            keluhan     : r.keluhan || '',
+            created_at  : nowWIB(),
+          };
+        });
+
+      if (newRows.length) {
+        badge.textContent = `simpan ${newRows.length} ke all_orderan...`;
+        for (let i = 0; i < newRows.length; i += 500) {
+          const { error } = await sb.from('all_orderan').insert(newRows.slice(i, i+500));
+          if (error) throw error;
+        }
+        showToast(`✓ ${newRows.length} orderan CRM KIRIM masuk ke Data Master!`, 'success');
+      } else {
+        showToast('Semua orderan KIRIM sudah ada di Data Master', 'info');
+      }
+    }
+
+    // 3. Kirim notif WA ke tiap CRM Agent
+    if (currentFonnteKey) {
+      badge.textContent = 'kirim notif WA ke CRM Agent...';
+      const agentGroup = {};
+      toSave.forEach(r => {
+        const nama = r.cs_nama || '—';
+        if (!agentGroup[nama]) agentGroup[nama] = { kirim:0, hold:0, cancel:0 };
+        const acc = (r._accSpv || r.acc_spv || '').toUpperCase();
+        if      (acc === 'KIRIM')  agentGroup[nama].kirim++;
+        else if (acc === 'HOLD')   agentGroup[nama].hold++;
+        else if (acc === 'CANCEL') agentGroup[nama].cancel++;
+      });
+      for (const [nama, stat] of Object.entries(agentGroup)) {
+        if (stat.kirim + stat.hold + stat.cancel === 0) continue;
+        const noWA = await getCSWA(nama);
+        if (!noWA) continue;
+        const lines = [`✅ *Halo ${nama}!*`, `Orderanmu hari ini sudah di-ACC validator:`, ''];
+        if (stat.kirim)  lines.push(`✅ *KIRIM*  : ${stat.kirim} order`);
+        if (stat.hold)   lines.push(`⏸ *HOLD*   : ${stat.hold} order`);
+        if (stat.cancel) lines.push(`❌ *CANCEL* : ${stat.cancel} order`);
+        lines.push('', 'Cek CRM Input untuk detail.');
+        try {
+          await fetch('/api/fonnte', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target: noWA, message: lines.join('\n'), fonnte_key: currentFonnteKey })
+          });
+        } catch(e) { console.warn('Gagal notif WA ke', nama, e); }
+      }
+    }
+
+    showToast(`✓ ${toSave.length} order berhasil disimpan`, 'success');
     await loadCrmInput();
+
   } catch(e) {
-    showToast('Gagal ACC: ' + e.message, 'error');
+    showToast('Gagal simpan: ' + e.message, 'error');
   } finally {
+    btn.disabled = false;
+    badge.textContent = 'menyimpan...';
     badge.classList.remove('show');
   }
 }
 
-async function crmiHold(id) {
-  if (!confirm('HOLD order ini?')) return;
-  const { error } = await sb.from('orderan_masuk_crm').update({ acc_spv: 'HOLD' }).eq('id', id);
-  if (error) { showToast('Gagal HOLD: ' + error.message, 'error'); return; }
-  showToast('Order di-HOLD', 'warn');
-  await loadCrmInput();
-}
-
-async function crmiCancel(id) {
-  if (!confirm('CANCEL order ini? Order tidak akan dikirim.')) return;
-  const { error } = await sb.from('orderan_masuk_crm').update({ acc_spv: 'CANCEL' }).eq('id', id);
-  if (error) { showToast('Gagal CANCEL: ' + error.message, 'error'); return; }
-  showToast('Order di-CANCEL', 'error');
-  await loadCrmInput();
+// ── DOWNLOAD EXCEL ────────────────────────────────────────────────────────────
+function exportCrmiXLSX() {
+  const rows = getCrmiVisibleRows();
+  if (!rows.length) { showToast('Tidak ada data untuk didownload.', 'error'); return; }
+  const accOf   = r => r._accSpv || r.acc_spv || '';
+  const notedOf = r => r._noted !== undefined ? r._noted : (r.noted || '');
+  const tanggal = document.getElementById('crmi-tanggal').value || 'all';
+  const exportRows = rows.map((r, i) => ({
+    'No'               : i + 1,
+    'Waktu'            : new Date(r.created_at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+    'Tanggal'          : r.tanggal || '',
+    'Nama'             : r.nama || '',
+    'HP'               : r.hp || '',
+    'Alamat'           : r.alamat || '',
+    'Kelurahan'        : r.kelurahan || '',
+    'Kecamatan'        : r.kecamatan || '',
+    'Kabupaten'        : r.kabupaten || '',
+    'Provinsi'         : r.provinsi || '',
+    'Kodepos'          : r.kodepos || '',
+    'Jumlah Pesanan'   : r.jumlah_pesanan || '',
+    'Qty'              : r.quantity || '',
+    'Pembayaran'       : r.pembayaran || '',
+    'Total'            : r.total_pembayaran || '',
+    'Instruksi'        : r.instruksi_pengiriman || '',
+    'Keterangan'       : r.keterangan || '',
+    'Rincian'          : r.rincian_pembayaran || '',
+    'Keluhan'          : r.keluhan || '',
+    'CRM Agent'        : r.cs_nama || '',
+    'Dup Team'         : r.is_dup_today ? 'DUPLIKAT' : '',
+    'Dup All Team'     : r.is_dup_all   ? 'DUPLIKAT' : '',
+    'RTS'              : r.is_rts       ? 'RTS' : '',
+    'Wil Rawan'        : r.is_wilayah_rawan ? 'RAWAN' : '',
+    'ACC SPV'          : accOf(r),
+    'Noted'            : notedOf(r),
+  }));
+  const ws = XLSX.utils.json_to_sheet(exportRows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'CRM Input');
+  XLSX.writeFile(wb, `crminput_${tanggal.replace(/-/g,'')}.xlsx`);
 }
 
 // ════════════════════════════════════════════════════════════════
